@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { IconCandado, IconCorreo, IconOjo, IconOjoCerrado, IconPata } from '@/shared/components/Icons.jsx';
 import { useAuth } from '../AuthContext.jsx';
-import { login } from '../services/authService.js';
+import { login, reenviarCodigo } from '../services/authService.js';
 import './LoginPage.css';
 
 export default function LoginPage() {
@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [cargando, setCargando] = useState(false);
   const { iniciarSesion } = useAuth();
   const navigate = useNavigate();
+  const { state } = useLocation();
 
   const entrar = async (e) => {
     e.preventDefault();
@@ -22,6 +23,12 @@ export default function LoginPage() {
       iniciarSesion(await login(correo, clave));
       navigate('/inicio');
     } catch (err) {
+      if (err.codigo === 'CORREO_SIN_VERIFICAR') {
+        // Si el reenvío falla (p. ej. aún no pasan 60 s) ya hay un código vigente: se sigue igual.
+        await reenviarCodigo(correo).catch(() => {});
+        navigate('/verificar-correo', { state: { correo: correo.trim().toLowerCase() } });
+        return;
+      }
       setError(err.message);
     } finally {
       setCargando(false);
@@ -38,6 +45,10 @@ export default function LoginPage() {
 
         <h1>Inicia sesión</h1>
         <p className="login-sub">Deja a tu mascota con vecinos de confianza, sin preocuparte.</p>
+
+        {state?.cuentaActivada && (
+          <p className="login-exito" role="status">¡Cuenta activada! Ya puedes iniciar sesión.</p>
+        )}
 
         <form className="login-form" onSubmit={entrar}>
           <div>

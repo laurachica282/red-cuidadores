@@ -1,0 +1,29 @@
+.codigo {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.codigo-casilla {
+    width: 100%;
+    min-width: 0;
+    height: 56px;
+    border: 1.5px solid var(--input-border);
+    border-radius: 14px;
+    background: #fff;
+    color: var(--navy);
+    font: inherit;
+    font-size: 24px;
+    font-weight: 700;
+    text-align: center;
+    caret-color: var(--teal-text);
+}
+
+.codigo-casilla:focus {
+    outline: 2px solid var(--teal-text);
+    outline-offset: 1px;
+}
+
+.codigo-casilla:disabled {
+    opacity: 0.6;
+}

@@ -64,6 +64,16 @@
     color: var(--slate);
 }
 
+.login-exito {
+    margin: 20px 0 0;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: var(--tint);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--teal-text);
+}
+
 .login-form {
     margin-top: 28px;
     display: flex;
