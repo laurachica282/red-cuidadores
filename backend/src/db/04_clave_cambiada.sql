@@ -1,0 +1,2 @@
+ALTER TABLE usuarios
+  ADD COLUMN IF NOT EXISTS clave_cambiada_en TIMESTAMPTZ;

@@ -1,11 +1,16 @@
 import { REGLAS } from './reglasClave.js';
 import './ReglasClave.css';
 
-export default function ReglasClave({ clave }) {
+// `extras` suma reglas ya evaluadas: [{ id, texto, ok }] (p. ej. que las dos contraseñas coincidan).
+export default function ReglasClave({ clave, extras = [] }) {
+  const reglas = [
+    ...REGLAS.map((r) => ({ id: r.id, texto: r.texto, ok: r.cumple(clave) })),
+    ...extras,
+  ];
   return (
     <ul className="reglas-clave" aria-label="Requisitos de la contraseña">
-      {REGLAS.map((r) => {
-        const ok = r.cumple(clave);
+      {reglas.map((r) => {
+        const ok = r.ok;
         return (
           <li key={r.id} className={ok ? 'reglas-clave-ok' : ''}>
             <span aria-hidden="true">{ok ? '✓' : '○'}</span>
