@@ -13,6 +13,7 @@ export const publicRoutes = [
   { path: '/login', element: <LoginPage /> },
   { path: '/registro', element: <RegistroPage /> },
   { path: '/verificar-correo', element: <VerificarCorreoPage /> },
+  { path: '/verificar-2fa', element: <VerificarCorreoPage modo="2fa" /> },
 ];
 
 export const privateRoutes = [

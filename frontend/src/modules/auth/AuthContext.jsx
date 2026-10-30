@@ -14,6 +14,12 @@ export function AuthProvider({ children }) {
     setUsuario(usuario);
   };
 
+  // Refleja cambios del perfil (p. ej. dos_pasos) sin tocar el token.
+  const actualizarUsuario = (usuario) => {
+    localStorage.setItem('usuario', JSON.stringify(usuario));
+    setUsuario(usuario);
+  };
+
   // Solo borra los datos de este navegador; ProtectedRoute se encarga de llevar al login.
   const limpiarSesion = useCallback(() => {
     localStorage.removeItem('token');
@@ -34,7 +40,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ usuario, iniciarSesion, cerrarSesion }}>
+    <AuthContext.Provider value={{ usuario, iniciarSesion, actualizarUsuario, cerrarSesion }}>
       {children}
     </AuthContext.Provider>
   );
