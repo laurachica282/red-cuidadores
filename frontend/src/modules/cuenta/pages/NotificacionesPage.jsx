@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import Aviso from '../components/Aviso.jsx';
+import Casilla from '../components/Casilla.jsx';
 import Interruptor from '../components/Interruptor.jsx';
 import Pantalla from '../components/Pantalla.jsx';
 import { useCarga } from '../hooks/useCarga.js';
 import { guardarNotificaciones, obtenerNotificaciones } from '../services/cuentaService.js';
 import { CANALES, EVENTOS } from '../utils/textos.js';
 
-// HU-32: qué avisos recibe (reservas, reportes, mensajes, promociones) y por qué canal.
+// HU-32 (mockup 16): "Qué te avisamos" (eventos) y "Por dónde" (canales). Se avisa de un evento
+// solo si está activo, y por los canales activos.
 function Formulario({ inicial }) {
   const [guardado, setGuardado] = useState(inicial);
   const [borrador, setBorrador] = useState(inicial);
@@ -16,8 +18,8 @@ function Formulario({ inicial }) {
 
   const cambio = JSON.stringify(guardado) !== JSON.stringify(borrador);
 
-  const marcar = (evento, canal, activo) => {
-    setBorrador({ ...borrador, [evento]: { ...borrador[evento], [canal]: activo } });
+  const marcar = (grupo, clave, activo) => {
+    setBorrador({ ...borrador, [grupo]: { ...borrador[grupo], [clave]: activo } });
     setOk('');
   };
 
@@ -27,9 +29,9 @@ function Formulario({ inicial }) {
     setOk('');
     setGuardando(true);
     try {
-      const { preferencias } = await guardarNotificaciones(borrador);
-      setGuardado(preferencias);
-      setBorrador(preferencias);
+      const nuevo = await guardarNotificaciones(borrador);
+      setGuardado(nuevo);
+      setBorrador(nuevo);
       setOk('Guardamos tus preferencias');
     } catch (err) {
       setError(err.message);
@@ -40,23 +42,35 @@ function Formulario({ inicial }) {
 
   return (
     <form className="cu-form" onSubmit={guardar}>
-      <p className="cu-texto">Elige qué avisos quieres recibir y por dónde.</p>
-      {EVENTOS.map((ev) => (
-        <fieldset key={ev.valor} className="cu-tarjeta" style={{ margin: 0 }}>
-          <legend className="cu-sr">{ev.titulo}</legend>
-          <h2 aria-hidden="true">{ev.titulo}</h2>
-          <p className="cu-item-meta">{ev.desc}</p>
-          {CANALES.map((c) => (
-            <Interruptor key={c.valor} etiqueta={c.titulo} marcado={!!borrador[ev.valor]?.[c.valor]}
-              onChange={(activo) => marcar(ev.valor, c.valor, activo)} />
-          ))}
-        </fieldset>
-      ))}
-      <Aviso>{error}</Aviso>
-      <Aviso tipo="ok">{ok}</Aviso>
-      <button type="submit" className="btn-primary" disabled={!cambio || guardando}>
-        {guardando ? 'Guardando…' : 'Guardar preferencias'}
-      </button>
+      <p className="cu-texto">Elige qué quieres que te avisemos.</p>
+
+      <p className="cu-seccion">Qué te avisamos</p>
+      <div className="cu-filas">
+        {EVENTOS.map((ev) => (
+          <div key={ev.valor}>
+            <Interruptor titulo={ev.titulo} descripcion={ev.desc} marcado={!!borrador.eventos[ev.valor]}
+              onChange={(activo) => marcar('eventos', ev.valor, activo)} />
+          </div>
+        ))}
+      </div>
+
+      <p className="cu-seccion">Por dónde</p>
+      <div className="cu-filas">
+        {CANALES.map((c) => (
+          <div key={c.valor}>
+            <Casilla titulo={c.titulo} marcado={!!borrador.canales[c.valor]}
+              onChange={(activo) => marcar('canales', c.valor, activo)} />
+          </div>
+        ))}
+      </div>
+
+      <div className="cu-acciones">
+        <Aviso>{error}</Aviso>
+        <Aviso tipo="ok">{ok}</Aviso>
+        <button type="submit" className="btn-primary" disabled={!cambio || guardando}>
+          {guardando ? 'Guardando…' : 'Guardar preferencias'}
+        </button>
+      </div>
     </form>
   );
 }
@@ -67,7 +81,7 @@ export default function NotificacionesPage() {
     <Pantalla titulo="Notificaciones">
       {cargando && <p className="cu-cargando">Cargando…</p>}
       {!cargando && error && <Aviso>{error}</Aviso>}
-      {datos && <Formulario inicial={datos.preferencias} />}
+      {datos && <Formulario inicial={datos} />}
     </Pantalla>
   );
 }

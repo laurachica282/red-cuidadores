@@ -29,8 +29,10 @@ export const validarCodigo = (v) => (/^\d{6}$/.test(v.trim()) ? '' : 'El código
 // Solo deja dígitos y corta a 6, para pegar o escribir el código sin errores.
 export const limpiarCodigo = (v) => v.replace(/\D/g, '').slice(0, 6);
 
-// carlos@correo.com -> c*****@correo.com
+// carlos@correo.com -> ca•••••@correo.com (como en el mockup de verificación)
 export const enmascarar = (correo) => {
   const [usuario, dominio] = String(correo).split('@');
-  return dominio ? `${usuario[0]}${'*'.repeat(Math.max(usuario.length - 1, 3))}@${dominio}` : '***';
+  if (!dominio) return '•••';
+  const visibles = usuario.slice(0, Math.min(2, usuario.length - 1));
+  return `${visibles}${'•'.repeat(Math.max(usuario.length - visibles.length, 3))}@${dominio}`;
 };

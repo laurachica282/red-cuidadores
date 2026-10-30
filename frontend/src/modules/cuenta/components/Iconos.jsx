@@ -5,7 +5,7 @@ const base = {
 };
 
 export const IconAtras = (p) => (
-  <svg {...base} {...p}><path d="m15 18-6-6 6-6" /></svg>
+  <svg {...base} {...p}><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>
 );
 export const IconSiguiente = (p) => (
   <svg {...base} {...p}><path d="m9 18 6-6-6-6" /></svg>

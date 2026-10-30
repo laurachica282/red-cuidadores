@@ -4,15 +4,17 @@ import { IconCorreo } from '@/shared/components/Icons.jsx';
 import Aviso from '../components/Aviso.jsx';
 import CampoClave from '../components/CampoClave.jsx';
 import CampoCodigo from '../components/CampoCodigo.jsx';
+import { IconEscudo } from '../components/Iconos.jsx';
 import Pantalla from '../components/Pantalla.jsx';
 import { useCarga } from '../hooks/useCarga.js';
 import { useCuentaRegresiva } from '../hooks/useCuentaRegresiva.js';
 import {
   confirmarCambioCorreo, obtenerPerfil, solicitarCambioCorreo, sincronizarSesion,
 } from '../services/cuentaService.js';
-import { validarCodigo, validarCorreo } from '../utils/validaciones.js';
+import { minutosYSegundos } from '../utils/textos.js';
+import { enmascarar, validarCodigo, validarCorreo } from '../utils/validaciones.js';
 
-// HU-06: pide la clave, manda un código al correo NUEVO y avisa al anterior.
+// HU-06 (mockups 14 y 9): pide la clave, manda un código al correo NUEVO y avisa al anterior.
 // El correo no cambia hasta confirmar el código.
 function Flujo({ perfil }) {
   const pendiente = perfil.cambio_correo_pendiente;
@@ -21,7 +23,6 @@ function Flujo({ perfil }) {
   const [clave, setClave] = useState('');
   const [codigo, setCodigo] = useState('');
   const [error, setError] = useState('');
-  const [info, setInfo] = useState(pendiente ? 'Tienes un cambio de correo a medias. Escribe el código que te enviamos o pide uno nuevo.' : '');
   const [cargando, setCargando] = useState(false);
   const [correoActual, setCorreoActual] = useState(perfil.correo);
   const [espera, iniciarEspera] = useCuentaRegresiva();
@@ -29,7 +30,6 @@ function Flujo({ perfil }) {
   const pedirCodigo = async (e) => {
     e?.preventDefault();
     setError('');
-    setInfo('');
     if (validarCorreo(nuevo)) return setError(validarCorreo(nuevo));
     setCargando(true);
     try {
@@ -37,7 +37,6 @@ function Flujo({ perfil }) {
       iniciarEspera(r.reenvio_segundos ?? 60);
       setCodigo('');
       setPaso('codigo');
-      setInfo(`Enviamos un código de 6 dígitos a ${nuevo.trim()}. Vence en 10 minutos.`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -48,7 +47,6 @@ function Flujo({ perfil }) {
   const confirmar = async (e) => {
     e.preventDefault();
     setError('');
-    setInfo('');
     if (validarCodigo(codigo)) return setError(validarCodigo(codigo));
     setCargando(true);
     try {
@@ -72,7 +70,7 @@ function Flujo({ perfil }) {
           <p className="cu-item-meta">Tu correo ahora es</p>
           <p className="cu-item-titulo">{correoActual}</p>
         </div>
-        <Link className="btn-primary" to="/cuenta">Volver a mi cuenta</Link>
+        <div className="cu-acciones"><Link className="btn-primary" to="/cuenta">Listo</Link></div>
       </div>
     );
   }
@@ -80,25 +78,42 @@ function Flujo({ perfil }) {
   if (paso === 'codigo') {
     return (
       <form className="cu-form" onSubmit={confirmar} noValidate>
+        <span className="cu-icono-grande"><IconCorreo /></span>
+        <h2 className="cu-titulo-grande">Revisa tu correo</h2>
         <p className="cu-texto">
-          Tu correo actual (<strong>{perfil.correo}</strong>) no cambia hasta que confirmes el código.
+          Enviamos un código de 6 dígitos a <strong style={{ color: 'var(--navy)' }}>{enmascarar(nuevo)}</strong>.
+          Escríbelo para continuar. Tu correo actual (<strong style={{ color: 'var(--navy)' }}>{perfil.correo}</strong>) no cambia hasta que lo confirmes.
         </p>
-        <Aviso tipo="info">{info}</Aviso>
         <CampoCodigo valor={codigo} onChange={setCodigo} />
         <Aviso>{error}</Aviso>
         <button type="submit" className="btn-primary" disabled={cargando || codigo.length !== 6}>
-          {cargando ? 'Confirmando…' : 'Confirmar correo'}
+          {cargando ? 'Verificando…' : 'Verificar'}
         </button>
-        <div className="cu-fila">
+
+        <div className="cu-centro">
+          <p className="cu-texto">¿No te llegó el código?</p>
           {/* Reenviar necesita la contraseña; si se retomó el trámite sin ella, se vuelve al paso anterior. */}
-          {clave && (
-            <button type="button" className="cu-btn cu-btn-texto" disabled={espera > 0 || cargando} onClick={pedirCodigo}>
-              {espera > 0 ? `Reenviar en ${espera} s` : 'Reenviar código'}
+          {clave ? (
+            <button type="button" className="cu-btn cu-btn-texto" style={{ margin: '0 auto' }} disabled={espera > 0 || cargando} onClick={pedirCodigo}>
+              {espera > 0 ? <span className="cu-reenvio">Reenviar en {minutosYSegundos(espera)}</span> : 'Reenviar código'}
+            </button>
+          ) : (
+            <button type="button" className="cu-btn cu-btn-texto" style={{ margin: '0 auto' }}
+              onClick={() => { setPaso('datos'); setError(''); }}>
+              Pedir un código nuevo
             </button>
           )}
-          <button type="button" className="cu-btn cu-btn-texto" onClick={() => { setPaso('datos'); setError(''); setInfo(''); }}>
-            {clave ? 'Usar otro correo' : 'Pedir un código nuevo'}
-          </button>
+          {clave && (
+            <button type="button" className="cu-btn cu-btn-texto" style={{ margin: '0 auto' }}
+              onClick={() => { setPaso('datos'); setError(''); }}>
+              Usar otro correo
+            </button>
+          )}
+        </div>
+
+        <div className="cu-nota" style={{ marginTop: 'auto' }}>
+          <IconEscudo />
+          <span>El código vence en 10 minutos. Nunca lo compartas con nadie, ni siquiera con nosotros.</span>
         </div>
       </form>
     );
@@ -106,23 +121,34 @@ function Flujo({ perfil }) {
 
   return (
     <form className="cu-form" onSubmit={pedirCodigo} noValidate>
-      <p className="cu-texto">
-        Te enviaremos un código al correo nuevo y un aviso a <strong>{perfil.correo}</strong>.
-      </p>
+      <div className="cu-tarjeta">
+        <p className="cu-item-meta" style={{ fontWeight: 700 }}>Correo actual</p>
+        <p className="cu-item-titulo" style={{ fontWeight: 500, overflowWrap: 'anywhere' }}>{perfil.correo}</p>
+      </div>
+
       <div>
-        <label className="label" htmlFor="correo-nuevo">Correo nuevo</label>
+        <label className="label" htmlFor="correo-nuevo">Nuevo correo electrónico</label>
         <div className="cu-campo">
           <span className="cu-campo-icono"><IconCorreo /></span>
           <input id="correo-nuevo" className="input cu-con-icono" type="email" autoComplete="email" placeholder="nuevo@correo.com"
             value={nuevo} onChange={(e) => setNuevo(e.target.value)} required />
         </div>
       </div>
-      <CampoClave id="clave-actual" etiqueta="Tu contraseña actual" valor={clave} onChange={setClave}
-        ayuda="La pedimos para confirmar que eres tú." />
-      <Aviso>{error}</Aviso>
-      <button type="submit" className="btn-primary" disabled={cargando || !nuevo.trim() || !clave}>
-        {cargando ? 'Enviando código…' : 'Enviar código'}
-      </button>
+
+      <CampoClave id="clave-actual" etiqueta="Contraseña actual" placeholder="Para confirmar que eres tú"
+        valor={clave} onChange={setClave} ayuda="Te enviaremos un código de 6 dígitos al correo nuevo." />
+
+      <p className="cu-nota" role="note">
+        <IconEscudo />
+        <span>Hasta que lo verifiques, seguirás entrando con tu correo actual. También avisaremos al correo anterior del cambio.</span>
+      </p>
+
+      <div className="cu-acciones">
+        <Aviso>{error}</Aviso>
+        <button type="submit" className="btn-primary" disabled={cargando || !nuevo.trim() || !clave}>
+          {cargando ? 'Enviando código…' : 'Enviar código'}
+        </button>
+      </div>
     </form>
   );
 }

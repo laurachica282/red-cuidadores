@@ -7,6 +7,7 @@ import CampoCodigo from '../components/CampoCodigo.jsx';
 import Pantalla from '../components/Pantalla.jsx';
 import { useCuentaRegresiva } from '../hooks/useCuentaRegresiva.js';
 import { confirmarReactivacion, solicitarReactivacion } from '../services/cuentaService.js';
+import { minutosYSegundos } from '../utils/textos.js';
 import { validarCodigo, validarCorreo } from '../utils/validaciones.js';
 
 // HU-40: pública (una cuenta desactivada no puede iniciar sesión). Verifica la identidad con
@@ -95,7 +96,7 @@ export default function ReactivarCuentaPage() {
           </button>
           <div className="cu-fila">
             <button type="button" className="cu-btn cu-btn-texto" disabled={espera > 0 || cargando} onClick={pedirCodigo}>
-              {espera > 0 ? `Reenviar en ${espera} s` : 'Reenviar código'}
+              {espera > 0 ? `Reenviar en ${minutosYSegundos(espera)}` : 'Reenviar código'}
             </button>
             <button type="button" className="cu-btn cu-btn-texto" onClick={() => { setPaso('correo'); setError(''); }}>
               Usar otro correo

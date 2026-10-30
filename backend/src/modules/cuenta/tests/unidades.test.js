@@ -41,9 +41,11 @@ test('perfil: valida nombre y teléfono, y vacía con null', () => {
   assert.equal(esquemas.perfil.safeParse({}).success, false);
 });
 
-test('región: acepta países y monedas conocidos', () => {
+test('región: acepta idiomas, países y monedas conocidos', () => {
   assert.equal(esquemas.region.safeParse({ pais: 'MX' }).success, true);
   assert.equal(esquemas.region.safeParse({ moneda: 'EUR' }).success, true);
+  assert.equal(esquemas.region.safeParse({ idioma: 'pt' }).success, true);
+  assert.equal(esquemas.region.safeParse({ idioma: 'fr' }).success, false);
   assert.equal(esquemas.region.safeParse({ pais: 'ZZ' }).success, false);
   assert.equal(esquemas.region.safeParse({}).success, false);
   assert.equal(monedaDelPais('CO'), 'COP');
@@ -51,10 +53,11 @@ test('región: acepta países y monedas conocidos', () => {
 });
 
 test('notificaciones: solo eventos y canales conocidos', () => {
-  assert.equal(esquemas.notificaciones.safeParse({ preferencias: { reservas: { sms: true } } }).success, true);
-  assert.equal(esquemas.notificaciones.safeParse({ preferencias: { otro: { sms: true } } }).success, false);
-  assert.equal(esquemas.notificaciones.safeParse({ preferencias: { reservas: { fax: true } } }).success, false);
-  assert.equal(esquemas.notificaciones.safeParse({ preferencias: {} }).success, false);
+  assert.equal(esquemas.notificaciones.safeParse({ eventos: { reservas: false }, canales: { sms: true } }).success, true);
+  assert.equal(esquemas.notificaciones.safeParse({ eventos: { otro: true } }).success, false);
+  assert.equal(esquemas.notificaciones.safeParse({ canales: { fax: true } }).success, false);
+  assert.equal(esquemas.notificaciones.safeParse({ eventos: {}, canales: {} }).success, false);
+  assert.equal(esquemas.notificaciones.safeParse({}).success, false);
 });
 
 test('reseña: calificación de 1 a 5', () => {
@@ -77,4 +80,9 @@ test('integraciones: sin verificaciones registradas no hay pendientes, con ellas
   assert.deepEqual(p.map((x) => [x.codigo, x.cantidad]), [['reservas_activas', 2], ['pagos_pendientes', 1]]);
   assert.equal(p[1].detalle, 'Reserva 9');
   assert.deepEqual(i.verificacionesSinRegistrar(), ['saldo_sin_liquidar']);
+
+  // La lista completa (para el checklist de "Antes de irte") trae las 4 verificaciones.
+  const todas = await i.verificacionesPazYSalvo({ usuarioId: 1, rol: 'viajero' });
+  assert.deepEqual(todas.map((v) => [v.codigo, v.cantidad]),
+    [['reservas_activas', 2], ['pagos_pendientes', 1], ['disputas_abiertas', 0], ['saldo_sin_liquidar', 0]]);
 });

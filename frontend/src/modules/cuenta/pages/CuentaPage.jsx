@@ -3,34 +3,25 @@ import { useAuth } from '@/modules/auth';
 import { IconCorreo } from '@/shared/components/Icons.jsx';
 import Aviso from '../components/Aviso.jsx';
 import Avatar from '../components/Avatar.jsx';
-import {
-  IconApagar, IconCampana, IconEscudo, IconGlobo, IconEstrella, IconLista, IconSalir, IconSiguiente, IconUsuario,
-} from '../components/Iconos.jsx';
+import { IconCampana, IconGlobo, IconEstrella, IconLista, IconSalir, IconSiguiente, IconUsuario } from '../components/Iconos.jsx';
 import Pantalla from '../components/Pantalla.jsx';
 import { useCarga } from '../hooks/useCarga.js';
 import { obtenerPerfil } from '../services/cuentaService.js';
-import { ETIQUETA_ROL } from '../utils/textos.js';
 
-const OPCIONES = [
-  { a: '/cuenta/datos', Icono: IconUsuario, titulo: 'Datos personales', desc: 'Nombre, teléfono, ciudad y foto' },
-  { a: '/cuenta/correo', Icono: IconCorreo, titulo: 'Correo electrónico', desc: 'Cambiarlo con verificación' },
-  { a: '/cuenta/notificaciones', Icono: IconCampana, titulo: 'Notificaciones', desc: 'Qué avisos recibes y por dónde' },
-  { a: '/cuenta/region', Icono: IconGlobo, titulo: 'País y moneda', desc: 'Cómo ves los precios' },
-  { a: '/cuenta/resenas', Icono: IconEstrella, titulo: 'Mis reseñas', desc: 'Lo que has calificado' },
-];
-
-function Opcion({ a, Icono, titulo, desc, peligro }) {
+function Opcion({ a, Icono, titulo }) {
   return (
     <li>
-      <Link className={`cu-opcion ${peligro ? 'cu-opcion-peligro' : ''}`} to={a}>
+      <Link className="cu-opcion" to={a}>
         <span className="cu-opcion-icono"><Icono /></span>
-        <span className="cu-opcion-texto">{titulo}<small>{desc}</small></span>
+        <span className="cu-opcion-texto">{titulo}</span>
         <IconSiguiente />
       </Link>
     </li>
   );
 }
 
+// Mockup 11 (Configuración). "Cambiar contraseña", "Seguridad", "Métodos de pago" y "Centro de ayuda"
+// son de otros módulos: se suman a estas listas cuando existan sus pantallas.
 export default function CuentaPage() {
   const { usuario, cerrarSesion } = useAuth();
   const navigate = useNavigate();
@@ -45,39 +36,42 @@ export default function CuentaPage() {
   const esAdmin = (perfil?.rol ?? usuario.rol) === 'admin';
 
   return (
-    <Pantalla titulo="Mi cuenta" atras="/inicio" etiquetaAtras="Volver al inicio">
-      <div className="cu-perfil">
-        <Avatar foto={perfil?.foto} nombre={nombre} />
-        <div>
+    <Pantalla titulo="Configuración" atras="/inicio" etiquetaAtras="Volver al inicio">
+      <Link className="cu-perfil" to="/cuenta/datos" aria-label={`Datos personales de ${nombre}`}>
+        <Avatar foto={perfil?.foto} nombre={nombre} tamano={56} />
+        <span className="cu-perfil-texto">
           <p className="cu-perfil-nombre">{nombre}</p>
           <p className="cu-perfil-correo">{perfil?.correo ?? usuario.correo}</p>
-          <span className="cu-etiqueta">{ETIQUETA_ROL[perfil?.rol ?? usuario.rol]}</span>
-        </div>
-      </div>
+        </span>
+        <IconSiguiente />
+      </Link>
 
       {!cargando && error && <Aviso>{error}</Aviso>}
 
-      <p className="cu-seccion">Configuración</p>
+      <p className="cu-seccion">Cuenta</p>
       <ul className="cu-menu">
-        {OPCIONES.map((o) => <Opcion key={o.a} {...o} />)}
+        <Opcion a="/cuenta/datos" Icono={IconUsuario} titulo="Datos personales" />
+        <Opcion a="/cuenta/correo" Icono={IconCorreo} titulo="Cambiar correo electrónico" />
+      </ul>
+
+      <p className="cu-seccion">General</p>
+      <ul className="cu-menu">
+        <Opcion a="/cuenta/notificaciones" Icono={IconCampana} titulo="Notificaciones" />
+        <Opcion a="/cuenta/region" Icono={IconGlobo} titulo="Idioma, país y moneda" />
+        <Opcion a="/cuenta/resenas" Icono={IconEstrella} titulo="Mis reseñas" />
       </ul>
 
       {esAdmin && (
         <>
           <p className="cu-seccion">Administración</p>
           <ul className="cu-menu">
-            <Opcion a="/cuenta/admin/desactivadas" Icono={IconLista} titulo="Cuentas desactivadas" desc="Historial sin datos personales" />
+            <Opcion a="/cuenta/admin/desactivadas" Icono={IconLista} titulo="Cuentas desactivadas" />
           </ul>
         </>
       )}
 
-      <p className="cu-seccion">Seguridad</p>
-      <ul className="cu-menu">
-        <Opcion a="/cuenta/desactivar" Icono={IconApagar} titulo="Desactivar cuenta" desc="Se conservan tus datos" peligro />
-      </ul>
-
       <button type="button" className="cu-btn" onClick={salir}><IconSalir /> Cerrar sesión</button>
-      <p className="cu-texto" style={{ textAlign: 'center' }}><IconEscudo style={{ verticalAlign: '-4px' }} /> Tus datos están protegidos</p>
+      <Link className="cu-enlace-peligro" to="/cuenta/desactivar">Desactivar cuenta</Link>
     </Pantalla>
   );
 }

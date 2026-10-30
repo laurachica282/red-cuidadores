@@ -3,7 +3,7 @@ import { ErrorHttp } from './errores.js';
 import {
   CANALES, EVENTOS_NOTIFICACION, MAX_COMENTARIO_RESENA, MOTIVOS_DESACTIVACION,
 } from './config.js';
-import { CODIGOS_PAIS, MONEDAS } from './regiones.js';
+import { CODIGOS_IDIOMA, CODIGOS_MONEDA, CODIGOS_PAIS } from './regiones.js';
 
 const texto = (etiqueta, min, max) =>
   z.string({ error: `${etiqueta} es obligatorio` })
@@ -40,21 +40,21 @@ export const esquemas = {
   solicitarCorreo: z.object({ correo_nuevo: correo, clave }),
   confirmarCorreo: z.object({ codigo }),
 
-  // HU-32: se puede mandar solo lo que cambió.
+  // HU-32: dos listas, eventos y canales. Se puede mandar solo lo que cambió.
   notificaciones: z.object({
-    preferencias: z.object(
-      Object.fromEntries(EVENTOS_NOTIFICACION.map((e) => [
-        e,
-        z.object(Object.fromEntries(CANALES.map((c) => [c, z.boolean()]))).partial().strict().optional(),
-      ])),
-    ).strict().refine((p) => Object.values(p).some(Boolean), 'No hay preferencias para guardar'),
-  }),
+    eventos: z.object(Object.fromEntries(EVENTOS_NOTIFICACION.map((e) => [e, z.boolean()]))).partial().strict().optional(),
+    canales: z.object(Object.fromEntries(CANALES.map((c) => [c, z.boolean()]))).partial().strict().optional(),
+  }).strict().refine(
+    (d) => Object.keys(d.eventos ?? {}).length + Object.keys(d.canales ?? {}).length > 0,
+    'No hay preferencias para guardar',
+  ),
 
-  // HU-35
+  // HU-35 y mockup 17
   region: z.object({
+    idioma: z.enum(CODIGOS_IDIOMA, { error: 'Ese idioma no está disponible' }).optional(),
     pais: z.enum(CODIGOS_PAIS, { error: 'Ese país no está disponible' }).optional(),
-    moneda: z.enum(MONEDAS, { error: 'Esa moneda no está disponible' }).optional(),
-  }).refine((d) => d.pais || d.moneda, 'Elige un país o una moneda'),
+    moneda: z.enum(CODIGOS_MONEDA, { error: 'Esa moneda no está disponible' }).optional(),
+  }).refine((d) => d.idioma || d.pais || d.moneda, 'Elige un idioma, un país o una moneda'),
 
   // HU-33
   resena: z.object({

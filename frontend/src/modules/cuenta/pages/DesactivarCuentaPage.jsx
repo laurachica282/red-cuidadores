@@ -3,14 +3,15 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/modules/auth';
 import Aviso from '../components/Aviso.jsx';
 import CampoClave from '../components/CampoClave.jsx';
-import { IconAlerta, IconEscudo } from '../components/Iconos.jsx';
+import { IconAlerta, IconCheck } from '../components/Iconos.jsx';
 import Pantalla from '../components/Pantalla.jsx';
 import { useCarga } from '../hooks/useCarga.js';
 import { desactivarCuenta, obtenerPendientes } from '../services/cuentaService.js';
-import { MOTIVOS } from '../utils/textos.js';
+import { MOTIVOS, PAZ_Y_SALVO } from '../utils/textos.js';
 
-// HU-37 (ver pendientes) y HU-39 (desactivar). Nada se borra: la cuenta queda con status = false.
-function Formulario({ usuario, alTerminar }) {
+// Mockup 18 (antes "Eliminar cuenta"; ahora "Desactivar cuenta" por RN-5: nada se borra).
+// HU-37: "Antes de irte" muestra qué falta para cerrar. HU-39: desactiva con motivo y contraseña.
+function Formulario({ alTerminar }) {
   const [motivo, setMotivo] = useState('');
   const [detalle, setDetalle] = useState('');
   const [clave, setClave] = useState('');
@@ -26,7 +27,7 @@ function Formulario({ usuario, alTerminar }) {
     setError('');
     setEnviando(true);
     try {
-      await desactivarCuenta({ clave, motivo, detalle });
+      await desactivarCuenta({ clave, motivo, detalle: motivo === 'otro' ? detalle : '' });
       alTerminar();
     } catch (err) {
       setError(err.message);
@@ -36,33 +37,35 @@ function Formulario({ usuario, alTerminar }) {
 
   return (
     <form className="cu-form" onSubmit={enviar}>
-      <fieldset className="cu-opciones">
-        <legend>¿Por qué te vas?</legend>
-        {MOTIVOS.map((m) => (
-          <label key={m.valor} className="cu-radio">
-            <input type="radio" name="motivo" value={m.valor} checked={motivo === m.valor} onChange={() => setMotivo(m.valor)} />
-            {m.titulo}
-          </label>
-        ))}
-      </fieldset>
-
       <div>
-        <label className="label" htmlFor="detalle">Cuéntanos más (opcional)</label>
-        <textarea id="detalle" className="input" maxLength={500} value={detalle} onChange={(e) => setDetalle(e.target.value)} />
+        <label className="label" htmlFor="motivo">¿Por qué te vas?</label>
+        <select id="motivo" name="motivo" className="input" value={motivo} onChange={(e) => setMotivo(e.target.value)}>
+          <option value="">Elige un motivo</option>
+          {MOTIVOS.map((m) => <option key={m.valor} value={m.valor}>{m.titulo}</option>)}
+        </select>
       </div>
 
-      <CampoClave id="clave" etiqueta="Confirma con tu contraseña" valor={clave} onChange={setClave} />
+      {motivo === 'otro' && (
+        <div>
+          <label className="label" htmlFor="detalle">Cuéntanos más (opcional)</label>
+          <textarea id="detalle" className="input" maxLength={500} value={detalle} onChange={(e) => setDetalle(e.target.value)} />
+        </div>
+      )}
+
+      <CampoClave id="clave" etiqueta="Escribe tu contraseña para confirmar" placeholder="Tu contraseña" valor={clave} onChange={setClave} />
 
       <label className="cu-check">
         <input type="checkbox" checked={entiendo} onChange={(e) => setEntiendo(e.target.checked)} />
-        Entiendo que mi perfil dejará de ser visible y que cerraré mis sesiones. Puedo reactivar la cuenta cuando quiera.
+        Entiendo que mi perfil dejará de ser visible y que se cerrarán mis sesiones. Mis datos se conservan.
       </label>
 
-      <Aviso>{error}</Aviso>
-      <button type="submit" className="cu-btn cu-btn-peligro" disabled={!completo || enviando}>
-        {enviando ? 'Desactivando…' : 'Desactivar cuenta'}
-      </button>
-      <p className="cu-texto" style={{ textAlign: 'center' }}>Cuenta de {usuario.correo}</p>
+      <div className="cu-acciones">
+        <Aviso>{error}</Aviso>
+        <button type="submit" className="cu-btn cu-btn-peligro" disabled={!completo || enviando}>
+          {enviando ? 'Desactivando…' : 'Desactivar mi cuenta'}
+        </button>
+        <Link className="cu-btn" to="/cuenta">Mejor me quedo</Link>
+      </div>
     </form>
   );
 }
@@ -81,36 +84,46 @@ export default function DesactivarCuentaPage() {
 
   return (
     <Pantalla titulo="Desactivar cuenta">
-      <div className="cu-tarjeta cu-tarjeta-suave">
-        <h2><IconEscudo style={{ verticalAlign: '-4px' }} /> No borramos nada</h2>
-        <p className="cu-texto">
-          Desactivar la cuenta oculta tu perfil y cierra tus sesiones, pero tus datos, reservas y reseñas se conservan.
-          Puedes volver cuando quieras con un código que te enviamos por correo.
-        </p>
+      <div className="cu-peligro">
+        <IconAlerta />
+        <div>
+          <strong>Tu perfil dejará de ser visible</strong>
+          No borramos nada: tus datos, reservas y reseñas se conservan. Puedes reactivar tu cuenta cuando quieras con un código por correo.
+        </div>
       </div>
 
       {cargando && <p className="cu-cargando">Revisando que estés a paz y salvo…</p>}
       {!cargando && error && <Aviso>{error}</Aviso>}
 
-      {datos && !datos.puede_cerrar && (
+      {datos && (
         <>
-          <Aviso tipo="info">Para desactivar tu cuenta debes estar a paz y salvo. Esto es lo que falta:</Aviso>
-          <ul className="cu-lista">
-            {datos.pendientes.map((p) => (
-              <li key={p.codigo} className="cu-pendiente">
-                <IconAlerta />
-                <div>
-                  <strong>{p.titulo}: {p.cantidad}</strong>
-                  {p.detalle && <span>{p.detalle}</span>}
-                </div>
-              </li>
-            ))}
+          <p className="cu-titulo-lista">Antes de irte</p>
+          <ul className="cu-chequeo">
+            {datos.verificaciones.map((v) => {
+              const textos = PAZ_Y_SALVO[v.codigo];
+              const pendiente = v.cantidad > 0;
+              return (
+                <li key={v.codigo} className={pendiente ? 'cu-pendiente-item' : ''}>
+                  {pendiente ? <IconAlerta /> : <IconCheck />}
+                  <span>
+                    {pendiente ? textos.pendiente(v.cantidad) : textos.ok}
+                    {v.detalle && <small>{v.detalle}</small>}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
-          <Link className="cu-btn" to="/inicio">Resolver mis pendientes</Link>
+
+          {datos.puede_cerrar
+            ? <Formulario alTerminar={terminar} />
+            : (
+              <div className="cu-form">
+                <Aviso tipo="info">Para desactivar tu cuenta debes estar a paz y salvo. Resuelve lo pendiente y vuelve a intentarlo.</Aviso>
+                <div className="cu-acciones"><Link className="cu-btn" to="/cuenta">Mejor me quedo</Link></div>
+              </div>
+            )}
         </>
       )}
-
-      {datos?.puede_cerrar && <Formulario usuario={usuario} alTerminar={terminar} />}
     </Pantalla>
   );
 }

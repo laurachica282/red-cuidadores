@@ -16,11 +16,10 @@ export const FOTO = {
 // HU-32.
 export const EVENTOS_NOTIFICACION = ['reservas', 'reportes', 'mensajes', 'promociones'];
 export const CANALES = ['push', 'correo', 'sms'];
+// Valores del mockup 16: todo activo salvo promociones y SMS.
 export const PREFERENCIAS_POR_DEFECTO = {
-  reservas: { push: true, correo: true, sms: false },
-  reportes: { push: true, correo: true, sms: false },
-  mensajes: { push: true, correo: false, sms: false },
-  promociones: { push: false, correo: false, sms: false },
+  eventos: { reservas: true, reportes: true, mensajes: true, promociones: false },
+  canales: { push: true, correo: true, sms: false },
 };
 
 // HU-39: motivos para desactivar (se guarda el código, el texto lo pone la interfaz).

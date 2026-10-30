@@ -9,11 +9,11 @@ frontend en `frontend/src/modules/cuenta`, esquema en `backend/src/db/02_cuenta.
 | --- | --- | --- | --- |
 | 09 | `/cuenta/datos` | `GET/PATCH /perfil`, `PUT/DELETE /perfil/foto` | Nombre, teléfono, ciudad y foto. El correo se rechaza aquí. La foto se valida por contenido (JPG/PNG/WEBP, 2 MB). |
 | 06 | `/cuenta/correo` | `POST /correo/solicitar`, `POST /correo/confirmar` | Pide la clave actual; código de 6 dígitos al correo **nuevo**; aviso al anterior; no cambia hasta verificar. Vence a los 10 min, reenvío cada 60 s, máx. 5 intentos. |
-| 32 | `/cuenta/notificaciones` | `GET/PUT /notificaciones` | Reservas, reportes, mensajes y promociones × push, correo y SMS. |
-| 35 | `/cuenta/region` | `GET /regiones`, `PATCH /region` | País → moneda por defecto, cambiable (RN-6). Solo afecta reservas nuevas. |
+| 32 | `/cuenta/notificaciones` (mockup 16) | `GET/PUT /notificaciones` | Dos listas, como el mockup: «Qué te avisamos» (reservas, reportes, mensajes, promociones) y «Por dónde» (teléfono, correo, SMS). Se avisa de un evento solo si está activo y por los canales activos (`canalesActivos`). |
+| 35 | `/cuenta/region` (mockup 17) | `GET /regiones`, `PATCH /region` | Idioma, país y moneda. País → moneda por defecto, cambiable (RN-6). Solo afecta reservas nuevas. |
 | 33 | `/cuenta/resenas`, `/cuenta/resenas/nueva/:reservaId` | `GET/POST /resenas`, `GET /resenas/reserva/:id` | 1 a 5 estrellas + comentario, solo reservas completadas del propio viajero, una por reserva. |
-| 37 | `/cuenta/desactivar` | `GET /cierre/pendientes` | Lista qué impide cerrar la cuenta (RN-4). |
-| 39 | `/cuenta/desactivar` | `POST /cierre/desactivar` | Clave + motivo; `status = false`, fecha y motivo guardados; no se borra nada (RN-5); la sesión deja de valer al instante. El mockup 18 debe decir «Desactivar cuenta». |
+| 37 | `/cuenta/desactivar` (mockup 18) | `GET /cierre/pendientes` | Checklist «Antes de irte» con las 4 verificaciones de RN-4 (✓ o pendiente). |
+| 39 | `/cuenta/desactivar` (mockup 18) | `POST /cierre/desactivar` | Clave + motivo; `status = false`, fecha y motivo guardados; no se borra nada (RN-5); la sesión deja de valer al instante. Se renombró «Eliminar cuenta» → «Desactivar cuenta» y se cambió el texto «se borrarán tus datos», que ya no es cierto. |
 | 40 | `/reactivar` (pública) | `POST /reactivacion/solicitar`, `POST /reactivacion/confirmar` | Código por correo; responde igual exista o no la cuenta. **Una cuenta suspendida por un admin no se reactiva sola.** |
 | 41 | `/cuenta/admin/desactivadas` | `GET /admin/cuentas`, `GET /admin/cuentas/:id/historial` | Solo admin. Sin nombre, correo ni teléfono. La vista `v_historial_cuentas` sirve a los reportes. |
 
@@ -39,8 +39,7 @@ Para que RN-5 se cumpla en la búsqueda: filtrar siempre `usuarios.status = TRUE
 
 1. Ejecutar `backend/src/db/02_cuenta.sql` después de `01_usuarios.sql` (es idempotente). Agrega `usuarios.foto_url`, el
    trigger que **impide borrar usuarios**, y las tablas `cuenta_codigos`, `preferencias_notificacion`, `resenas`,
-   `cuenta_eventos` y la vista `v_historial_cuentas`.
-2. `cd backend && npm install` (nuevas: `zod`, `multer`, `express-rate-limit`, `nodemailer`, y `supertest` en desarrollo).
+   `cuenta_eventos` y la vista `v_historial_cuentas`.2. `cd backend && npm install` (nuevas: `zod`, `multer`, `express-rate-limit`, `nodemailer`, y `supertest` en desarrollo).
 3. Correo: sin `SMTP_HOST` en el `.env`, **en desarrollo los correos (con los códigos) se imprimen en la consola del
    backend**. En producción sin SMTP el envío falla a propósito. Variables en `.env.example`.
 
@@ -56,6 +55,19 @@ TEST_DB_PASSWORD=su-clave npm test          # PowerShell: $env:TEST_DB_PASSWORD=
 # Frontend: utilidades puras (formato de moneda, validaciones)
 cd frontend && npm test
 ```
+
+## Diseño: mockups de `Mockups_Red_de_Cuidadores.pdf`
+
+Seguí las pantallas 9, 11, 12, 14, 16, 17 y 18. Diferencias a propósito:
+
+- **Mockup 11 (Configuración):** solo están las filas de mi módulo. «Cambiar contraseña», «Seguridad» (Diego),
+  «Métodos de pago» y «Centro de ayuda» las suma quien tenga esas pantallas en `CuentaPage.jsx`. La barra inferior
+  (Inicio · Reservas · Mensajes · Perfil) es de `shared`/Laura.
+- **Mockup 17 (Idioma, país y moneda):** el selector de idioma comparte pantalla con HU-34 (Vanesa). Guarda
+  `usuarios.idioma` (`es`, `en`, `pt`); traducir la interfaz es de ella.
+- **Mockup 18:** el texto «Perderás tu perfil, tus mascotas... Esta acción no se puede deshacer» contradice RN-5; ahora
+  dice que nada se borra. Se agregó el motivo (HU-39 lo exige) y «Mejor me quedo» se conserva.
+- **Reseñas (HU-33), reactivar (HU-40) y cuentas desactivadas (HU-41):** no tienen mockup; siguen el mismo sistema visual.
 
 ## Decisiones y pendientes por confirmar
 

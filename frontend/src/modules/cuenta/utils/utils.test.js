@@ -5,7 +5,7 @@ import { formatearPrecio } from './moneda.js';
 import {
   enmascarar, limpiarCodigo, validarCiudad, validarCodigo, validarCorreo, validarNombre, validarTelefono,
 } from './validaciones.js';
-import { ETIQUETA_MOTIVO, MOTIVOS, fecha } from './textos.js';
+import { ETIQUETA_MOTIVO, MOTIVOS, PAZ_Y_SALVO, fecha, minutosYSegundos } from './textos.js';
 
 test('formatearPrecio: pesos sin decimales y otras monedas con su formato', () => {
   assert.match(formatearPrecio(85000, 'COP'), /85\.000/);
@@ -49,8 +49,21 @@ test('código: 6 dígitos, y limpiarCodigo deja solo números', () => {
 });
 
 test('enmascarar no deja ver el correo completo', () => {
-  assert.equal(enmascarar('carlos@correo.com'), 'c*****@correo.com');
-  assert.equal(enmascarar('raro'), '***');
+  assert.equal(enmascarar('carlos@correo.com'), 'ca••••@correo.com');
+  assert.equal(enmascarar('a@correo.com'), '•••@correo.com');
+  assert.equal(enmascarar('raro'), '•••');
+});
+
+test('minutosYSegundos: cuenta regresiva del reenvío', () => {
+  assert.equal(minutosYSegundos(42), '0:42');
+  assert.equal(minutosYSegundos(60), '1:00');
+  assert.equal(minutosYSegundos(5), '0:05');
+});
+
+test('PAZ_Y_SALVO tiene texto para las 4 verificaciones, en singular y plural', () => {
+  assert.deepEqual(Object.keys(PAZ_Y_SALVO), ['reservas_activas', 'pagos_pendientes', 'disputas_abiertas', 'saldo_sin_liquidar']);
+  assert.match(PAZ_Y_SALVO.reservas_activas.pendiente(1), /1 reserva activa:/);
+  assert.match(PAZ_Y_SALVO.reservas_activas.pendiente(2), /2 reservas activas/);
 });
 
 test('los motivos de desactivación tienen texto, y la suspensión también', () => {

@@ -5,7 +5,7 @@ import { ErrorHttp, manejarErrores } from './errores.js';
 import { esquemas, validar } from './validacion.js';
 import { FOTO } from './config.js';
 import { NOMBRE_VALIDO } from './fotos.js';
-import { MONEDAS, PAISES } from './regiones.js';
+import { IDIOMAS, MONEDAS, PAISES } from './regiones.js';
 
 const HORA = 60 * 60 * 1000;
 const QUINCE_MIN = 15 * 60 * 1000;
@@ -37,8 +37,8 @@ export function crearRouter({ servicios, autenticacion, fotos, limites = LIMITES
 
   // ---------- Públicas ----------
 
-  // HU-35 / RN-6: países y monedas disponibles.
-  router.get('/regiones', (req, res) => res.json({ paises: PAISES, monedas: MONEDAS }));
+  // HU-35 / RN-6: idiomas, países y monedas disponibles.
+  router.get('/regiones', (req, res) => res.json({ idiomas: IDIOMAS, paises: PAISES, monedas: MONEDAS }));
 
   // HU-09: las fotos de perfil son públicas (las ve cualquier viajero), con nombre imposible de adivinar.
   router.get('/fotos/:archivo', (req, res, next) => {
@@ -83,10 +83,9 @@ export function crearRouter({ servicios, autenticacion, fotos, limites = LIMITES
     async (req, res) => res.json(await servicios.correo.confirmar(req.usuario.id, req.datos)));
 
   // HU-32
-  router.get('/notificaciones', async (req, res) =>
-    res.json({ preferencias: await servicios.notificaciones.leer(req.usuario.id) }));
+  router.get('/notificaciones', async (req, res) => res.json(await servicios.notificaciones.leer(req.usuario.id)));
   router.put('/notificaciones', validar(esquemas.notificaciones), async (req, res) =>
-    res.json({ preferencias: await servicios.notificaciones.guardar(req.usuario.id, req.datos.preferencias) }));
+    res.json(await servicios.notificaciones.guardar(req.usuario.id, req.datos)));
 
   // HU-35
   router.patch('/region', validar(esquemas.region), async (req, res) =>

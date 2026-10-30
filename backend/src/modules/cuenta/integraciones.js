@@ -48,21 +48,20 @@ export function crearIntegraciones() {
     cerrarSesiones: (usuarioId) => cerrarSesiones(usuarioId),
     antecedentesVigentes: (usuarioId) => antecedentesVigentes(usuarioId),
 
-    async pendientesPazYSalvo(usuario) {
-      const pendientes = [];
-      for (const [codigo, consultar] of verificadores) {
-        const r = await consultar(usuario);
+    // Las cuatro verificaciones de RN-4, con cuántos pendientes tiene el usuario en cada una
+    // (0 si está al día o si ningún módulo registró todavía esa verificación).
+    async verificacionesPazYSalvo(usuario) {
+      const lista = [];
+      for (const [codigo, titulo] of Object.entries(VERIFICACIONES_PAZ_Y_SALVO)) {
+        const r = verificadores.has(codigo) ? await verificadores.get(codigo)(usuario) : 0;
         const cantidad = typeof r === 'number' ? r : (r?.cantidad ?? 0);
-        if (cantidad > 0) {
-          pendientes.push({
-            codigo,
-            titulo: VERIFICACIONES_PAZ_Y_SALVO[codigo],
-            cantidad,
-            ...(typeof r === 'object' && r?.detalle ? { detalle: r.detalle } : {}),
-          });
-        }
+        lista.push({ codigo, titulo, cantidad, ...(cantidad > 0 && r?.detalle ? { detalle: r.detalle } : {}) });
       }
-      return pendientes;
+      return lista;
+    },
+
+    async pendientesPazYSalvo(usuario) {
+      return (await this.verificacionesPazYSalvo(usuario)).filter((v) => v.cantidad > 0);
     },
 
     // Verificaciones que todavía ningún módulo registró: el paz y salvo no las está mirando.

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { IconCandado, IconOjo, IconOjoCerrado } from '@/shared/components/Icons.jsx';
 
-export default function CampoClave({ id, etiqueta, valor, onChange, autoComplete = 'current-password', ayuda }) {
+export default function CampoClave({ id, etiqueta, valor, onChange, autoComplete = 'current-password', ayuda, placeholder }) {
   const [ver, setVer] = useState(false);
   return (
     <div>
@@ -9,7 +9,7 @@ export default function CampoClave({ id, etiqueta, valor, onChange, autoComplete
       <div className="cu-campo">
         <span className="cu-campo-icono"><IconCandado /></span>
         <input id={id} className="input cu-con-icono cu-con-ojo" type={ver ? 'text' : 'password'}
-          autoComplete={autoComplete} value={valor} onChange={(e) => onChange(e.target.value)}
+          autoComplete={autoComplete} placeholder={placeholder} value={valor} onChange={(e) => onChange(e.target.value)}
           aria-describedby={ayuda ? `${id}-ayuda` : undefined} required />
         <button type="button" className="cu-campo-ojo" aria-label={ver ? 'Ocultar contraseña' : 'Mostrar contraseña'}
           onClick={() => setVer(!ver)}>

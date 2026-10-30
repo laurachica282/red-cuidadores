@@ -11,7 +11,7 @@ import { validarCiudad, validarNombre, validarTelefono } from '../utils/validaci
 const TIPOS_FOTO = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_FOTO = 2 * 1024 * 1024;
 
-// HU-09: nombre, teléfono, ciudad y foto. El correo solo se ve; se cambia en su pantalla (HU-06).
+// HU-09 (mockup 12): foto, nombre, teléfono y ciudad. El correo solo se ve; se cambia en su pantalla (HU-06).
 function Formulario({ inicial }) {
   const [perfil, setPerfil] = useState(inicial);
   const [form, setForm] = useState({ nombre: inicial.nombre, telefono: inicial.telefono ?? '', ciudad: inicial.ciudad ?? '' });
@@ -94,21 +94,25 @@ function Formulario({ inicial }) {
 
   return (
     <form className="cu-form" onSubmit={guardar} noValidate>
-      <div className="cu-foto-fila">
-        <Avatar foto={perfil.foto} nombre={perfil.nombre} tamano={84} />
-        <div className="cu-foto-acciones">
-          <input ref={archivo} id="foto" className="cu-input-archivo" type="file" accept={TIPOS_FOTO.join(',')} onChange={cambiarFoto} tabIndex={-1} />
-          <button type="button" className="cu-btn cu-btn-texto cu-btn-chico" disabled={subiendo} onClick={() => archivo.current?.click()}>
-            <IconCamara /> {subiendo ? 'Subiendo…' : perfil.foto ? 'Cambiar foto' : 'Subir foto'}
+      <div className="cu-foto">
+        <div className="cu-foto-marco">
+          <Avatar foto={perfil.foto} nombre={perfil.nombre} tamano={112} />
+          <input ref={archivo} id="foto" className="cu-input-archivo" type="file" accept={TIPOS_FOTO.join(',')}
+            onChange={cambiarFoto} tabIndex={-1} aria-hidden="true" />
+          <button type="button" className="cu-foto-camara" disabled={subiendo} aria-label="Cambiar foto de perfil"
+            onClick={() => archivo.current?.click()}>
+            <IconCamara />
           </button>
-          {perfil.foto && (
-            <button type="button" className="cu-btn cu-btn-texto cu-btn-chico" style={{ color: 'var(--danger)' }} disabled={subiendo} onClick={borrarFoto}>
-              Quitar foto
-            </button>
-          )}
         </div>
+        <p className="cu-ayuda" style={{ margin: 0 }}>
+          {subiendo ? 'Subiendo foto…' : 'Toca la cámara para cambiar tu foto'}
+        </p>
+        {perfil.foto && !subiendo && (
+          <button type="button" className="cu-btn cu-btn-texto cu-btn-chico" style={{ color: 'var(--danger)' }} onClick={borrarFoto}>
+            Quitar foto
+          </button>
+        )}
       </div>
-      <p className="cu-ayuda" style={{ marginTop: -8 }}>JPG, PNG o WEBP, hasta 2 MB.</p>
 
       <div>
         <label className="label" htmlFor="nombre">Nombre completo</label>
@@ -133,18 +137,20 @@ function Formulario({ inicial }) {
 
       <div>
         <label className="label" htmlFor="correo">Correo electrónico</label>
-        <input id="correo" className="input" value={perfil.correo} readOnly aria-describedby="correo-ayuda" />
-        <p id="correo-ayuda" className="cu-ayuda">
-          Por seguridad, el correo se cambia aparte. <Link className="cu-enlace" to="/cuenta/correo">Cambiar correo</Link>
-        </p>
+        <div className="cu-campo">
+          <input id="correo" className="input cu-con-enlace" value={perfil.correo} readOnly aria-describedby="correo-ayuda" />
+          <Link className="cu-campo-enlace" to="/cuenta/correo">Cambiar</Link>
+        </div>
+        <p id="correo-ayuda" className="cu-ayuda">El correo se cambia con verificación por código.</p>
       </div>
 
-      <Aviso>{error}</Aviso>
-      <Aviso tipo="ok">{ok}</Aviso>
-
-      <button type="submit" className="btn-primary" disabled={!cambio || guardando}>
-        {guardando ? 'Guardando…' : 'Guardar cambios'}
-      </button>
+      <div className="cu-acciones">
+        <Aviso>{error}</Aviso>
+        <Aviso tipo="ok">{ok}</Aviso>
+        <button type="submit" className="btn-primary" disabled={!cambio || guardando}>
+          {guardando ? 'Guardando…' : 'Guardar cambios'}
+        </button>
+      </div>
     </form>
   );
 }

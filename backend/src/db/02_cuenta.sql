@@ -48,14 +48,18 @@ CREATE TABLE IF NOT EXISTS cuenta_codigos (
 CREATE INDEX IF NOT EXISTS idx_cuenta_codigos_vigente
   ON cuenta_codigos (usuario_id, proposito, creado_en DESC);
 
--- HU-32: solo se guardan las preferencias que el usuario cambió; el resto sale de los valores por defecto.
+-- HU-32 (mockup 16): dos listas independientes, "qué te avisamos" (eventos) y "por dónde" (canales).
+-- Se avisa de un evento solo si el evento está activo Y por los canales activos. Solo se guarda lo que
+-- el usuario cambió; el resto sale de los valores por defecto (config.js).
 CREATE TABLE IF NOT EXISTS preferencias_notificacion (
   usuario_id  BIGINT      NOT NULL REFERENCES usuarios(id),
-  evento      VARCHAR(20) NOT NULL CHECK (evento IN ('reservas', 'reportes', 'mensajes', 'promociones')),
-  canal       VARCHAR(10) NOT NULL CHECK (canal IN ('push', 'correo', 'sms')),
+  tipo        VARCHAR(10) NOT NULL CHECK (tipo IN ('evento', 'canal')),
+  clave       VARCHAR(20) NOT NULL,
   activo      BOOLEAN     NOT NULL,
   actualizado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (usuario_id, evento, canal)
+  PRIMARY KEY (usuario_id, tipo, clave),
+  CHECK ((tipo = 'evento' AND clave IN ('reservas', 'reportes', 'mensajes', 'promociones'))
+      OR (tipo = 'canal'  AND clave IN ('push', 'correo', 'sms')))
 );
 
 -- HU-33: una reseña por reserva. reserva_id no tiene FK porque la tabla de reservas

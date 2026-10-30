@@ -38,8 +38,9 @@ export const confirmarCambioCorreo = (codigo) =>
 
 // HU-32
 export const obtenerNotificaciones = () => api('/cuenta/notificaciones');
+// preferencias = { eventos: { reservas, reportes, mensajes, promociones }, canales: { push, correo, sms } }
 export const guardarNotificaciones = (preferencias) =>
-  api('/cuenta/notificaciones', { metodo: 'PUT', cuerpo: { preferencias } });
+  api('/cuenta/notificaciones', { metodo: 'PUT', cuerpo: preferencias });
 
 // HU-35
 export const obtenerRegiones = () => api('/cuenta/regiones');

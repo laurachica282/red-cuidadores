@@ -25,8 +25,9 @@ export function crearCierreService({ pool, codigos, correo, integraciones, log =
   };
 
   const pendientes = async (usuario) => {
-    const lista = await integraciones.pendientesPazYSalvo(usuario);
-    return { puede_cerrar: lista.length === 0, pendientes: lista };
+    const verificaciones = await integraciones.verificacionesPazYSalvo(usuario);
+    const lista = verificaciones.filter((v) => v.cantidad > 0);
+    return { puede_cerrar: lista.length === 0, pendientes: lista, verificaciones };
   };
 
   return {

@@ -274,54 +274,56 @@ describe('HU-06 · cambiar correo', () => {
 });
 
 describe('HU-32 · notificaciones', () => {
-  test('sin cambios devuelve los valores por defecto', async () => {
+  test('sin cambios devuelve los valores por defecto del mockup', async () => {
     const u = await crearUsuario(pool);
-    const { preferencias } = (await get('/notificaciones', u)).body;
-    assert.deepEqual(Object.keys(preferencias), ['reservas', 'reportes', 'mensajes', 'promociones']);
-    assert.deepEqual(preferencias.reservas, { push: true, correo: true, sms: false });
-    assert.deepEqual(preferencias.promociones, { push: false, correo: false, sms: false });
+    const r = (await get('/notificaciones', u)).body;
+    assert.deepEqual(r.eventos, { reservas: true, reportes: true, mensajes: true, promociones: false });
+    assert.deepEqual(r.canales, { push: true, correo: true, sms: false });
   });
 
-  test('guarda cambios parciales y los conserva', async () => {
+  test('guarda cambios parciales de eventos y de canales, y los conserva', async () => {
     const u = await crearUsuario(pool);
-    const r = await put('/notificaciones', u, { preferencias: { reservas: { sms: true, correo: false }, promociones: { correo: true } } });
+    const r = await put('/notificaciones', u, { eventos: { promociones: true, mensajes: false }, canales: { sms: true } });
     assert.equal(r.status, 200);
-    assert.deepEqual(r.body.preferencias.reservas, { push: true, correo: false, sms: true });
-    assert.equal(r.body.preferencias.promociones.correo, true);
+    assert.deepEqual(r.body.eventos, { reservas: true, reportes: true, mensajes: false, promociones: true });
+    assert.deepEqual(r.body.canales, { push: true, correo: true, sms: true });
 
-    await put('/notificaciones', u, { preferencias: { reservas: { sms: false } } });
-    const { preferencias } = (await get('/notificaciones', u)).body;
-    assert.deepEqual(preferencias.reservas, { push: true, correo: false, sms: false });
-    assert.equal(preferencias.promociones.correo, true);
+    await put('/notificaciones', u, { canales: { correo: false } });
+    const otra = (await get('/notificaciones', u)).body;
+    assert.equal(otra.eventos.promociones, true, 'lo anterior se conserva');
+    assert.deepEqual(otra.canales, { push: true, correo: false, sms: true });
   });
 
   test('cada usuario tiene las suyas', async () => {
     const a = await crearUsuario(pool);
     const b = await crearUsuario(pool);
-    await put('/notificaciones', a, { preferencias: { mensajes: { push: false } } });
-    assert.equal((await get('/notificaciones', b)).body.preferencias.mensajes.push, true);
+    await put('/notificaciones', a, { eventos: { mensajes: false } });
+    assert.equal((await get('/notificaciones', b)).body.eventos.mensajes, true);
   });
 
-  test('rechaza eventos o canales que no existen', async () => {
+  test('rechaza eventos o canales que no existen y valores que no son sí/no', async () => {
     const u = await crearUsuario(pool);
-    assert.equal((await put('/notificaciones', u, { preferencias: { spam: { push: true } } })).status, 400);
-    assert.equal((await put('/notificaciones', u, { preferencias: { reservas: { fax: true } } })).status, 400);
-    assert.equal((await put('/notificaciones', u, { preferencias: { reservas: { push: 'sí' } } })).status, 400);
+    assert.equal((await put('/notificaciones', u, { eventos: { spam: true } })).status, 400);
+    assert.equal((await put('/notificaciones', u, { canales: { fax: true } })).status, 400);
+    assert.equal((await put('/notificaciones', u, { eventos: { reservas: 'sí' } })).status, 400);
+    assert.equal((await put('/notificaciones', u, {})).status, 400);
   });
 
-  test('canalesActivos le dice a otros módulos por dónde avisar', async () => {
+  test('canalesActivos: evento activo por los canales activos; evento apagado, ninguno', async () => {
     const u = await crearUsuario(pool);
-    await put('/notificaciones', u, { preferencias: { reportes: { sms: true, push: false } } });
+    await put('/notificaciones', u, { canales: { push: false, sms: true }, eventos: { promociones: false } });
     assert.deepEqual(await ctx.servicios.notificaciones.canalesActivos(u.id, 'reportes'), ['correo', 'sms']);
+    assert.deepEqual(await ctx.servicios.notificaciones.canalesActivos(u.id, 'promociones'), []);
   });
 });
 
-describe('HU-35 · país y moneda', () => {
-  test('lista los países y monedas disponibles sin necesidad de sesión', async () => {
+describe('HU-35 · idioma, país y moneda', () => {
+  test('lista idiomas, países y monedas disponibles sin necesidad de sesión', async () => {
     const r = await api().get('/api/cuenta/regiones');
     assert.equal(r.status, 200);
     assert.ok(r.body.paises.some((p) => p.codigo === 'CO' && p.moneda === 'COP'));
-    assert.ok(r.body.monedas.includes('USD'));
+    assert.ok(r.body.monedas.some((m) => m.codigo === 'COP' && m.nombre === 'Peso colombiano'));
+    assert.deepEqual(r.body.idiomas.map((i) => i.codigo), ['es', 'en', 'pt']);
   });
 
   test('al cambiar de país toma la moneda de ese país', async () => {
@@ -331,17 +333,19 @@ describe('HU-35 · país y moneda', () => {
     assert.deepEqual([(await fila(u.id)).pais, (await fila(u.id)).moneda], ['MX', 'MXN']);
   });
 
-  test('el usuario puede elegir otra moneda, sola o junto con el país', async () => {
+  test('el usuario puede elegir otra moneda y otro idioma, solos o junto con el país', async () => {
     const u = await crearUsuario(pool);
     assert.equal((await patch('/region', u, { moneda: 'USD' })).body.moneda, 'USD');
+    assert.equal((await patch('/region', u, { idioma: 'pt' })).body.idioma, 'pt');
     const r = await patch('/region', u, { pais: 'PE', moneda: 'USD' });
-    assert.deepEqual([r.body.pais, r.body.moneda], ['PE', 'USD']);
+    assert.deepEqual([r.body.pais, r.body.moneda, r.body.idioma], ['PE', 'USD', 'pt']);
   });
 
-  test('rechaza países, monedas desconocidos y peticiones vacías', async () => {
+  test('rechaza idiomas, países, monedas desconocidos y peticiones vacías', async () => {
     const u = await crearUsuario(pool);
     assert.equal((await patch('/region', u, { pais: 'ZZ' })).status, 400);
     assert.equal((await patch('/region', u, { moneda: 'XYZ' })).status, 400);
+    assert.equal((await patch('/region', u, { idioma: 'fr' })).status, 400);
     assert.equal((await patch('/region', u, {})).status, 400);
   });
 });
@@ -431,7 +435,11 @@ describe('HU-37 y HU-39 · desactivar la cuenta', () => {
   test('sin pendientes se puede cerrar', async () => {
     const u = await crearUsuario(pool);
     const r = await get('/cierre/pendientes', u);
-    assert.deepEqual(r.body, { puede_cerrar: true, pendientes: [] });
+    assert.equal(r.body.puede_cerrar, true);
+    assert.deepEqual(r.body.pendientes, []);
+    // El checklist "Antes de irte" trae las 4 verificaciones de RN-4, todas en 0.
+    assert.deepEqual(r.body.verificaciones.map((v) => [v.codigo, v.cantidad]),
+      [['reservas_activas', 0], ['pagos_pendientes', 0], ['disputas_abiertas', 0], ['saldo_sin_liquidar', 0]]);
   });
 
   test('lista cuáles pendientes impiden cerrar y bloquea la desactivación (RN-4)', async () => {

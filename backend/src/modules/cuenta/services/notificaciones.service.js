@@ -1,32 +1,30 @@
-import { CANALES, EVENTOS_NOTIFICACION, PREFERENCIAS_POR_DEFECTO } from '../config.js';
+import { CANALES, PREFERENCIAS_POR_DEFECTO } from '../config.js';
 
-// HU-32. Guarda solo lo que el usuario cambió; lo demás sale de PREFERENCIAS_POR_DEFECTO.
+// HU-32 (mockup 16). Dos listas: qué eventos avisar y por qué canales. Un aviso sale solo si su
+// evento está activo, y por los canales activos. Se guarda solo lo que el usuario cambió.
 export function crearNotificacionesService({ pool }) {
   const leer = async (usuarioId) => {
     const { rows } = await pool.query(
-      'SELECT evento, canal, activo FROM preferencias_notificacion WHERE usuario_id = $1',
+      'SELECT tipo, clave, activo FROM preferencias_notificacion WHERE usuario_id = $1',
       [usuarioId],
     );
-    const matriz = structuredClone(PREFERENCIAS_POR_DEFECTO);
-    for (const f of rows) matriz[f.evento][f.canal] = f.activo;
-    return matriz;
+    const preferencias = structuredClone(PREFERENCIAS_POR_DEFECTO);
+    for (const f of rows) preferencias[f.tipo === 'evento' ? 'eventos' : 'canales'][f.clave] = f.activo;
+    return preferencias;
   };
 
   return {
     leer,
 
-    async guardar(usuarioId, preferencias) {
-      const filas = [];
-      for (const evento of EVENTOS_NOTIFICACION) {
-        for (const canal of CANALES) {
-          const activo = preferencias[evento]?.[canal];
-          if (typeof activo === 'boolean') filas.push([evento, canal, activo]);
-        }
-      }
+    async guardar(usuarioId, { eventos = {}, canales = {} }) {
+      const filas = [
+        ...Object.entries(eventos).map(([clave, activo]) => ['evento', clave, activo]),
+        ...Object.entries(canales).map(([clave, activo]) => ['canal', clave, activo]),
+      ];
       await pool.query(
-        `INSERT INTO preferencias_notificacion (usuario_id, evento, canal, activo)
-         SELECT $1, e, c, a FROM unnest($2::text[], $3::text[], $4::boolean[]) AS t(e, c, a)
-         ON CONFLICT (usuario_id, evento, canal)
+        `INSERT INTO preferencias_notificacion (usuario_id, tipo, clave, activo)
+         SELECT $1, t, c, a FROM unnest($2::text[], $3::text[], $4::boolean[]) AS x(t, c, a)
+         ON CONFLICT (usuario_id, tipo, clave)
          DO UPDATE SET activo = EXCLUDED.activo, actualizado_en = NOW()`,
         [usuarioId, filas.map((f) => f[0]), filas.map((f) => f[1]), filas.map((f) => f[2])],
       );
@@ -34,9 +32,10 @@ export function crearNotificacionesService({ pool }) {
     },
 
     // Para que otros módulos (reservas, seguimiento...) sepan por dónde avisar a un usuario.
+    // Evento apagado: ningún canal.
     async canalesActivos(usuarioId, evento) {
-      const matriz = await leer(usuarioId);
-      return CANALES.filter((c) => matriz[evento]?.[c]);
+      const p = await leer(usuarioId);
+      return p.eventos[evento] ? CANALES.filter((c) => p.canales[c]) : [];
     },
   };
 }
