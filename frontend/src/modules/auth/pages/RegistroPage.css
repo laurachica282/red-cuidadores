@@ -1,0 +1,121 @@
+.registro-atras {
+    width: 44px;
+    height: 44px;
+    margin-left: -10px;
+    border: 0;
+    border-radius: 12px;
+    background: none;
+    color: var(--navy);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+.registro .login-form {
+    margin-top: 22px;
+}
+
+.registro h1 {
+    margin-top: 12px;
+}
+
+.roles {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.roles-leyenda {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+}
+
+.rol {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px;
+    border: 1.5px solid var(--card-border);
+    border-radius: 16px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.rol input {
+    position: absolute;
+    opacity: 0;
+    inset: 0;
+    margin: 0;
+    cursor: pointer;
+}
+
+.rol-activo {
+    border-color: var(--teal);
+    background: var(--tint);
+}
+
+.rol:focus-within {
+    outline: 2px solid var(--teal-text);
+    outline-offset: 1px;
+}
+
+.rol-icono {
+    color: var(--teal-text);
+    display: flex;
+}
+
+.rol-titulo {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.rol-desc {
+    font-size: 13px;
+    line-height: 1.3;
+    color: var(--slate);
+}
+
+.rol-marca {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 20px;
+    height: 20px;
+    border: 1.5px solid var(--input-border);
+    border-radius: 50%;
+    background: #fff;
+}
+
+.rol-activo .rol-marca {
+    border: 6px solid var(--teal);
+}
+
+.registro-terminos {
+    align-items: flex-start;
+    padding: 6px 0;
+}
+
+.registro-terminos input {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.registro-error {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--danger);
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
