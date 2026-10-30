@@ -6,6 +6,7 @@ import Pantalla from '../components/Pantalla.jsx';
 import { useCarga } from '../hooks/useCarga.js';
 import { crearResena, estadoDeReserva } from '../services/cuentaService.js';
 import { NOMBRES_CALIFICACION } from '../utils/textos.js';
+import { RUTAS } from '../rutas.js';
 
 const MAX = 1000;
 
@@ -67,7 +68,7 @@ export default function NuevaResenaPage() {
       {publicada && (
         <>
           <Aviso tipo="ok">¡Gracias! Tu reseña ayuda a otros viajeros.</Aviso>
-          <Link className="btn-primary" to="/cuenta/resenas">Ver mis reseñas</Link>
+          <Link className="btn-primary" to={RUTAS.resenas}>Ver mis reseñas</Link>
         </>
       )}
 

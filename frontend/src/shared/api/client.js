@@ -16,6 +16,12 @@ export async function api(ruta, { metodo = 'GET', cuerpo } = {}) {
     throw new Error('No hay conexión con el servidor');
   }
   const datos = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw new Error(datos.error ?? 'Algo salió mal. Inténtalo de nuevo.');
+  if (!resp.ok) {
+    throw Object.assign(new Error(datos.error ?? 'Algo salió mal. Inténtalo de nuevo.'), {
+      status: resp.status,
+      codigo: datos.codigo,
+      datos,
+    });
+  }
   return datos;
 }

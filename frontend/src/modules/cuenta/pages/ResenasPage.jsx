@@ -6,7 +6,7 @@ import { listarMisResenas } from '../services/cuentaService.js';
 import { fecha } from '../utils/textos.js';
 
 // HU-33: las reseñas que el usuario ha escrito. Calificar se hace desde la reserva terminada
-// (/cuenta/resenas/nueva/:reservaId).
+// (RUTAS.nuevaResenaPatron).
 export default function ResenasPage() {
   const { datos, cargando, error } = useCarga(listarMisResenas);
   const resenas = datos?.resenas ?? [];

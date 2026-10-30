@@ -13,6 +13,7 @@ import {
 } from '../services/cuentaService.js';
 import { minutosYSegundos } from '../utils/textos.js';
 import { enmascarar, validarCodigo, validarCorreo } from '../utils/validaciones.js';
+import { RUTAS } from '../rutas.js';
 
 // HU-06 (mockups 14 y 9): pide la clave, manda un código al correo NUEVO y avisa al anterior.
 // El correo no cambia hasta confirmar el código.
@@ -70,7 +71,7 @@ function Flujo({ perfil }) {
           <p className="cu-item-meta">Tu correo ahora es</p>
           <p className="cu-item-titulo">{correoActual}</p>
         </div>
-        <div className="cu-acciones"><Link className="btn-primary" to="/cuenta">Listo</Link></div>
+        <div className="cu-acciones"><Link className="btn-primary" to={RUTAS.configuracion}>Listo</Link></div>
       </div>
     );
   }

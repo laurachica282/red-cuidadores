@@ -1,39 +1,36 @@
-import { mkdtemp, readFile } from 'node:fs/promises';
+import './entorno.js';
+import { mkdtemp, readdir, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcrypt';
 import express from 'express';
-import jwt from 'jsonwebtoken';
 import pg from 'pg';
+import request from 'supertest';
+import authRoutes from '../../auth/auth.routes.js';
 import { ErrorHttp } from '../errores.js';
 import { crearModuloCuenta } from '../modulo.js';
 import { crearAlmacenFotos } from '../fotos.js';
 
-process.env.JWT_SECRET ??= 'secreto-solo-para-pruebas';
 export const CLAVE = 'Luna2026ok';
 
-const aqui = path.dirname(fileURLToPath(import.meta.url));
+const dirDb = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../../db');
 
-// Las pruebas hacen TRUNCATE ... CASCADE: solo corren contra una base cuyo nombre acabe en _test.
+// Las pruebas hacen TRUNCATE ... CASCADE: entorno.js ya exige que la base acabe en _test.
 export function crearPoolDePruebas() {
-  const database = process.env.TEST_DB_NAME ?? 'red_cuidadores_test';
-  if (!database.endsWith('_test')) {
-    throw new Error(`TEST_DB_NAME debe terminar en _test (recibido: ${database})`);
-  }
   return new pg.Pool({
-    host: process.env.TEST_DB_HOST ?? '127.0.0.1',
-    port: Number(process.env.TEST_DB_PORT ?? 5432),
-    database,
-    user: process.env.TEST_DB_USER ?? 'postgres',
-    password: process.env.TEST_DB_PASSWORD || undefined,
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT),
+    database: process.env.DB_NAME,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD || undefined,
   });
 }
 
+// Aplica TODAS las migraciones de backend/src/db en orden (las del módulo auth y la de cuenta).
 export async function aplicarEsquema(pool) {
-  for (const f of ['01_usuarios.sql', '02_cuenta.sql']) {
-    await pool.query(await readFile(path.join(aqui, '../../../db', f), 'utf8'));
-  }
+  const archivos = (await readdir(dirDb)).filter((f) => f.endsWith('.sql')).sort();
+  for (const f of archivos) await pool.query(await readFile(path.join(dirDb, f), 'utf8'));
 }
 
 export const limpiar = (pool) => pool.query('TRUNCATE usuarios RESTART IDENTITY CASCADE');
@@ -56,6 +53,10 @@ export function crearCorreoFalso() {
   };
 }
 
+// La app de pruebas monta el login REAL del módulo auth y el módulo cuenta. Así los tokens salen del
+// mismo flujo que usa la aplicación y las pruebas siguen valiendo cuando auth cambie sus sesiones (HU-08).
+let appActual;
+
 export async function montarApp(pool, extra = {}) {
   const correo = crearCorreoFalso();
   const directorio = await mkdtemp(path.join(os.tmpdir(), 'fotos-test-'));
@@ -65,11 +66,15 @@ export async function montarApp(pool, extra = {}) {
   });
   const app = express();
   app.use(express.json());
+  app.use('/api/auth', authRoutes);
   app.use('/api/cuenta', modulo.router);
+  appActual = app;
   return { app, correo, directorio, ...modulo };
 }
 
 let contador = 0;
+
+// Crea un usuario con el correo ya verificado y le saca el token iniciando sesión de verdad.
 export async function crearUsuario(pool, datos = {}) {
   contador += 1;
   const u = {
@@ -80,10 +85,12 @@ export async function crearUsuario(pool, datos = {}) {
     ...datos,
   };
   const { rows: [fila] } = await pool.query(
-    `INSERT INTO usuarios (nombre, correo, clave_hash, rol) VALUES ($1, $2, $3, $4) RETURNING *`,
+    `INSERT INTO usuarios (nombre, correo, clave_hash, rol, correo_verificado) VALUES ($1, $2, $3, $4, TRUE) RETURNING *`,
     [u.nombre, u.correo, await bcrypt.hash(u.clave, 4), u.rol],
   );
-  return { ...fila, clave: u.clave, token: jwt.sign({ id: fila.id, rol: fila.rol }, process.env.JWT_SECRET, { expiresIn: '1h' }) };
+  const login = await request(appActual).post('/api/auth/login').send({ correo: u.correo, clave: u.clave });
+  if (login.status !== 200) throw new Error(`No se pudo iniciar sesión en la prueba (${login.status}): ${login.body.error}`);
+  return { ...fila, clave: u.clave, token: login.body.token };
 }
 
 export const conToken = (peticion, usuario) => peticion.set('Authorization', `Bearer ${usuario.token}`);

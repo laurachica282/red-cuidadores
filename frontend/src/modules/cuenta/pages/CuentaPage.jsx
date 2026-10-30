@@ -1,12 +1,13 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/modules/auth';
-import { IconCorreo } from '@/shared/components/Icons.jsx';
+import { IconCandado, IconCorreo } from '@/shared/components/Icons.jsx';
 import Aviso from '../components/Aviso.jsx';
 import Avatar from '../components/Avatar.jsx';
 import { IconCampana, IconGlobo, IconEstrella, IconLista, IconSalir, IconSiguiente, IconUsuario } from '../components/Iconos.jsx';
 import Pantalla from '../components/Pantalla.jsx';
 import { useCarga } from '../hooks/useCarga.js';
 import { obtenerPerfil } from '../services/cuentaService.js';
+import { RUTAS } from '../rutas.js';
 
 function Opcion({ a, Icono, titulo }) {
   return (
@@ -20,8 +21,8 @@ function Opcion({ a, Icono, titulo }) {
   );
 }
 
-// Mockup 11 (Configuración). "Cambiar contraseña", "Seguridad", "Métodos de pago" y "Centro de ayuda"
-// son de otros módulos: se suman a estas listas cuando existan sus pantallas.
+// Mockup 11 (Configuración). "Cambiar contraseña" es la pantalla del módulo auth (HU-05). "Seguridad"
+// (HU-07/08), "Métodos de pago" y "Centro de ayuda" se suman a estas listas cuando existan sus pantallas.
 export default function CuentaPage() {
   const { usuario, cerrarSesion } = useAuth();
   const navigate = useNavigate();
@@ -37,11 +38,12 @@ export default function CuentaPage() {
 
   return (
     <Pantalla titulo="Configuración" atras="/inicio" etiquetaAtras="Volver al inicio">
-      <Link className="cu-perfil" to="/cuenta/datos" aria-label={`Datos personales de ${nombre}`}>
+      <Link className="cu-perfil" to={RUTAS.datos}>
         <Avatar foto={perfil?.foto} nombre={nombre} tamano={56} />
         <span className="cu-perfil-texto">
-          <p className="cu-perfil-nombre">{nombre}</p>
-          <p className="cu-perfil-correo">{perfil?.correo ?? usuario.correo}</p>
+          <span className="cu-sr">Datos personales de </span>
+          <span className="cu-perfil-nombre">{nombre}</span>
+          <span className="cu-perfil-correo">{perfil?.correo ?? usuario.correo}</span>
         </span>
         <IconSiguiente />
       </Link>
@@ -50,28 +52,29 @@ export default function CuentaPage() {
 
       <p className="cu-seccion">Cuenta</p>
       <ul className="cu-menu">
-        <Opcion a="/cuenta/datos" Icono={IconUsuario} titulo="Datos personales" />
-        <Opcion a="/cuenta/correo" Icono={IconCorreo} titulo="Cambiar correo electrónico" />
+        <Opcion a={RUTAS.datos} Icono={IconUsuario} titulo="Datos personales" />
+        <Opcion a={RUTAS.cambiarClave} Icono={IconCandado} titulo="Cambiar contraseña" />
+        <Opcion a={RUTAS.correo} Icono={IconCorreo} titulo="Cambiar correo electrónico" />
       </ul>
 
       <p className="cu-seccion">General</p>
       <ul className="cu-menu">
-        <Opcion a="/cuenta/notificaciones" Icono={IconCampana} titulo="Notificaciones" />
-        <Opcion a="/cuenta/region" Icono={IconGlobo} titulo="Idioma, país y moneda" />
-        <Opcion a="/cuenta/resenas" Icono={IconEstrella} titulo="Mis reseñas" />
+        <Opcion a={RUTAS.notificaciones} Icono={IconCampana} titulo="Notificaciones" />
+        <Opcion a={RUTAS.region} Icono={IconGlobo} titulo="Idioma, país y moneda" />
+        <Opcion a={RUTAS.resenas} Icono={IconEstrella} titulo="Mis reseñas" />
       </ul>
 
       {esAdmin && (
         <>
           <p className="cu-seccion">Administración</p>
           <ul className="cu-menu">
-            <Opcion a="/cuenta/admin/desactivadas" Icono={IconLista} titulo="Cuentas desactivadas" />
+            <Opcion a={RUTAS.cuentasDesactivadas} Icono={IconLista} titulo="Cuentas desactivadas" />
           </ul>
         </>
       )}
 
       <button type="button" className="cu-btn" onClick={salir}><IconSalir /> Cerrar sesión</button>
-      <Link className="cu-enlace-peligro" to="/cuenta/desactivar">Desactivar cuenta</Link>
+      <Link className="cu-enlace-peligro" to={RUTAS.desactivar}>Desactivar cuenta</Link>
     </Pantalla>
   );
 }

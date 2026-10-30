@@ -1,5 +1,6 @@
 -- Módulo cuenta (Daniel Páez): HU-06, HU-09, HU-32, HU-33, HU-35, HU-37, HU-39, HU-40, HU-41.
 -- Depende de 01_usuarios.sql. Es idempotente: se puede ejecutar más de una vez.
+-- Lleva el número 10 para dejar libres los siguientes del módulo auth (05_sesiones, 2FA...).
 
 BEGIN;
 

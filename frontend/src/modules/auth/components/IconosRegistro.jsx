@@ -7,7 +7,13 @@ const base = {
 export const IconFlechaAtras = (p) => (
   <svg {...base} {...p}><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>
 );
-export const IconCasa = (p) => (
+export const IconEscudo = (p) => (
+  <svg {...base} {...p}><path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6l-8-3Z" /><path d="m9 12 2 2 4-4" /></svg>
+);
+export const IconLlave = (p) => (
+  <svg {...base} {...p}><circle cx="8" cy="15" r="4" /><path d="m11 12 9-9" /><path d="m16 7 3 3" /><path d="m14 9 2 2" /></svg>
+);
+export const IconCasa =(p) => (
   <svg {...base} {...p}><path d="m3 11 9-8 9 8" /><path d="M5 10v10h14V10" /></svg>
 );
 export const IconHuella = (p) => (

@@ -32,8 +32,8 @@ export default function RegistroPage() {
     setError('');
     setCargando(true);
     try {
-      await registrar(nombre, correo, clave, rol);
-      navigate('/login');
+      const r = await registrar(nombre, correo, clave, rol);
+      navigate('/verificar-correo', { state: { correo: r.correo ?? correo.trim().toLowerCase() } });
     } catch (err) {
       setError(err.message);
     } finally {

@@ -115,8 +115,8 @@
   background: var(--navy); color: #fff; border-radius: 22px; text-decoration: none;
 }
 .cu-perfil-texto { flex: 1; min-width: 0; }
-.cu-perfil-nombre { margin: 0; font-size: 20px; font-weight: 700; overflow-wrap: anywhere; }
-.cu-perfil-correo { margin: 2px 0 0; font-size: 14px; color: #c5d1dd; overflow-wrap: anywhere; }
+.cu-perfil-nombre { display: block; font-size: 20px; font-weight: 700; overflow-wrap: anywhere; }
+.cu-perfil-correo { display: block; margin-top: 2px; font-size: 14px; color: #c5d1dd; overflow-wrap: anywhere; }
 .cu-perfil > svg { flex: none; color: #c5d1dd; }
 .cu-etiqueta { display: inline-block; margin-top: 6px; padding: 3px 10px; border-radius: 999px; background: var(--tint); color: var(--teal-text); font-size: 12px; font-weight: 700; }
 

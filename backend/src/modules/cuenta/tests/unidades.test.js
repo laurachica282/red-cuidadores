@@ -1,3 +1,4 @@
+import './entorno.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generarCodigo, hashCodigo } from '../codigos.js';
@@ -7,8 +8,6 @@ import { crearIntegraciones } from '../integraciones.js';
 import { esquemas } from '../validacion.js';
 import { monedaDelPais } from '../regiones.js';
 import { JPG, PNG } from './ayudas.js';
-
-process.env.JWT_SECRET ??= 'secreto-solo-para-pruebas';
 
 test('los códigos son de 6 dígitos y el hash depende de usuario, propósito y código', () => {
   for (let i = 0; i < 200; i++) assert.match(generarCodigo(), /^\d{6}$/);

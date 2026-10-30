@@ -8,20 +8,21 @@ import NuevaResenaPage from './pages/NuevaResenaPage.jsx';
 import ReactivarCuentaPage from './pages/ReactivarCuentaPage.jsx';
 import RegionPage from './pages/RegionPage.jsx';
 import ResenasPage from './pages/ResenasPage.jsx';
+import { RUTAS } from './rutas.js';
 
 // HU-40: el usuario desactivado no tiene sesión, así que esta ruta es pública.
 export const publicRoutes = [
-  { path: '/reactivar', element: <ReactivarCuentaPage /> },
+  { path: RUTAS.reactivar, element: <ReactivarCuentaPage /> },
 ];
 
 export const privateRoutes = [
-  { path: '/cuenta', element: <CuentaPage /> },
-  { path: '/cuenta/datos', element: <DatosPersonalesPage /> },
-  { path: '/cuenta/correo', element: <CambiarCorreoPage /> },
-  { path: '/cuenta/notificaciones', element: <NotificacionesPage /> },
-  { path: '/cuenta/region', element: <RegionPage /> },
-  { path: '/cuenta/resenas', element: <ResenasPage /> },
-  { path: '/cuenta/resenas/nueva/:reservaId', element: <NuevaResenaPage /> },
-  { path: '/cuenta/desactivar', element: <DesactivarCuentaPage /> },
-  { path: '/cuenta/admin/desactivadas', element: <CuentasDesactivadasPage /> },
+  { path: RUTAS.configuracion, element: <CuentaPage /> },
+  { path: RUTAS.datos, element: <DatosPersonalesPage /> },
+  { path: RUTAS.correo, element: <CambiarCorreoPage /> },
+  { path: RUTAS.notificaciones, element: <NotificacionesPage /> },
+  { path: RUTAS.region, element: <RegionPage /> },
+  { path: RUTAS.resenas, element: <ResenasPage /> },
+  { path: RUTAS.nuevaResenaPatron, element: <NuevaResenaPage /> },
+  { path: RUTAS.desactivar, element: <DesactivarCuentaPage /> },
+  { path: RUTAS.cuentasDesactivadas, element: <CuentasDesactivadasPage /> },
 ];

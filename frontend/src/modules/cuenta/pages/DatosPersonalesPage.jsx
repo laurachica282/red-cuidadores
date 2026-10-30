@@ -7,6 +7,7 @@ import Pantalla from '../components/Pantalla.jsx';
 import { useCarga } from '../hooks/useCarga.js';
 import { actualizarPerfil, obtenerPerfil, quitarFoto, sincronizarSesion, subirFoto } from '../services/cuentaService.js';
 import { validarCiudad, validarNombre, validarTelefono } from '../utils/validaciones.js';
+import { RUTAS } from '../rutas.js';
 
 const TIPOS_FOTO = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_FOTO = 2 * 1024 * 1024;
@@ -139,7 +140,7 @@ function Formulario({ inicial }) {
         <label className="label" htmlFor="correo">Correo electrónico</label>
         <div className="cu-campo">
           <input id="correo" className="input cu-con-enlace" value={perfil.correo} readOnly aria-describedby="correo-ayuda" />
-          <Link className="cu-campo-enlace" to="/cuenta/correo">Cambiar</Link>
+          <Link className="cu-campo-enlace" to={RUTAS.correo}>Cambiar</Link>
         </div>
         <p id="correo-ayuda" className="cu-ayuda">El correo se cambia con verificación por código.</p>
       </div>

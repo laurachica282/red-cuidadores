@@ -4,6 +4,7 @@
 import { after, before, beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdir } from 'node:fs/promises';
+import jwt from 'jsonwebtoken';
 import request from 'supertest';
 import {
   CLAVE, JPG, PNG, aplicarEsquema, conToken, crearPoolDePruebas, crearUsuario, envejecerCodigos, limpiar, montarApp,
@@ -33,6 +34,20 @@ describe('sesión', () => {
     const u = await crearUsuario(pool);
     assert.equal((await get('/perfil', u)).status, 200);
     await pool.query('UPDATE usuarios SET status = FALSE WHERE id = $1', [u.id]);
+    assert.equal((await get('/perfil', u)).status, 401);
+  });
+
+  test('un token de propósito (restablecer contraseña) no sirve como sesión', async () => {
+    const u = await crearUsuario(pool);
+    const restablecer = jwt.sign({ id: u.id, proposito: 'restablecer' }, process.env.JWT_SECRET, { expiresIn: '10m' });
+    const r = await api().get('/api/cuenta/perfil').set('Authorization', `Bearer ${restablecer}`);
+    assert.equal(r.status, 401);
+  });
+
+  test('cambiar la contraseña cierra las sesiones anteriores también en este módulo', async () => {
+    const u = await crearUsuario(pool);
+    assert.equal((await get('/perfil', u)).status, 200);
+    await pool.query("UPDATE usuarios SET clave_cambiada_en = NOW() + INTERVAL '1 minute' WHERE id = $1", [u.id]);
     assert.equal((await get('/perfil', u)).status, 401);
   });
 
@@ -491,6 +506,8 @@ describe('HU-37 y HU-39 · desactivar la cuenta', () => {
     assert.deepEqual([e.evento, e.origen, e.motivo, e.detalle], ['desactivada', 'usuario', 'ya_no_uso', 'Me mudo de ciudad']);
 
     assert.equal((await get('/perfil', u)).status, 401, 'el token de la cuenta ya no entra');
+    const login = await api().post('/api/auth/login').send({ correo: u.correo, clave: u.clave });
+    assert.equal(login.status, 403, 'el login rechaza la cuenta desactivada');
     assert.equal((await post('/cierre/desactivar', u, datos)).status, 401);
     assert.equal(ctx.correo.para(u.correo).length, 1, 'aviso de desactivación');
   });
@@ -558,7 +575,9 @@ describe('HU-40 · reactivar la cuenta', () => {
 
     const { rows } = await pool.query('SELECT evento, origen FROM cuenta_eventos WHERE usuario_id = $1 ORDER BY id', [u.id]);
     assert.deepEqual(rows.map((e) => e.evento), ['desactivada', 'reactivada']);
-    assert.equal((await get('/perfil', u)).status, 200, 'su token vuelve a funcionar');
+    const login = await api().post('/api/auth/login').send({ correo: u.correo, clave: u.clave });
+    assert.equal(login.status, 200, 'puede iniciar sesión de nuevo');
+    assert.equal((await get('/perfil', { token: login.body.token })).status, 200);
   });
 
   test('un código incorrecto, vencido o de otra cuenta falla con el mismo mensaje', async () => {
@@ -665,6 +684,12 @@ describe('HU-41 · historial de cuentas desactivadas', () => {
     }
   });
 
+  test('el rol se lee de la base: quitarle el rol de admin surte efecto de inmediato', async () => {
+    assert.equal((await get('/admin/cuentas', admin)).status, 200);
+    await pool.query("UPDATE usuarios SET rol = 'viajero' WHERE id = $1", [admin.id]);
+    assert.equal((await get('/admin/cuentas', admin)).status, 403, 'el token todavía dice admin, la base ya no');
+  });
+
   test('filtra y pagina', async () => {
     const soloCuidadores = await get('/admin/cuentas?rol=cuidador', admin);
     assert.equal(soloCuidadores.body.total, 1);
@@ -693,5 +718,27 @@ describe('HU-41 · historial de cuentas desactivadas', () => {
       `SELECT r.calificacion, h.rol, h.status FROM resenas r JOIN v_historial_cuentas h ON h.usuario_id = r.cuidador_id`,
     );
     assert.deepEqual(rows, [{ calificacion: 5, rol: 'cuidador', status: false }]);
+  });
+});
+
+describe('límites de intentos (con la configuración real, no la de pruebas)', () => {
+  beforeEach(async () => { ctx = await montarApp(pool, { limites: undefined }); });
+
+  test('la contraseña solo se puede probar 10 veces por hora, por usuario', async () => {
+    const u = await crearUsuario(pool);
+    const otro = await crearUsuario(pool);
+    const intento = (quien) => post('/correo/solicitar', quien, { correo_nuevo: 'otro@correo.com', clave: 'Incorrecta1' });
+
+    for (let i = 0; i < 10; i++) assert.equal((await intento(u)).status, 403);
+    const r = await intento(u);
+    assert.equal(r.status, 429);
+    assert.ok(r.body.error);
+    assert.equal((await intento(otro)).status, 403, 'el límite es por usuario, no global');
+  });
+
+  test('pedir códigos de reactivación sin sesión también tiene tope', async () => {
+    const pedir = () => api().post('/api/cuenta/reactivacion/solicitar').send({ correo: 'nadie@correo.com' });
+    for (let i = 0; i < 10; i++) assert.equal((await pedir()).status, 200);
+    assert.equal((await pedir()).status, 429);
   });
 });

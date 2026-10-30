@@ -1,19 +1,22 @@
 import nodemailer from 'nodemailer';
 import { ErrorHttp } from './errores.js';
 
-// Envío de correos. Con SMTP_HOST configurado usa SMTP real; sin él, en desarrollo
-// imprime el correo en la consola del backend para poder probar los flujos con código.
-// En producción sin SMTP falla en vez de fingir que envió algo.
+// Envío de correos. Usa las mismas variables que el módulo auth (SMTP_HOST, SMTP_PORT, SMTP_USER,
+// SMTP_PASS y MAIL_FROM). Con todas configuradas envía por SMTP; sin ellas, en desarrollo imprime
+// el correo en la consola del backend para poder probar los flujos con código. En producción sin
+// SMTP falla en vez de fingir que envió algo.
+const VARIABLES_SMTP = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'MAIL_FROM'];
+
 export function crearCorreo({ env = process.env, log = console } = {}) {
-  const transporte = env.SMTP_HOST
+  const transporte = VARIABLES_SMTP.every((v) => env[v])
     ? nodemailer.createTransport({
         host: env.SMTP_HOST,
-        port: Number(env.SMTP_PORT ?? 587),
+        port: Number(env.SMTP_PORT),
         secure: Number(env.SMTP_PORT) === 465,
-        auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASSWORD } : undefined,
+        auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
       })
     : null;
-  const remitente = env.SMTP_FROM ?? 'Red de Cuidadores <no-responder@red-cuidadores.local>';
+  const remitente = env.MAIL_FROM;
 
   return {
     async enviar({ para, asunto, texto }) {

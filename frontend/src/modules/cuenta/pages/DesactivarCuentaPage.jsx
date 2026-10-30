@@ -8,6 +8,7 @@ import Pantalla from '../components/Pantalla.jsx';
 import { useCarga } from '../hooks/useCarga.js';
 import { desactivarCuenta, obtenerPendientes } from '../services/cuentaService.js';
 import { MOTIVOS, PAZ_Y_SALVO } from '../utils/textos.js';
+import { RUTAS } from '../rutas.js';
 
 // Mockup 18 (antes "Eliminar cuenta"; ahora "Desactivar cuenta" por RN-5: nada se borra).
 // HU-37: "Antes de irte" muestra qué falta para cerrar. HU-39: desactiva con motivo y contraseña.
@@ -64,7 +65,7 @@ function Formulario({ alTerminar }) {
         <button type="submit" className="cu-btn cu-btn-peligro" disabled={!completo || enviando}>
           {enviando ? 'Desactivando…' : 'Desactivar mi cuenta'}
         </button>
-        <Link className="cu-btn" to="/cuenta">Mejor me quedo</Link>
+        <Link className="cu-btn" to={RUTAS.configuracion}>Mejor me quedo</Link>
       </div>
     </form>
   );
@@ -79,7 +80,7 @@ export default function DesactivarCuentaPage() {
   // protegida redirigiría a /login y ganaría a esta navegación. La sesión local se cierra al
   // llegar a /reactivar (ReactivarCuentaPage mira state.desactivada).
   const terminar = () => {
-    navigate('/reactivar', { state: { correo: usuario.correo, desactivada: true }, replace: true });
+    navigate(RUTAS.reactivar, { state: { correo: usuario.correo, desactivada: true }, replace: true });
   };
 
   return (
@@ -119,7 +120,7 @@ export default function DesactivarCuentaPage() {
             : (
               <div className="cu-form">
                 <Aviso tipo="info">Para desactivar tu cuenta debes estar a paz y salvo. Resuelve lo pendiente y vuelve a intentarlo.</Aviso>
-                <div className="cu-acciones"><Link className="cu-btn" to="/cuenta">Mejor me quedo</Link></div>
+                <div className="cu-acciones"><Link className="cu-btn" to={RUTAS.configuracion}>Mejor me quedo</Link></div>
               </div>
             )}
         </>
