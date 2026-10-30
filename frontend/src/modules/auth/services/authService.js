@@ -20,3 +20,6 @@ export const verificarCodigoRecuperacion = (correo, codigo) =>
 
 export const restablecerClave = (token, clave) =>
   api('/auth/restablecer-clave', { metodo: 'POST', cuerpo: { token, clave } });
+
+export const cambiarClave = ({ claveActual, claveNueva, cerrarOtras }) =>
+  api('/auth/cambiar-clave', { metodo: 'POST', cuerpo: { claveActual, claveNueva, cerrarOtras } });

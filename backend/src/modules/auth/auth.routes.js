@@ -2,8 +2,9 @@ import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { pool } from '../../db.js';
-import { enviarCodigo } from './correo.service.js';
+import { enviarAvisoCambioClave, enviarCodigo } from './correo.service.js';
 import { crearCodigo, segundosParaReenviar, verificarCodigo } from './codigos.service.js';
+import { verificarToken } from './verificarToken.js';
 
 const router = Router();
 const CLAVE_VALIDA = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
@@ -16,6 +17,19 @@ const respuestaBloqueo = (minutos) => ({
   codigo: 'CUENTA_BLOQUEADA',
   minutos,
 });
+
+// Suma un intento fallido; al quinto bloquea la cuenta. Devuelve true si quedó bloqueada.
+const registrarFalloClave = async (id) => {
+  const f = await pool.query(
+    `UPDATE usuarios SET
+       intentos_fallidos = CASE WHEN intentos_fallidos + 1 >= $2 THEN 0 ELSE intentos_fallidos + 1 END,
+       bloqueado_hasta   = CASE WHEN intentos_fallidos + 1 >= $2 THEN NOW() + INTERVAL '15 minutes' ELSE bloqueado_hasta END
+     WHERE id = $1
+     RETURNING COALESCE(bloqueado_hasta > NOW(), FALSE) AS bloqueada`,
+    [id, MAX_INTENTOS]
+  );
+  return f.rows[0].bloqueada;
+};
 
 const crearToken =(u) =>
   jwt.sign({ id: u.id, rol: u.rol }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -148,16 +162,8 @@ router.post('/login', async (req, res) => {
 
     // Mismo mensaje si falla el correo o la clave, para no dar pistas.
     if (!coincide) {
-      if (u) {
-        const f = await pool.query(
-          `UPDATE usuarios SET
-             intentos_fallidos = CASE WHEN intentos_fallidos + 1 >= $2 THEN 0 ELSE intentos_fallidos + 1 END,
-             bloqueado_hasta   = CASE WHEN intentos_fallidos + 1 >= $2 THEN NOW() + INTERVAL '15 minutes' ELSE bloqueado_hasta END
-           WHERE id = $1
-           RETURNING COALESCE(bloqueado_hasta > NOW(), FALSE) AS bloqueada`,
-          [u.id, MAX_INTENTOS]
-        );
-        if (f.rows[0].bloqueada) return res.status(423).json(respuestaBloqueo(MINUTOS_BLOQUEO));
+      if (u && (await registrarFalloClave(u.id))) {
+        return res.status(423).json(respuestaBloqueo(MINUTOS_BLOQUEO));
       }
       return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
     }
@@ -259,6 +265,62 @@ router.post('/restablecer-clave', async (req, res) => {
       [payload.id, await bcrypt.hash(clave, 10)]
     );
     res.json({ ok: true });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudo cambiar la contraseña' });
+  }
+});
+
+router.post('/cambiar-clave', verificarToken, async (req, res) => {
+  const { claveActual, claveNueva, cerrarOtras } = req.body;
+  if (!claveActual || !claveNueva) return res.status(400).json({ error: 'Faltan datos' });
+
+  try {
+    const r = await pool.query(
+      `SELECT *,
+              COALESCE(bloqueado_hasta > NOW(), FALSE) AS bloqueada,
+              CEIL(EXTRACT(EPOCH FROM (bloqueado_hasta - NOW())) / 60)::int AS minutos_bloqueo
+       FROM usuarios WHERE id = $1`,
+      [req.usuario.id]
+    );
+    const u = r.rows[0];
+    if (!u) return res.status(401).json({ error: 'Tu sesión no es válida o venció' });
+
+    if (u.bloqueada) return res.status(423).json(respuestaBloqueo(u.minutos_bloqueo));
+
+    // La clave actual equivocada cuenta como intento fallido, igual que en el login.
+    if (!(await bcrypt.compare(claveActual, u.clave_hash))) {
+      if (await registrarFalloClave(u.id)) return res.status(423).json(respuestaBloqueo(MINUTOS_BLOQUEO));
+      return res.status(401).json({ error: 'La contraseña actual es incorrecta' });
+    }
+
+    if (u.intentos_fallidos > 0 || u.bloqueado_hasta) {
+      await pool.query('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = $1', [u.id]);
+    }
+
+    if (!CLAVE_VALIDA.test(claveNueva)) {
+      return res.status(400).json({ error: 'La contraseña debe tener mínimo 8 caracteres, una mayúscula y un número' });
+    }
+    if (await bcrypt.compare(claveNueva, u.clave_hash)) {
+      return res.status(400).json({ error: 'La nueva contraseña no puede ser igual a la actual', codigo: 'CLAVE_REPETIDA' });
+    }
+
+    // Solo si pide cerrar las otras sesiones se mueve clave_cambiada_en (ver verificarToken).
+    await pool.query(
+      `UPDATE usuarios SET clave_hash = $2, actualizado_en = NOW()
+              ${cerrarOtras ? ', clave_cambiada_en = NOW()' : ''}
+       WHERE id = $1`,
+      [u.id, await bcrypt.hash(claveNueva, 10)]
+    );
+
+    try {
+      await enviarAvisoCambioClave(u.correo, u.nombre);
+    } catch (e) {
+      console.error('No se pudo enviar el aviso de cambio de contraseña:', e.message);
+    }
+
+    // El token nuevo mantiene activa esta sesión; los anteriores quedan invalidados.
+    res.json(cerrarOtras ? { ok: true, token: crearToken(u), usuario: publico(u) } : { ok: true });
   } catch (e) {
     console.error(e.message);
     res.status(500).json({ error: 'No se pudo cambiar la contraseña' });

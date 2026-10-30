@@ -1,29 +1,13 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { IconCandado, IconOjo, IconOjoCerrado } from '@/shared/components/Icons.jsx';
 import { restablecerClave } from '../services/authService.js';
+import CampoClave from '../components/CampoClave.jsx';
 import ReglasClave from '../components/ReglasClave.jsx';
 import { claveValida } from '../components/reglasClave.js';
 import { IconFlechaAtras } from '../components/IconosRegistro.jsx';
 import './LoginPage.css';
 import './RegistroPage.css';
 import './VerificarCorreoPage.css';
-
-function CampoClave({ id, etiqueta, placeholder, valor, onChange, ver, onVer }) {
-  return (
-    <div>
-      <label className="label" htmlFor={id}>{etiqueta}</label>
-      <div className="campo">
-        <span className="campo-icono"><IconCandado /></span>
-        <input id={id} className="input con-ojo" type={ver ? 'text' : 'password'} autoComplete="new-password"
-          placeholder={placeholder} value={valor} onChange={(e) => onChange(e.target.value)} required />
-        <button type="button" className="campo-ojo" aria-label={ver ? 'Ocultar contraseña' : 'Mostrar contraseña'} onClick={onVer}>
-          {ver ? <IconOjoCerrado /> : <IconOjo />}
-        </button>
-      </div>
-    </div>
-  );
-}
 
 export default function NuevaClavePage() {
   const { state } = useLocation();

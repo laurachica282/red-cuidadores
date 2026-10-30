@@ -32,6 +32,14 @@ const html = (nombre, codigo, t) => `
   <p style="font-size:13px;color:#4a5d70">Nunca compartas este código con nadie, ni siquiera con nosotros. Si no lo pediste, ignora este mensaje.</p>
 </div>`;
 
+const crearTransporte = () =>
+  nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT),
+    secure: Number(process.env.SMTP_PORT) === 465,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  });
+
 // Sin credenciales SMTP imprime el código en consola (desarrollo).
 export async function enviarCodigo(correo, nombre, codigo, proposito = 'registro') {
   if (!smtpConfigurado()) {
@@ -40,12 +48,7 @@ export async function enviarCodigo(correo, nombre, codigo, proposito = 'registro
   }
 
   const t = TEXTOS[proposito];
-  const transporte = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT),
-    secure: Number(process.env.SMTP_PORT) === 465,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-  });
+  const transporte = crearTransporte();
 
   await transporte.sendMail({
     from: process.env.MAIL_FROM,
@@ -53,5 +56,28 @@ export async function enviarCodigo(correo, nombre, codigo, proposito = 'registro
     subject: t.asunto(codigo),
     text: t.plano(codigo),
     html: html(nombre, codigo, t),
+  });
+}
+
+const htmlAviso = (nombre) => `
+<div style="font-family:Arial,sans-serif;max-width:420px;margin:0 auto;padding:24px;color:#0b1f3a">
+  <h2 style="margin:0 0 12px">Tu contraseña fue cambiada</h2>
+  <p>Hola ${escapar(nombre)}, la contraseña de tu cuenta en Red de Cuidadores se cambió hace un momento.</p>
+  <p style="font-size:13px;color:#4a5d70">Si no fuiste tú, restablece tu contraseña de inmediato desde "¿Olvidaste tu contraseña?".</p>
+</div>`;
+
+// Aviso de seguridad tras cambiar la clave. Sin credenciales SMTP lo deja en consola (desarrollo).
+export async function enviarAvisoCambioClave(correo, nombre) {
+  if (!smtpConfigurado()) {
+    console.log(`[correo] SMTP sin configurar. Aviso de cambio de contraseña para ${correo}`);
+    return;
+  }
+
+  await crearTransporte().sendMail({
+    from: process.env.MAIL_FROM,
+    to: correo,
+    subject: 'Tu contraseña fue cambiada',
+    text: 'Tu contraseña fue cambiada. Si no fuiste tú, restablécela de inmediato desde "¿Olvidaste tu contraseña?".',
+    html: htmlAviso(nombre),
   });
 }
