@@ -8,7 +8,16 @@ import { crearCodigo, segundosParaReenviar, verificarCodigo } from './codigos.se
 const router = Router();
 const CLAVE_VALIDA = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
 
-const crearToken = (u) =>
+const MAX_INTENTOS = 5;
+const MINUTOS_BLOQUEO = 15; // debe coincidir con el INTERVAL del UPDATE de /login
+
+const respuestaBloqueo = (minutos) => ({
+  error: `Demasiados intentos. Intenta de nuevo en ${minutos} ${minutos === 1 ? 'minuto' : 'minutos'}.`,
+  codigo: 'CUENTA_BLOQUEADA',
+  minutos,
+});
+
+const crearToken =(u) =>
   jwt.sign({ id: u.id, rol: u.rol }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
 // Solo lo que el frontend puede ver (nunca la clave cifrada).
@@ -117,12 +126,39 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    const r = await pool.query('SELECT * FROM usuarios WHERE correo = $1', [correo.trim().toLowerCase()]);
+    const r = await pool.query(
+      `SELECT *,
+              COALESCE(bloqueado_hasta > NOW(), FALSE) AS bloqueada,
+              CEIL(EXTRACT(EPOCH FROM (bloqueado_hasta - NOW())) / 60)::int AS minutos_bloqueo
+       FROM usuarios WHERE correo = $1`,
+      [correo.trim().toLowerCase()]
+    );
     const u = r.rows[0];
+
+    // Cuenta bloqueada: ni se compara la clave.
+    if (u?.bloqueada) return res.status(423).json(respuestaBloqueo(u.minutos_bloqueo));
+
     const coincide = u && (await bcrypt.compare(clave, u.clave_hash));
 
     // Mismo mensaje si falla el correo o la clave, para no dar pistas.
-    if (!coincide) return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
+    if (!coincide) {
+      if (u) {
+        const f = await pool.query(
+          `UPDATE usuarios SET
+             intentos_fallidos = CASE WHEN intentos_fallidos + 1 >= $2 THEN 0 ELSE intentos_fallidos + 1 END,
+             bloqueado_hasta   = CASE WHEN intentos_fallidos + 1 >= $2 THEN NOW() + INTERVAL '15 minutes' ELSE bloqueado_hasta END
+           WHERE id = $1
+           RETURNING COALESCE(bloqueado_hasta > NOW(), FALSE) AS bloqueada`,
+          [u.id, MAX_INTENTOS]
+        );
+        if (f.rows[0].bloqueada) return res.status(423).json(respuestaBloqueo(MINUTOS_BLOQUEO));
+      }
+      return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
+    }
+
+    if (u.intentos_fallidos > 0 || u.bloqueado_hasta) {
+      await pool.query('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = $1', [u.id]);
+    }
     if (!u.status) return res.status(403).json({ error: 'Esta cuenta está desactivada' });
     if (!u.correo_verificado) {
       return res.status(403).json({ error: 'Debes verificar tu correo para ingresar', codigo: 'CORREO_SIN_VERIFICAR' });

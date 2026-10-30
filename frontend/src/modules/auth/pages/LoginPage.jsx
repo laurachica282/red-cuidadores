@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { IconCandado, IconCorreo, IconOjo, IconOjoCerrado, IconPata } from '@/shared/components/Icons.jsx';
 import { useAuth } from '../AuthContext.jsx';
@@ -11,12 +11,24 @@ export default function LoginPage() {
   const [verClave, setVerClave] = useState(false);
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
+  const [bloqueadoHasta, setBloqueadoHasta] = useState(null);
   const { iniciarSesion } = useAuth();
   const navigate = useNavigate();
   const { state } = useLocation();
 
+  // Al vencer el bloqueo se rehabilita el botón y se quita el aviso.
+  useEffect(() => {
+    if (!bloqueadoHasta) return undefined;
+    const t = setTimeout(() => {
+      setBloqueadoHasta(null);
+      setError('');
+    }, Math.max(0, bloqueadoHasta - Date.now()));
+    return () => clearTimeout(t);
+  }, [bloqueadoHasta]);
+
   const entrar = async (e) => {
     e.preventDefault();
+    if (bloqueadoHasta) return;
     setError('');
     setCargando(true);
     try {
@@ -28,6 +40,9 @@ export default function LoginPage() {
         await reenviarCodigo(correo).catch(() => {});
         navigate('/verificar-correo', { state: { correo: correo.trim().toLowerCase() } });
         return;
+      }
+      if (err.codigo === 'CUENTA_BLOQUEADA') {
+        setBloqueadoHasta(Date.now() + err.datos.minutos * 60000);
       }
       setError(err.message);
     } finally {
@@ -82,7 +97,7 @@ export default function LoginPage() {
             <Link className="enlace" to="/recuperar" style={{ fontSize: 14 }}>¿Olvidaste tu contraseña?</Link>
           </div>
 
-          <button type="submit" className="btn-primary" disabled={cargando}>
+          <button type="submit" className="btn-primary" disabled={cargando || !!bloqueadoHasta}>
             {cargando ? 'Ingresando…' : 'Ingresar'}
           </button>
         </form>
