@@ -23,3 +23,11 @@ export const restablecerClave = (token, clave) =>
 
 export const cambiarClave = ({ claveActual, claveNueva, cerrarOtras }) =>
   api('/auth/cambiar-clave', { metodo: 'POST', cuerpo: { claveActual, claveNueva, cerrarOtras } });
+
+export const logout = () => api('/auth/logout', { metodo: 'POST' });
+
+export const listarSesiones = () => api('/auth/sesiones');
+
+export const cerrarSesionDispositivo = (id) => api(`/auth/sesiones/${id}`, { metodo: 'DELETE' });
+
+export const cerrarTodasLasSesiones = () => api('/auth/sesiones/cerrar-todas', { metodo: 'POST' });
