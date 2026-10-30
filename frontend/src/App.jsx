@@ -2,9 +2,10 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute.jsx';
 import * as auth from '@/modules/auth';
 import * as busqueda from '@/modules/search';
+import * as cuenta from '@/modules/cuenta';
 
 // Cada módulo aporta sus rutas. Para sumar uno nuevo, se agrega a esta lista.
-const modulos = [auth, busqueda];
+const modulos = [auth, busqueda, cuenta];
 const rutasPublicas = modulos.flatMap((m) => m.publicRoutes ?? []);
 const rutasPrivadas = modulos.flatMap((m) => m.privateRoutes ?? []);
 
