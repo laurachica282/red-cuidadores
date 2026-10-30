@@ -1,0 +1,30 @@
+.reglas-clave {
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    font-size: 13px;
+    color: var(--slate);
+}
+
+.reglas-clave li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.reglas-clave-ok {
+    color: var(--teal-text);
+    font-weight: 700;
+}
+
+.reglas-clave-estado {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
