@@ -65,6 +65,10 @@ export default function LoginPage() {
           <p className="login-exito" role="status">¡Cuenta activada! Ya puedes iniciar sesión.</p>
         )}
 
+        {state?.claveActualizada && (
+          <p className="login-exito" role="status">Contraseña actualizada. Inicia sesión con la nueva.</p>
+        )}
+
         <form className="login-form" onSubmit={entrar}>
           <div>
             <label className="label" htmlFor="email">Correo electrónico</label>

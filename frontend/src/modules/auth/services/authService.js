@@ -11,3 +11,12 @@ export const verificarCorreo = (correo, codigo) =>
 
 export const reenviarCodigo = (correo) =>
   api('/auth/reenviar-codigo', { metodo: 'POST', cuerpo: { correo } });
+
+export const recuperarClave = (correo) =>
+  api('/auth/recuperar', { metodo: 'POST', cuerpo: { correo } });
+
+export const verificarCodigoRecuperacion = (correo, codigo) =>
+  api('/auth/recuperar/verificar', { metodo: 'POST', cuerpo: { correo, codigo } });
+
+export const restablecerClave = (token, clave) =>
+  api('/auth/restablecer-clave', { metodo: 'POST', cuerpo: { token, clave } });

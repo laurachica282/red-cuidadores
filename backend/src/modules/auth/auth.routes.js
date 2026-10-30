@@ -20,6 +20,22 @@ const respuestaBloqueo = (minutos) => ({
 const crearToken =(u) =>
   jwt.sign({ id: u.id, rol: u.rol }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
+// Token de un solo paso para cambiar la clave; no sirve como sesión (ver verificarToken).
+const crearTokenRestablecer = (u) =>
+  jwt.sign({ id: u.id, proposito: 'restablecer' }, process.env.JWT_SECRET, { expiresIn: '10m' });
+
+const responderFalloCodigo = (res, v) => {
+  if (v.motivo === 'intentos') {
+    return res.status(429).json({ error: 'Demasiados intentos. Pide un código nuevo.' });
+  }
+  if (v.motivo === 'vencido') {
+    return res.status(400).json({ error: 'El código venció. Pide uno nuevo.' });
+  }
+  return res.status(400).json({
+    error: `Código incorrecto. Te quedan ${v.intentosRestantes} ${v.intentosRestantes === 1 ? 'intento' : 'intentos'}.`,
+  });
+};
+
 // Solo lo que el frontend puede ver (nunca la clave cifrada).
 const publico = (u) => ({
   id: u.id, nombre: u.nombre, correo: u.correo, rol: u.rol,
@@ -75,17 +91,7 @@ router.post('/verificar-correo', async (req, res) => {
     if (u.correo_verificado) return res.json({ ok: true });
 
     const v = await verificarCodigo(u.id, 'registro', codigo);
-    if (!v.ok) {
-      if (v.motivo === 'intentos') {
-        return res.status(429).json({ error: 'Demasiados intentos. Pide un código nuevo.' });
-      }
-      if (v.motivo === 'vencido') {
-        return res.status(400).json({ error: 'El código venció. Pide uno nuevo.' });
-      }
-      return res.status(400).json({
-        error: `Código incorrecto. Te quedan ${v.intentosRestantes} ${v.intentosRestantes === 1 ? 'intento' : 'intentos'}.`,
-      });
-    }
+    if (!v.ok) return responderFalloCodigo(res, v);
 
     await pool.query('UPDATE usuarios SET correo_verificado = TRUE, actualizado_en = NOW() WHERE id = $1', [u.id]);
     res.json({ ok: true });
@@ -168,6 +174,94 @@ router.post('/login', async (req, res) => {
   } catch (e) {
     console.error(e.message);
     res.status(500).json({ error: 'No se pudo iniciar sesión' });
+  }
+});
+
+// Responde siempre igual, exista o no el correo, para no revelar qué cuentas hay.
+router.post('/recuperar', async (req, res) => {
+  const { correo } = req.body;
+  if (!correo?.trim()) return res.status(400).json({ error: 'Escribe tu correo' });
+
+  const respuesta = { ok: true, mensaje: 'Si el correo está registrado, recibirás un código en unos minutos.' };
+
+  try {
+    const r = await pool.query('SELECT * FROM usuarios WHERE correo = $1', [correo.trim().toLowerCase()]);
+    const u = r.rows[0];
+
+    // Dentro de los 60 s no se reenvía, pero tampoco se avisa (un 429 delataría que el correo existe).
+    if (u?.status && (await segundosParaReenviar(u.id, 'recuperacion')) === 0) {
+      try {
+        await enviarCodigo(u.correo, u.nombre, await crearCodigo(u.id, 'recuperacion'), 'recuperacion');
+      } catch (e) {
+        console.error('No se pudo enviar el código:', e.message);
+      }
+    }
+  } catch (e) {
+    console.error(e.message);
+  }
+  res.json(respuesta);
+});
+
+router.post('/recuperar/verificar', async (req, res) => {
+  const { correo, codigo } = req.body;
+  if (!correo?.trim() || !/^\d{6}$/.test(codigo ?? '')) {
+    return res.status(400).json({ error: 'Escribe el código de 6 dígitos' });
+  }
+
+  try {
+    const r = await pool.query('SELECT id, status FROM usuarios WHERE correo = $1', [correo.trim().toLowerCase()]);
+    const u = r.rows[0];
+    if (!u?.status) return res.status(400).json({ error: 'El código es incorrecto o venció' });
+
+    const v = await verificarCodigo(u.id, 'recuperacion', codigo);
+    if (!v.ok) return responderFalloCodigo(res, v);
+
+    res.json({ token: crearTokenRestablecer(u) });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudo verificar el código' });
+  }
+});
+
+router.post('/restablecer-clave', async (req, res) => {
+  const { token, clave } = req.body;
+  if (!token || !clave) return res.status(400).json({ error: 'Faltan datos' });
+
+  let payload;
+  try {
+    payload = jwt.verify(token, process.env.JWT_SECRET);
+  } catch {
+    payload = null;
+  }
+  if (payload?.proposito !== 'restablecer') {
+    return res.status(400).json({ error: 'El enlace venció. Pide un código nuevo.', codigo: 'TOKEN_INVALIDO' });
+  }
+  if (!CLAVE_VALIDA.test(clave)) {
+    return res.status(400).json({ error: 'La contraseña debe tener mínimo 8 caracteres, una mayúscula y un número' });
+  }
+
+  try {
+    const r = await pool.query(
+      'SELECT status, FLOOR(EXTRACT(EPOCH FROM clave_cambiada_en))::bigint AS cambio FROM usuarios WHERE id = $1',
+      [payload.id]
+    );
+    const u = r.rows[0];
+    // Un token emitido antes del último cambio ya se usó: el restablecimiento es de un solo uso.
+    if (!u?.status || (u.cambio !== null && payload.iat <= Number(u.cambio))) {
+      return res.status(400).json({ error: 'El enlace venció. Pide un código nuevo.', codigo: 'TOKEN_INVALIDO' });
+    }
+
+    // Recibir el código prueba que el correo es suyo, por eso queda verificado.
+    await pool.query(
+      `UPDATE usuarios SET clave_hash = $2, clave_cambiada_en = NOW(), intentos_fallidos = 0,
+              bloqueado_hasta = NULL, correo_verificado = TRUE, actualizado_en = NOW()
+       WHERE id = $1`,
+      [payload.id, await bcrypt.hash(clave, 10)]
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudo cambiar la contraseña' });
   }
 });
 

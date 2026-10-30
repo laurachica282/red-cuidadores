@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { IconCorreo } from '@/shared/components/Icons.jsx';
-import { reenviarCodigo, verificarCorreo } from '../services/authService.js';
+import {
+  recuperarClave, reenviarCodigo, verificarCodigoRecuperacion, verificarCorreo,
+} from '../services/authService.js';
 import CodigoVerificacion from '../components/CodigoVerificacion.jsx';
 import { IconEscudo, IconFlechaAtras } from '../components/IconosRegistro.jsx';
 import './LoginPage.css';
@@ -9,7 +11,28 @@ import './RegistroPage.css';
 import './VerificarCorreoPage.css';
 
 const ESPERA = 60;
-const CLAVE_CORREO = 'correoPorVerificar';
+
+// Lo que cambia entre verificar el correo del registro y el código de recuperación de clave.
+const MODOS = {
+  registro: {
+    claveCorreo: 'correoPorVerificar',
+    volverA: '/registro',
+    verificar: async (correo, codigo, navigate) => {
+      await verificarCorreo(correo, codigo);
+      navigate('/login', { state: { cuentaActivada: true } });
+    },
+    reenviar: reenviarCodigo,
+  },
+  recuperacion: {
+    claveCorreo: 'correoPorRecuperar',
+    volverA: '/recuperar',
+    verificar: async (correo, codigo, navigate) => {
+      const { token } = await verificarCodigoRecuperacion(correo, codigo);
+      navigate('/recuperar/nueva-clave', { state: { token }, replace: true });
+    },
+    reenviar: recuperarClave,
+  },
+};
 
 const enmascarar = (correo) => {
   const [usuario, dominio] = correo.split('@');
@@ -18,18 +41,19 @@ const enmascarar = (correo) => {
 
 const reloj = (s) => `0:${String(s).padStart(2, '0')}`;
 
-const leerCorreo = (state) => {
+const leerCorreo = (state, clave) => {
   if (state?.correo) {
-    try { sessionStorage.setItem(CLAVE_CORREO, state.correo); } catch { /* sin almacenamiento */ }
+    try { sessionStorage.setItem(clave, state.correo); } catch { /* sin almacenamiento */ }
     return state.correo;
   }
-  try { return sessionStorage.getItem(CLAVE_CORREO); } catch { return null; }
+  try { return sessionStorage.getItem(clave); } catch { return null; }
 };
 
-export default function VerificarCorreoPage() {
+export default function VerificarCorreoPage({ modo = 'registro' }) {
+  const config = MODOS[modo];
   const { state } = useLocation();
   const navigate = useNavigate();
-  const [correo] = useState(() => leerCorreo(state));
+  const [correo] = useState(() => leerCorreo(state, config.claveCorreo));
   const [codigo, setCodigo] = useState('');
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
@@ -42,7 +66,7 @@ export default function VerificarCorreoPage() {
     return () => clearTimeout(id);
   }, [segundos]);
 
-  if (!correo) return <Navigate to="/registro" replace />;
+  if (!correo) return <Navigate to={config.volverA} replace />;
 
   const verificar = async (e) => {
     e.preventDefault();
@@ -51,9 +75,8 @@ export default function VerificarCorreoPage() {
     setInfo('');
     setCargando(true);
     try {
-      await verificarCorreo(correo, codigo);
-      try { sessionStorage.removeItem(CLAVE_CORREO); } catch { /* sin almacenamiento */ }
-      navigate('/login', { state: { cuentaActivada: true } });
+      await config.verificar(correo, codigo, navigate);
+      try { sessionStorage.removeItem(config.claveCorreo); } catch { /* sin almacenamiento */ }
     } catch (err) {
       setError(err.message);
       setCodigo('');
@@ -66,7 +89,7 @@ export default function VerificarCorreoPage() {
     setError('');
     setInfo('');
     try {
-      await reenviarCodigo(correo);
+      await config.reenviar(correo);
       setCodigo('');
       setInfo('Te enviamos un código nuevo.');
       setSegundos(ESPERA);
