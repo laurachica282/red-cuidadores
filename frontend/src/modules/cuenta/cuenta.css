@@ -1,0 +1,173 @@
+/* Módulo cuenta. Usa solo los colores y clases base de shared/styles/theme.css. */
+
+.cu-fondo { min-height: 100vh; background: var(--bg); }
+
+.cu {
+  max-width: 430px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 20px 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* En computador la pantalla se ve como una tarjeta centrada (igual que el login). */
+@media (min-width: 600px) {
+  .cu-fondo { display: flex; align-items: center; justify-content: center; padding: 32px; }
+  .cu {
+    min-height: auto;
+    width: 100%;
+    padding: 28px;
+    background: #fff;
+    border: 1px solid var(--card-border);
+    border-radius: 28px;
+    box-shadow: 0 12px 40px rgba(11, 31, 58, 0.08);
+  }
+}
+
+/* ---------- Cabecera ---------- */
+.cu-cabecera { display: flex; align-items: center; gap: 8px; margin: 0 -8px; }
+.cu-cabecera h1 { margin: 0; font-size: 24px; line-height: 1.15; letter-spacing: -0.3px; }
+.cu-atras {
+  width: 44px; height: 44px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 12px; color: var(--navy); text-decoration: none;
+}
+.cu-atras:hover { background: var(--tint); }
+.cu a:focus-visible, .cu button:focus-visible, .cu select:focus-visible, .cu textarea:focus-visible,
+.cu input:focus-visible { outline: 2px solid var(--teal-text); outline-offset: 2px; }
+.cu .input:focus { outline: 2px solid var(--teal-text); outline-offset: 1px; }
+
+.cu-texto { margin: 0; font-size: 15px; line-height: 1.5; color: var(--slate); }
+.cu-seccion { margin: 6px 0 -6px; font-size: 13px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--slate); }
+
+.cu-form { display: flex; flex-direction: column; gap: 16px; }
+.cu-ayuda { margin: 6px 0 0; font-size: 13px; line-height: 1.4; color: var(--slate); }
+.cu-error-campo { margin: 6px 0 0; font-size: 13px; font-weight: 600; color: var(--danger); }
+.cu textarea.input { height: auto; min-height: 96px; padding: 12px 14px; resize: vertical; line-height: 1.4; }
+.cu select.input { appearance: none; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%234a5d70' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 14px center; padding-right: 44px; }
+.cu .input[readonly] { background: #eef2f4; color: var(--slate); }
+
+/* ---------- Campos con icono ---------- */
+.cu-campo { position: relative; }
+.cu-campo-icono { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--slate); display: flex; }
+.cu-con-icono { padding-left: 44px; }
+.cu-con-ojo { padding-right: 56px; }
+.cu-campo-ojo {
+  position: absolute; right: 4px; top: 4px; width: 44px; height: 44px;
+  border: 0; border-radius: 12px; background: none; color: var(--slate);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.cu-codigo { text-align: center; font-size: 28px; font-weight: 700; letter-spacing: 10px; padding: 0 14px 0 24px; font-variant-numeric: tabular-nums; }
+
+/* ---------- Botones ---------- */
+.cu .btn-primary:disabled, .cu-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.cu-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; height: 52px; padding: 0 16px;
+  border: 1.5px solid var(--input-border); border-radius: 14px; background: #fff; color: var(--navy);
+  font: inherit; font-size: 16px; font-weight: 700; text-decoration: none; cursor: pointer;
+}
+.cu-btn-peligro { background: var(--danger); border-color: var(--danger); color: #fff; }
+.cu-btn-texto { border-color: transparent; background: none; color: var(--teal-text); height: 44px; }
+.cu-btn-chico { width: auto; height: 44px; font-size: 14px; border-radius: 12px; }
+.cu-fila { display: flex; gap: 12px; flex-wrap: wrap; }
+.cu-fila > * { flex: 1 1 140px; }
+
+/* ---------- Avisos ---------- */
+.cu-aviso { margin: 0; padding: 12px 14px; display: flex; gap: 10px; align-items: flex-start; border-radius: 14px; font-size: 14px; line-height: 1.45; }
+.cu-aviso svg { flex: none; margin-top: 1px; }
+.cu-aviso-error { background: #fdecea; color: var(--danger); }
+.cu-aviso-ok { background: var(--tint); color: var(--teal-text); }
+.cu-aviso-info { background: #fff6e0; color: #6b4a00; }
+
+/* ---------- Avatar y encabezado de cuenta ---------- */
+.cu-avatar {
+  flex: none; border-radius: 50%; overflow: hidden;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--teal); color: var(--navy); font-weight: 700;
+}
+.cu-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cu-perfil { display: flex; align-items: center; gap: 16px; }
+.cu-perfil-nombre { margin: 0; font-size: 20px; font-weight: 700; overflow-wrap: anywhere; }
+.cu-perfil-correo { margin: 2px 0 0; font-size: 14px; color: var(--slate); overflow-wrap: anywhere; }
+.cu-etiqueta { display: inline-block; margin-top: 6px; padding: 3px 10px; border-radius: 999px; background: var(--tint); color: var(--teal-text); font-size: 12px; font-weight: 700; }
+.cu-foto-acciones { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.cu-foto-fila { display: flex; align-items: center; gap: 16px; }
+.cu-input-archivo { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+
+/* ---------- Menú de opciones ---------- */
+.cu-menu { margin: 0; padding: 0; list-style: none; background: #fff; border: 1px solid var(--card-border); border-radius: 18px; overflow: hidden; }
+.cu-menu li + li { border-top: 1px solid var(--card-border); }
+.cu-opcion {
+  min-height: 60px; padding: 8px 16px; display: flex; align-items: center; gap: 14px;
+  color: var(--navy); text-decoration: none; font-size: 16px; font-weight: 600;
+}
+.cu-opcion:hover { background: var(--bg); }
+.cu-opcion-icono { width: 40px; height: 40px; flex: none; border-radius: 12px; background: var(--tint); color: var(--teal-text); display: flex; align-items: center; justify-content: center; }
+.cu-opcion-texto { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.cu-opcion-texto small { font-size: 13px; font-weight: 400; color: var(--slate); }
+.cu-opcion > svg:last-child { color: var(--slate); flex: none; }
+.cu-opcion-peligro { color: var(--danger); }
+.cu-opcion-peligro .cu-opcion-icono { background: #fdecea; color: var(--danger); }
+
+/* ---------- Tarjetas ---------- */
+.cu-tarjeta { padding: 16px; background: #fff; border: 1px solid var(--card-border); border-radius: 18px; display: flex; flex-direction: column; gap: 6px; }
+.cu .cu-tarjeta h2 { margin: 0; font-size: 17px; }
+.cu-tarjeta p { margin: 0; }
+.cu-tarjeta-suave { background: var(--bg); }
+
+/* ---------- Interruptores ---------- */
+.cu-interruptor { position: relative; min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; cursor: pointer; }
+.cu-interruptor input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; margin: 0; cursor: pointer; }
+.cu-interruptor-pista { flex: none; width: 48px; height: 28px; border-radius: 999px; background: #b7c3cd; position: relative; transition: background 0.15s; }
+.cu-interruptor-pista::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(11, 31, 58, 0.3); transition: transform 0.15s; }
+.cu-interruptor input:checked ~ .cu-interruptor-pista { background: var(--teal-text); }
+.cu-interruptor input:checked ~ .cu-interruptor-pista::after { transform: translateX(20px); }
+.cu-interruptor input:focus-visible ~ .cu-interruptor-pista { outline: 2px solid var(--navy); outline-offset: 2px; }
+.cu-interruptor input:disabled ~ .cu-interruptor-pista { opacity: 0.5; }
+@media (prefers-reduced-motion: reduce) { .cu-interruptor-pista, .cu-interruptor-pista::after { transition: none; } }
+
+/* ---------- Estrellas ---------- */
+.cu-estrellas { display: inline-flex; gap: 4px; color: #b7c3cd; }
+.cu-estrella { width: 48px; height: 48px; padding: 0; border: 0; border-radius: 12px; background: none; color: inherit; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.cu-estrella-on, .cu-estrellas svg[fill='currentColor'] { color: var(--gold); }
+.cu-estrellas[role='img'] svg[fill='currentColor'] { color: var(--gold); }
+.cu-estrella:hover { background: var(--bg); }
+
+/* ---------- Opciones de selección (motivos) ---------- */
+.cu-opciones { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px; }
+.cu-opciones legend { padding: 0; margin-bottom: 8px; font-size: 14px; font-weight: 700; }
+.cu-radio { min-height: 48px; padding: 0 14px; display: flex; align-items: center; gap: 12px; border: 1.5px solid var(--card-border); border-radius: 14px; background: #fff; font-size: 15px; cursor: pointer; }
+.cu-radio input { width: 20px; height: 20px; margin: 0; accent-color: var(--teal-text); }
+.cu-radio:has(input:checked) { border-color: var(--teal-text); background: var(--tint); }
+.cu-radio:has(input:focus-visible) { outline: 2px solid var(--teal-text); outline-offset: 2px; }
+.cu-check { display: flex; align-items: flex-start; gap: 12px; font-size: 14px; line-height: 1.45; color: #32455a; cursor: pointer; }
+.cu-check input { width: 22px; height: 22px; margin: 0; flex: none; accent-color: var(--teal-text); }
+
+/* ---------- Listas ---------- */
+.cu-lista { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.cu-item { padding: 14px 16px; background: #fff; border: 1px solid var(--card-border); border-radius: 16px; display: flex; flex-direction: column; gap: 6px; }
+.cu-item-fila { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cu-item-titulo { margin: 0; font-size: 16px; font-weight: 700; }
+.cu-item-meta { margin: 0; font-size: 13px; color: var(--slate); }
+.cu-item-texto { margin: 0; font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; }
+.cu-vacio { padding: 28px 16px; text-align: center; border: 1.5px dashed var(--input-border); border-radius: 18px; color: var(--slate); font-size: 15px; line-height: 1.5; }
+.cu-pendiente { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; background: #fdecea; border-radius: 14px; }
+.cu-pendiente svg { color: var(--danger); flex: none; margin-top: 2px; }
+.cu-pendiente strong { display: block; font-size: 15px; }
+.cu-pendiente span { font-size: 13px; color: #5c1a15; }
+
+/* ---------- Resumen y filtros (admin) ---------- */
+.cu-resumen { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cu-dato { padding: 14px; background: var(--bg); border-radius: 16px; display: flex; flex-direction: column; gap: 2px; }
+.cu-dato strong { font-size: 28px; line-height: 1; }
+.cu-dato span { font-size: 13px; color: var(--slate); }
+.cu-eventos { margin: 4px 0 0; padding: 10px 0 0; list-style: none; border-top: 1px solid var(--card-border); display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+.cu-paginas { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; color: var(--slate); }
+
+.cu-pie { margin-top: auto; padding-top: 8px; text-align: center; font-size: 15px; color: #32455a; }
+.cu-enlace { min-height: 44px; display: inline-flex; align-items: center; font-weight: 700; color: var(--teal-text); text-decoration: none; }
+.cu-cargando { padding: 40px 0; text-align: center; color: var(--slate); }
+.cu-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
