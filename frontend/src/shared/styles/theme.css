@@ -1,0 +1,20 @@
+:root {
+  --navy: #0b1f3a;
+  --teal: #00a896;
+  --teal-text: #006b61;
+  --gold: #f4b942;
+  --bg: #f7f9fa;
+  --slate: #4a5d70;
+  --card-border: #e4e9ec;
+  --input-border: #7d90a3;
+  --tint: #e3f6f3;
+  --danger: #b3261e;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--navy); font-family: 'DM Sans', system-ui, sans-serif; }
+a { color: inherit; }
+.app-shell { max-width: 430px; min-height: 100vh; margin: 0 auto; background: var(--bg); display: flex; flex-direction: column; }
+.page { flex: 1; padding: 24px; }
+.btn-primary { display: flex; align-items: center; justify-content: center; width: 100%; height: 56px; border: 0; border-radius: 16px; background: var(--navy); color: #fff; font: inherit; font-size: 17px; font-weight: 700; text-decoration: none; cursor: pointer; }
+.input { width: 100%; height: 52px; padding: 0 14px; border: 1.5px solid var(--input-border); border-radius: 14px; background: #fff; font: inherit; font-size: 16px; color: var(--navy); }
+.label { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 700; }
