@@ -1,13 +1,22 @@
 import 'dotenv/config';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import cors from 'cors';
 import { pool } from './db.js';
 import authRoutes from './modules/auth/auth.routes.js';
+import mascotasRoutes from './modules/mascotas/index.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 app.use(cors({ origin: 'http://localhost:5173' }));
 app.use(express.json());
 app.use('/api/auth', authRoutes);
+
+// Módulo mascotas (HU-23 y HU-24): API y fotos subidas
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/api/mascotas', mascotasRoutes);
 
 // Ruta de prueba: confirma que el servidor y la base responden.
 app.get('/api/salud', async (req, res) => {
