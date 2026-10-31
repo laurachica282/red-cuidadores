@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { IconCorreo } from '@/shared/components/Icons.jsx';
+import { useAuth } from '../AuthContext.jsx';
 import {
-  recuperarClave, reenviarCodigo, verificarCodigoRecuperacion, verificarCorreo,
+  recuperarClave, reenviar2fa, reenviarCodigo, verificar2fa, verificarCodigoRecuperacion, verificarCorreo,
 } from '../services/authService.js';
 import CodigoVerificacion from '../components/CodigoVerificacion.jsx';
 import { IconEscudo, IconFlechaAtras } from '../components/IconosRegistro.jsx';
@@ -12,25 +13,39 @@ import './VerificarCorreoPage.css';
 
 const ESPERA = 60;
 
-// Lo que cambia entre verificar el correo del registro y el código de recuperación de clave.
+// Lo que cambia entre verificar el correo del registro, el código de recuperación de clave y la verificación en dos pasos.
 const MODOS = {
   registro: {
     claveCorreo: 'correoPorVerificar',
     volverA: '/registro',
-    verificar: async (correo, codigo, navigate) => {
+    titulo: 'Revisa tu correo',
+    verificar: async ({ correo, codigo, navigate }) => {
       await verificarCorreo(correo, codigo);
       navigate('/login', { state: { cuentaActivada: true } });
     },
-    reenviar: reenviarCodigo,
+    reenviar: ({ correo }) => reenviarCodigo(correo),
   },
   recuperacion: {
     claveCorreo: 'correoPorRecuperar',
     volverA: '/recuperar',
-    verificar: async (correo, codigo, navigate) => {
+    titulo: 'Revisa tu correo',
+    verificar: async ({ correo, codigo, navigate }) => {
       const { token } = await verificarCodigoRecuperacion(correo, codigo);
       navigate('/recuperar/nueva-clave', { state: { token }, replace: true });
     },
-    reenviar: recuperarClave,
+    reenviar: ({ correo }) => recuperarClave(correo),
+  },
+  '2fa': {
+    claveCorreo: 'correoPor2fa',
+    claveToken: 'token2fa',
+    volverA: '/login',
+    titulo: 'Confirma que eres tú',
+    intro: 'Entraste desde un equipo nuevo. ',
+    verificar: async ({ token2fa, codigo, navigate, iniciarSesion }) => {
+      iniciarSesion(await verificar2fa(token2fa, codigo));
+      navigate('/inicio', { replace: true });
+    },
+    reenviar: ({ token2fa }) => reenviar2fa(token2fa),
   },
 };
 
@@ -41,19 +56,30 @@ const enmascarar = (correo) => {
 
 const reloj = (s) => `0:${String(s).padStart(2, '0')}`;
 
-const leerCorreo = (state, clave) => {
-  if (state?.correo) {
-    try { sessionStorage.setItem(clave, state.correo); } catch { /* sin almacenamiento */ }
-    return state.correo;
+// Lo que llega en el state se guarda en sessionStorage para que sobreviva a una recarga.
+const leerDato = (valor, clave) => {
+  if (!clave) return null;
+  if (valor) {
+    try { sessionStorage.setItem(clave, valor); } catch { /* sin almacenamiento */ }
+    return valor;
   }
   try { return sessionStorage.getItem(clave); } catch { return null; }
+};
+
+const olvidarDatos = (config) => {
+  try {
+    sessionStorage.removeItem(config.claveCorreo);
+    if (config.claveToken) sessionStorage.removeItem(config.claveToken);
+  } catch { /* sin almacenamiento */ }
 };
 
 export default function VerificarCorreoPage({ modo = 'registro' }) {
   const config = MODOS[modo];
   const { state } = useLocation();
   const navigate = useNavigate();
-  const [correo] = useState(() => leerCorreo(state, config.claveCorreo));
+  const { iniciarSesion } = useAuth();
+  const [correo] = useState(() => leerDato(state?.correo, config.claveCorreo));
+  const [token2fa] = useState(() => leerDato(state?.token2fa, config.claveToken));
   const [codigo, setCodigo] = useState('');
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
@@ -66,7 +92,15 @@ export default function VerificarCorreoPage({ modo = 'registro' }) {
     return () => clearTimeout(id);
   }, [segundos]);
 
-  if (!correo) return <Navigate to={config.volverA} replace />;
+  if (!correo || (config.claveToken && !token2fa)) return <Navigate to={config.volverA} replace />;
+
+  // El token del paso intermedio venció (10 min) o la clave cambió: hay que volver a ingresar.
+  const tokenVencido = (err) => {
+    if (err.codigo !== 'TOKEN_INVALIDO') return false;
+    olvidarDatos(config);
+    navigate(config.volverA, { replace: true });
+    return true;
+  };
 
   const verificar = async (e) => {
     e.preventDefault();
@@ -75,9 +109,10 @@ export default function VerificarCorreoPage({ modo = 'registro' }) {
     setInfo('');
     setCargando(true);
     try {
-      await config.verificar(correo, codigo, navigate);
-      try { sessionStorage.removeItem(config.claveCorreo); } catch { /* sin almacenamiento */ }
+      await config.verificar({ correo, token2fa, codigo, navigate, iniciarSesion });
+      olvidarDatos(config);
     } catch (err) {
+      if (tokenVencido(err)) return;
       setError(err.message);
       setCodigo('');
     } finally {
@@ -89,11 +124,13 @@ export default function VerificarCorreoPage({ modo = 'registro' }) {
     setError('');
     setInfo('');
     try {
-      await config.reenviar(correo);
+      await config.reenviar({ correo, token2fa });
       setCodigo('');
       setInfo('Te enviamos un código nuevo.');
       setSegundos(ESPERA);
     } catch (err) {
+      if (tokenVencido(err)) return;
+      if (err.datos?.segundos) setSegundos(err.datos.segundos);
       setError(err.message);
     }
   };
@@ -107,9 +144,9 @@ export default function VerificarCorreoPage({ modo = 'registro' }) {
 
         <span className="verificar-sello"><IconCorreo width="28" height="28" /></span>
 
-        <h1 style={{ marginTop: 20 }}>Revisa tu correo</h1>
+        <h1 style={{ marginTop: 20 }}>{config.titulo}</h1>
         <p className="login-sub">
-          Enviamos un código de 6 dígitos a <strong>{enmascarar(correo)}</strong>. Escríbelo para continuar.
+          {config.intro}Enviamos un código de 6 dígitos a <strong>{enmascarar(correo)}</strong>. Escríbelo para continuar.
         </p>
 
         <form className="login-form" onSubmit={verificar}>

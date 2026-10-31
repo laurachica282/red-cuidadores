@@ -21,6 +21,13 @@ const TEXTOS = {
     plano: (codigo) =>
       `Tu código para restablecer la contraseña es ${codigo}. Vence en 10 minutos. No lo compartas con nadie. Si no lo pediste, ignora este mensaje.`,
   },
+  '2fa': {
+    asunto: (codigo) => `Tu código para iniciar sesión: ${codigo}`,
+    titulo: 'Confirma que eres tú',
+    frase: 'usa este código para entrar a Red de Cuidadores desde un equipo nuevo:',
+    plano: (codigo) =>
+      `Tu código para iniciar sesión es ${codigo}. Vence en 10 minutos. No lo compartas con nadie. Si no intentaste entrar, cambia tu contraseña.`,
+  },
 };
 
 const html = (nombre, codigo, t) => `

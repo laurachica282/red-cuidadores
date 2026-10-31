@@ -4,6 +4,8 @@ import jwt from 'jsonwebtoken';
 import { pool } from '../../db.js';
 import { enviarAvisoCambioClave, enviarCodigo } from './correo.service.js';
 import { crearCodigo, segundosParaReenviar, verificarCodigo } from './codigos.service.js';
+import { cerrarSesiones, crearSesion, describirDispositivo, DIAS_SESION } from './sesiones.service.js';
+import { confiarDispositivo, esConfiable, hashDispositivo, olvidarDispositivos } from './dispositivos.service.js';
 import { verificarToken } from './verificarToken.js';
 
 const router = Router();
@@ -31,12 +33,49 @@ const registrarFalloClave = async (id) => {
   return f.rows[0].bloqueada;
 };
 
-const crearToken =(u) =>
-  jwt.sign({ id: u.id, rol: u.rol }, process.env.JWT_SECRET, { expiresIn: '7d' });
+// sid: id de la fila en sesiones; verificarToken rechaza el token si esa sesión se cerró.
+const crearToken = (u, sid) =>
+  jwt.sign({ id: u.id, rol: u.rol, sid }, process.env.JWT_SECRET, { expiresIn: `${DIAS_SESION}d` });
 
 // Token de un solo paso para cambiar la clave; no sirve como sesión (ver verificarToken).
 const crearTokenRestablecer = (u) =>
   jwt.sign({ id: u.id, proposito: 'restablecer' }, process.env.JWT_SECRET, { expiresIn: '10m' });
+
+// Token del paso intermedio del login con verificación en dos pasos; dh: hash del dispositivo que se va a confiar.
+const crearToken2fa = (u, hash) =>
+  jwt.sign({ id: u.id, proposito: '2fa', dh: hash }, process.env.JWT_SECRET, { expiresIn: '10m' });
+
+const token2faInvalido = (res) =>
+  res.status(400).json({ error: 'El código venció. Inicia sesión de nuevo.', codigo: 'TOKEN_INVALIDO' });
+
+// Devuelve { u, hash } si el token2fa es válido, la cuenta sigue activa y la clave no cambió después; si no, null.
+const leerToken2fa = async (token) => {
+  let payload;
+  try {
+    payload = jwt.verify(token, process.env.JWT_SECRET);
+  } catch {
+    return null;
+  }
+  if (payload?.proposito !== '2fa' || !payload.dh) return null;
+
+  const r = await pool.query(
+    'SELECT *, FLOOR(EXTRACT(EPOCH FROM clave_cambiada_en))::bigint AS cambio FROM usuarios WHERE id = $1',
+    [payload.id]
+  );
+  const u = r.rows[0];
+  if (!u?.status || (u.cambio !== null && payload.iat < Number(u.cambio))) return null;
+  return { u, hash: payload.dh };
+};
+
+// Manda el código 2FA salvo que se haya enviado uno hace menos de 60 s (ese sigue vigente).
+const enviarCodigo2fa = async (u) => {
+  if ((await segundosParaReenviar(u.id, '2fa')) > 0) return;
+  try {
+    await enviarCodigo(u.correo, u.nombre, await crearCodigo(u.id, '2fa'), '2fa');
+  } catch (e) {
+    console.error('No se pudo enviar el código:', e.message);
+  }
+};
 
 const responderFalloCodigo = (res, v) => {
   if (v.motivo === 'intentos') {
@@ -53,7 +92,7 @@ const responderFalloCodigo = (res, v) => {
 // Solo lo que el frontend puede ver (nunca la clave cifrada).
 const publico = (u) => ({
   id: u.id, nombre: u.nombre, correo: u.correo, rol: u.rol,
-  pais: u.pais, idioma: u.idioma, moneda: u.moneda,
+  pais: u.pais, idioma: u.idioma, moneda: u.moneda, dos_pasos: u.dos_pasos,
 });
 
 router.post('/registro', async (req, res) => {
@@ -72,9 +111,9 @@ router.post('/registro', async (req, res) => {
   try {
     const hash = await bcrypt.hash(clave, 10);
     const r = await pool.query(
-      `INSERT INTO usuarios (nombre, correo, clave_hash, rol, correo_verificado)
-       VALUES ($1, $2, $3, $4, FALSE) RETURNING *`,
-      [nombre.trim(), correo.trim().toLowerCase(), hash, rol]
+      `INSERT INTO usuarios (nombre, correo, clave_hash, rol, correo_verificado, dos_pasos)
+       VALUES ($1, $2, $3, $4, FALSE, $5) RETURNING *`,
+      [nombre.trim(), correo.trim().toLowerCase(), hash, rol, rol === 'cuidador']
     );
     const u = r.rows[0];
 
@@ -140,7 +179,7 @@ router.post('/reenviar-codigo', async (req, res) => {
 });
 
 router.post('/login', async (req, res) => {
-  const { correo, clave } = req.body;
+  const { correo, clave, dispositivoId } = req.body;
   if (!correo || !clave) {
     return res.status(400).json({ error: 'Escribe tu correo y tu contraseña' });
   }
@@ -176,10 +215,61 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'Debes verificar tu correo para ingresar', codigo: 'CORREO_SIN_VERIFICAR' });
     }
 
-    res.json({ token: crearToken(u), usuario: publico(u) });
+    // Equipo nuevo con verificación en dos pasos: aún no hay sesión, primero el código.
+    if (u.dos_pasos) {
+      const hash = hashDispositivo(dispositivoId);
+      if (!hash) return res.status(400).json({ error: 'No pudimos identificar este dispositivo' });
+      if (!(await esConfiable(u.id, hash))) {
+        await enviarCodigo2fa(u);
+        return res.json({ requiere2fa: true, token2fa: crearToken2fa(u, hash) });
+      }
+    }
+
+    res.json({ token: crearToken(u, await crearSesion(u.id, req)), usuario: publico(u) });
   } catch (e) {
     console.error(e.message);
     res.status(500).json({ error: 'No se pudo iniciar sesión' });
+  }
+});
+
+router.post('/2fa/verificar', async (req, res) => {
+  const { token2fa, codigo } = req.body;
+  if (!token2fa) return token2faInvalido(res);
+  if (!/^\d{6}$/.test(codigo ?? '')) return res.status(400).json({ error: 'Escribe el código de 6 dígitos' });
+
+  try {
+    const t = await leerToken2fa(token2fa);
+    if (!t) return token2faInvalido(res);
+
+    const v = await verificarCodigo(t.u.id, '2fa', codigo);
+    if (!v.ok) return responderFalloCodigo(res, v);
+
+    await confiarDispositivo(t.u.id, t.hash);
+    res.json({ token: crearToken(t.u, await crearSesion(t.u.id, req)), usuario: publico(t.u) });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudo verificar el código' });
+  }
+});
+
+router.post('/2fa/reenviar', async (req, res) => {
+  const { token2fa } = req.body;
+  if (!token2fa) return token2faInvalido(res);
+
+  try {
+    const t = await leerToken2fa(token2fa);
+    if (!t) return token2faInvalido(res);
+
+    const faltan = await segundosParaReenviar(t.u.id, '2fa');
+    if (faltan > 0) {
+      return res.status(429).json({ error: `Espera ${faltan} segundos para pedir otro código`, segundos: faltan });
+    }
+
+    await enviarCodigo(t.u.correo, t.u.nombre, await crearCodigo(t.u.id, '2fa'), '2fa');
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudo enviar el código' });
   }
 });
 
@@ -264,6 +354,8 @@ router.post('/restablecer-clave', async (req, res) => {
        WHERE id = $1`,
       [payload.id, await bcrypt.hash(clave, 10)]
     );
+    await cerrarSesiones(payload.id);
+    await olvidarDispositivos(payload.id);
     res.json({ ok: true });
   } catch (e) {
     console.error(e.message);
@@ -312,6 +404,7 @@ router.post('/cambiar-clave', verificarToken, async (req, res) => {
        WHERE id = $1`,
       [u.id, await bcrypt.hash(claveNueva, 10)]
     );
+    if (cerrarOtras) await cerrarSesiones(u.id, { excepto: req.usuario.sid });
 
     try {
       await enviarAvisoCambioClave(u.correo, u.nombre);
@@ -319,11 +412,123 @@ router.post('/cambiar-clave', verificarToken, async (req, res) => {
       console.error('No se pudo enviar el aviso de cambio de contraseña:', e.message);
     }
 
-    // El token nuevo mantiene activa esta sesión; los anteriores quedan invalidados.
-    res.json(cerrarOtras ? { ok: true, token: crearToken(u), usuario: publico(u) } : { ok: true });
+    // El token nuevo (misma sesión) mantiene activa esta sesión; los anteriores quedan invalidados.
+    res.json(cerrarOtras ? { ok: true, token: crearToken(u, req.usuario.sid), usuario: publico(u) } : { ok: true });
   } catch (e) {
     console.error(e.message);
     res.status(500).json({ error: 'No se pudo cambiar la contraseña' });
+  }
+});
+
+router.patch('/2fa', verificarToken, async (req, res) => {
+  const { activo, clave, dispositivoId } = req.body;
+  if (typeof activo !== 'boolean' || !clave) return res.status(400).json({ error: 'Faltan datos' });
+
+  try {
+    const r = await pool.query(
+      `SELECT *,
+              COALESCE(bloqueado_hasta > NOW(), FALSE) AS bloqueada,
+              CEIL(EXTRACT(EPOCH FROM (bloqueado_hasta - NOW())) / 60)::int AS minutos_bloqueo
+       FROM usuarios WHERE id = $1`,
+      [req.usuario.id]
+    );
+    const u = r.rows[0];
+    if (!u) return res.status(401).json({ error: 'Tu sesión no es válida o venció' });
+
+    // El rol se lee de la base, no del token.
+    if (!activo && u.rol === 'cuidador') {
+      return res.status(403).json({
+        error: 'La verificación en dos pasos es obligatoria para cuidadores',
+        codigo: '2FA_OBLIGATORIO',
+      });
+    }
+
+    if (u.bloqueada) return res.status(423).json(respuestaBloqueo(u.minutos_bloqueo));
+
+    // La clave equivocada cuenta como intento fallido, igual que en el login.
+    if (!(await bcrypt.compare(clave, u.clave_hash))) {
+      if (await registrarFalloClave(u.id)) return res.status(423).json(respuestaBloqueo(MINUTOS_BLOQUEO));
+      return res.status(401).json({ error: 'La contraseña es incorrecta' });
+    }
+
+    if (u.intentos_fallidos > 0 || u.bloqueado_hasta) {
+      await pool.query('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = $1', [u.id]);
+    }
+
+    const hash = activo ? hashDispositivo(dispositivoId) : null;
+    if (activo && !hash) return res.status(400).json({ error: 'No pudimos identificar este dispositivo' });
+
+    await pool.query('UPDATE usuarios SET dos_pasos = $2, actualizado_en = NOW() WHERE id = $1', [u.id, activo]);
+    // Al activarla, este equipo queda confiable; al desactivarla se olvidan todos para no reactivar equipos viejos.
+    if (activo) await confiarDispositivo(u.id, hash);
+    else await olvidarDispositivos(u.id);
+
+    res.json({ ok: true, usuario: publico({ ...u, dos_pasos: activo }) });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudo cambiar la verificación en dos pasos' });
+  }
+});
+
+router.post('/logout', verificarToken, async (req, res) => {
+  try {
+    await pool.query('UPDATE sesiones SET cerrada_en = NOW() WHERE id = $1 AND cerrada_en IS NULL', [req.usuario.sid]);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudo cerrar la sesión' });
+  }
+});
+
+// Solo las abiertas cuyo token aún no venció, la más reciente primero.
+router.get('/sesiones', verificarToken, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT id, dispositivo, user_agent, ciudad, ultima_actividad
+         FROM sesiones
+        WHERE usuario_id = $1 AND cerrada_en IS NULL AND creado_en > NOW() - make_interval(days => $2)
+        ORDER BY ultima_actividad DESC`,
+      [req.usuario.id, DIAS_SESION]
+    );
+    const sesiones = r.rows.map((s) => {
+      const { so, tipo } = describirDispositivo(s.user_agent ?? '');
+      return {
+        id: s.id, dispositivo: s.dispositivo, so, tipo, ciudad: s.ciudad,
+        ultimaActividad: s.ultima_actividad, actual: String(s.id) === String(req.usuario.sid),
+      };
+    });
+    res.json({ sesiones });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudieron cargar tus sesiones' });
+  }
+});
+
+router.post('/sesiones/cerrar-todas', verificarToken, async (req, res) => {
+  try {
+    const cerradas = await cerrarSesiones(req.usuario.id, { excepto: req.usuario.sid });
+    res.json({ ok: true, cerradas });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudieron cerrar las sesiones' });
+  }
+});
+
+// Mismo 404 si no existe, ya está cerrada o es de otro usuario, para no revelar sesiones ajenas.
+router.delete('/sesiones/:id', verificarToken, async (req, res) => {
+  const noEncontrada = () => res.status(404).json({ error: 'No encontramos esa sesión' });
+  if (!/^\d{1,18}$/.test(req.params.id)) return noEncontrada();
+
+  try {
+    const r = await pool.query(
+      'UPDATE sesiones SET cerrada_en = NOW() WHERE id = $1 AND usuario_id = $2 AND cerrada_en IS NULL',
+      [req.params.id, req.usuario.id]
+    );
+    if (r.rowCount === 0) return noEncontrada();
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudo cerrar la sesión' });
   }
 });
 
