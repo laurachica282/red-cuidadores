@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { pool } from '../../db.js';
 import { enviarAvisoCambioClave, enviarCodigo } from './correo.service.js';
 import { crearCodigo, segundosParaReenviar, verificarCodigo } from './codigos.service.js';
+import { cerrarSesiones, crearSesion, describirDispositivo, DIAS_SESION } from './sesiones.service.js';
 import { verificarToken } from './verificarToken.js';
 
 const router = Router();
@@ -31,8 +32,9 @@ const registrarFalloClave = async (id) => {
   return f.rows[0].bloqueada;
 };
 
-const crearToken =(u) =>
-  jwt.sign({ id: u.id, rol: u.rol }, process.env.JWT_SECRET, { expiresIn: '7d' });
+// sid: id de la fila en sesiones; verificarToken rechaza el token si esa sesión se cerró.
+const crearToken = (u, sid) =>
+  jwt.sign({ id: u.id, rol: u.rol, sid }, process.env.JWT_SECRET, { expiresIn: `${DIAS_SESION}d` });
 
 // Token de un solo paso para cambiar la clave; no sirve como sesión (ver verificarToken).
 const crearTokenRestablecer = (u) =>
@@ -176,7 +178,7 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'Debes verificar tu correo para ingresar', codigo: 'CORREO_SIN_VERIFICAR' });
     }
 
-    res.json({ token: crearToken(u), usuario: publico(u) });
+    res.json({ token: crearToken(u, await crearSesion(u.id, req)), usuario: publico(u) });
   } catch (e) {
     console.error(e.message);
     res.status(500).json({ error: 'No se pudo iniciar sesión' });
@@ -264,6 +266,7 @@ router.post('/restablecer-clave', async (req, res) => {
        WHERE id = $1`,
       [payload.id, await bcrypt.hash(clave, 10)]
     );
+    await cerrarSesiones(payload.id);
     res.json({ ok: true });
   } catch (e) {
     console.error(e.message);
@@ -312,6 +315,7 @@ router.post('/cambiar-clave', verificarToken, async (req, res) => {
        WHERE id = $1`,
       [u.id, await bcrypt.hash(claveNueva, 10)]
     );
+    if (cerrarOtras) await cerrarSesiones(u.id, { excepto: req.usuario.sid });
 
     try {
       await enviarAvisoCambioClave(u.correo, u.nombre);
@@ -319,11 +323,73 @@ router.post('/cambiar-clave', verificarToken, async (req, res) => {
       console.error('No se pudo enviar el aviso de cambio de contraseña:', e.message);
     }
 
-    // El token nuevo mantiene activa esta sesión; los anteriores quedan invalidados.
-    res.json(cerrarOtras ? { ok: true, token: crearToken(u), usuario: publico(u) } : { ok: true });
+    // El token nuevo (misma sesión) mantiene activa esta sesión; los anteriores quedan invalidados.
+    res.json(cerrarOtras ? { ok: true, token: crearToken(u, req.usuario.sid), usuario: publico(u) } : { ok: true });
   } catch (e) {
     console.error(e.message);
     res.status(500).json({ error: 'No se pudo cambiar la contraseña' });
+  }
+});
+
+router.post('/logout', verificarToken, async (req, res) => {
+  try {
+    await pool.query('UPDATE sesiones SET cerrada_en = NOW() WHERE id = $1 AND cerrada_en IS NULL', [req.usuario.sid]);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudo cerrar la sesión' });
+  }
+});
+
+// Solo las abiertas cuyo token aún no venció, la más reciente primero.
+router.get('/sesiones', verificarToken, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT id, dispositivo, user_agent, ciudad, ultima_actividad
+         FROM sesiones
+        WHERE usuario_id = $1 AND cerrada_en IS NULL AND creado_en > NOW() - make_interval(days => $2)
+        ORDER BY ultima_actividad DESC`,
+      [req.usuario.id, DIAS_SESION]
+    );
+    const sesiones = r.rows.map((s) => {
+      const { so, tipo } = describirDispositivo(s.user_agent ?? '');
+      return {
+        id: s.id, dispositivo: s.dispositivo, so, tipo, ciudad: s.ciudad,
+        ultimaActividad: s.ultima_actividad, actual: String(s.id) === String(req.usuario.sid),
+      };
+    });
+    res.json({ sesiones });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudieron cargar tus sesiones' });
+  }
+});
+
+router.post('/sesiones/cerrar-todas', verificarToken, async (req, res) => {
+  try {
+    const cerradas = await cerrarSesiones(req.usuario.id, { excepto: req.usuario.sid });
+    res.json({ ok: true, cerradas });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudieron cerrar las sesiones' });
+  }
+});
+
+// Mismo 404 si no existe, ya está cerrada o es de otro usuario, para no revelar sesiones ajenas.
+router.delete('/sesiones/:id', verificarToken, async (req, res) => {
+  const noEncontrada = () => res.status(404).json({ error: 'No encontramos esa sesión' });
+  if (!/^\d{1,18}$/.test(req.params.id)) return noEncontrada();
+
+  try {
+    const r = await pool.query(
+      'UPDATE sesiones SET cerrada_en = NOW() WHERE id = $1 AND usuario_id = $2 AND cerrada_en IS NULL',
+      [req.params.id, req.usuario.id]
+    );
+    if (r.rowCount === 0) return noEncontrada();
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudo cerrar la sesión' });
   }
 });
 

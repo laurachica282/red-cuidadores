@@ -17,6 +17,8 @@ export async function api(ruta, { metodo = 'GET', cuerpo } = {}) {
   }
   const datos = await resp.json().catch(() => ({}));
   if (!resp.ok) {
+    // Aviso global para que el módulo auth cierre la sesión local (ver AuthContext).
+    if (datos.codigo === 'SESION_CERRADA') window.dispatchEvent(new Event('sesion-cerrada'));
     throw Object.assign(new Error(datos.error ?? 'Algo salió mal. Inténtalo de nuevo.'), {
       status: resp.status,
       codigo: datos.codigo,
