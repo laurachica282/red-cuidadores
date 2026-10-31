@@ -1,0 +1,29 @@
+/* Estilos del módulo mascotas. Usa las variables de shared/styles/theme.css */
+.masc-titulo { margin: 0 0 4px; font-size: 26px; font-weight: 800; }
+.masc-sub { margin: 0 0 20px; color: var(--slate); font-size: 15px; }
+.masc-volver { display: inline-block; margin-bottom: 14px; color: var(--teal-text); font-weight: 700; text-decoration: none; }
+
+.masc-lista { display: grid; gap: 14px; margin: 20px 0; }
+.masc-card { display: flex; gap: 14px; padding: 14px; background: #fff; border: 1px solid var(--card-border); border-radius: 16px; }
+.masc-foto { flex: none; width: 84px; height: 84px; border-radius: 14px; object-fit: cover; background: var(--tint); }
+.masc-foto-vacia { display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: var(--teal-text); }
+.masc-info { flex: 1; min-width: 0; }
+.masc-nombre { margin: 0; font-size: 18px; font-weight: 800; }
+.masc-dato { margin: 2px 0 0; color: var(--slate); font-size: 14px; }
+.masc-badge { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: var(--gold); color: var(--navy); font-size: 12px; font-weight: 700; vertical-align: middle; }
+.masc-acciones { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; font-size: 14px; }
+.masc-link { padding: 0; border: 0; background: none; color: var(--teal-text); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.masc-link-peligro { color: var(--danger); }
+
+.masc-vacio { margin: 24px 0; padding: 24px; text-align: center; background: #fff; border: 1px dashed var(--input-border); border-radius: 16px; color: var(--slate); }
+
+.masc-form { display: block; }
+.masc-campo { margin-bottom: 16px; }
+.masc-fila { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.masc-textarea { height: auto; min-height: 92px; padding: 12px 14px; resize: vertical; }
+.masc-ayuda { margin: 6px 0 0; color: var(--slate); font-size: 13px; }
+.masc-error { margin: 0 0 14px; padding: 10px 12px; border-radius: 12px; background: #fdecea; color: var(--danger); font-size: 14px; font-weight: 600; }
+.masc-aviso { margin: 0 0 18px; padding: 12px 14px; border-radius: 14px; background: var(--tint); color: var(--teal-text); font-size: 14px; }
+.masc-previa { display: block; width: 120px; height: 120px; margin-bottom: 10px; border-radius: 16px; object-fit: cover; border: 1px solid var(--card-border); }
+.masc-form .btn-primary:disabled { opacity: 0.6; cursor: default; }
+.masc-btn-secundario { display: flex; align-items: center; justify-content: center; width: 100%; height: 48px; margin-top: 10px; border: 1.5px solid var(--navy); border-radius: 16px; background: #fff; color: var(--navy); font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
