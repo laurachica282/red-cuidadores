@@ -1,7 +1,17 @@
 import { api } from '@/shared/api/client.js';
+import { obtenerDispositivoId } from './dispositivo.js';
 
 export const login = (correo, clave) =>
-  api('/auth/login', { metodo: 'POST', cuerpo: { correo, clave } });
+  api('/auth/login', { metodo: 'POST', cuerpo: { correo, clave, dispositivoId: obtenerDispositivoId() } });
+
+export const verificar2fa = (token2fa, codigo) =>
+  api('/auth/2fa/verificar', { metodo: 'POST', cuerpo: { token2fa, codigo } });
+
+export const reenviar2fa = (token2fa) =>
+  api('/auth/2fa/reenviar', { metodo: 'POST', cuerpo: { token2fa } });
+
+export const cambiar2fa = (activo, clave) =>
+  api('/auth/2fa', { metodo: 'PATCH', cuerpo: { activo, clave, dispositivoId: obtenerDispositivoId() } });
 
 export const registrar = (nombre, correo, clave, rol) =>
   api('/auth/registro', { metodo: 'POST', cuerpo: { nombre, correo, clave, rol } });

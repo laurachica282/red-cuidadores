@@ -9,6 +9,105 @@
     font-size: 24px;
 }
 
+.seguridad-banner {
+    margin-top: 20px;
+    padding: 14px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    border: 1px solid var(--teal);
+    border-radius: 14px;
+    background: var(--tint);
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--navy);
+}
+
+.seguridad-banner svg {
+    flex: none;
+    color: var(--teal-text);
+}
+
+.seguridad-banner strong {
+    display: block;
+    font-size: 15px;
+}
+
+.seguridad-banner-pendiente {
+    border-color: var(--gold);
+    background: #fff;
+}
+
+.seguridad-interruptor {
+    flex: none;
+    position: relative;
+    width: 52px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 16px;
+    background: var(--input-border);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.seguridad-interruptor[aria-checked="true"] {
+    background: var(--teal-text);
+}
+
+.seguridad-interruptor-perilla {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.2s;
+}
+
+.seguridad-interruptor[aria-checked="true"] .seguridad-interruptor-perilla {
+    transform: translateX(20px);
+}
+
+.seguridad-interruptor:focus-visible {
+    outline: 2px solid var(--navy);
+    outline-offset: 2px;
+}
+
+/* Obligatoria para cuidadores: se ve activo pero no se puede tocar. */
+.seguridad-interruptor:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.seguridad-confirmar {
+    flex-direction: column;
+    align-items: stretch;
+    background: var(--bg);
+}
+
+.seguridad-acciones {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.seguridad-acciones .btn-primary,
+.seguridad-acciones .btn-secundario {
+    height: 48px;
+    font-size: 15px;
+}
+
+.seguridad-acciones button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.seguridad-aviso {
+    margin-top: 12px;
+}
+
 .seguridad-titulo {
     margin: 28px 0 8px;
     font-size: 12px;

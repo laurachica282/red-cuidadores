@@ -5,6 +5,7 @@ import { pool } from '../../db.js';
 import { enviarAvisoCambioClave, enviarCodigo } from './correo.service.js';
 import { crearCodigo, segundosParaReenviar, verificarCodigo } from './codigos.service.js';
 import { cerrarSesiones, crearSesion, describirDispositivo, DIAS_SESION } from './sesiones.service.js';
+import { confiarDispositivo, esConfiable, hashDispositivo, olvidarDispositivos } from './dispositivos.service.js';
 import { verificarToken } from './verificarToken.js';
 
 const router = Router();
@@ -40,6 +41,42 @@ const crearToken = (u, sid) =>
 const crearTokenRestablecer = (u) =>
   jwt.sign({ id: u.id, proposito: 'restablecer' }, process.env.JWT_SECRET, { expiresIn: '10m' });
 
+// Token del paso intermedio del login con verificación en dos pasos; dh: hash del dispositivo que se va a confiar.
+const crearToken2fa = (u, hash) =>
+  jwt.sign({ id: u.id, proposito: '2fa', dh: hash }, process.env.JWT_SECRET, { expiresIn: '10m' });
+
+const token2faInvalido = (res) =>
+  res.status(400).json({ error: 'El código venció. Inicia sesión de nuevo.', codigo: 'TOKEN_INVALIDO' });
+
+// Devuelve { u, hash } si el token2fa es válido, la cuenta sigue activa y la clave no cambió después; si no, null.
+const leerToken2fa = async (token) => {
+  let payload;
+  try {
+    payload = jwt.verify(token, process.env.JWT_SECRET);
+  } catch {
+    return null;
+  }
+  if (payload?.proposito !== '2fa' || !payload.dh) return null;
+
+  const r = await pool.query(
+    'SELECT *, FLOOR(EXTRACT(EPOCH FROM clave_cambiada_en))::bigint AS cambio FROM usuarios WHERE id = $1',
+    [payload.id]
+  );
+  const u = r.rows[0];
+  if (!u?.status || (u.cambio !== null && payload.iat < Number(u.cambio))) return null;
+  return { u, hash: payload.dh };
+};
+
+// Manda el código 2FA salvo que se haya enviado uno hace menos de 60 s (ese sigue vigente).
+const enviarCodigo2fa = async (u) => {
+  if ((await segundosParaReenviar(u.id, '2fa')) > 0) return;
+  try {
+    await enviarCodigo(u.correo, u.nombre, await crearCodigo(u.id, '2fa'), '2fa');
+  } catch (e) {
+    console.error('No se pudo enviar el código:', e.message);
+  }
+};
+
 const responderFalloCodigo = (res, v) => {
   if (v.motivo === 'intentos') {
     return res.status(429).json({ error: 'Demasiados intentos. Pide un código nuevo.' });
@@ -55,7 +92,7 @@ const responderFalloCodigo = (res, v) => {
 // Solo lo que el frontend puede ver (nunca la clave cifrada).
 const publico = (u) => ({
   id: u.id, nombre: u.nombre, correo: u.correo, rol: u.rol,
-  pais: u.pais, idioma: u.idioma, moneda: u.moneda,
+  pais: u.pais, idioma: u.idioma, moneda: u.moneda, dos_pasos: u.dos_pasos,
 });
 
 router.post('/registro', async (req, res) => {
@@ -74,9 +111,9 @@ router.post('/registro', async (req, res) => {
   try {
     const hash = await bcrypt.hash(clave, 10);
     const r = await pool.query(
-      `INSERT INTO usuarios (nombre, correo, clave_hash, rol, correo_verificado)
-       VALUES ($1, $2, $3, $4, FALSE) RETURNING *`,
-      [nombre.trim(), correo.trim().toLowerCase(), hash, rol]
+      `INSERT INTO usuarios (nombre, correo, clave_hash, rol, correo_verificado, dos_pasos)
+       VALUES ($1, $2, $3, $4, FALSE, $5) RETURNING *`,
+      [nombre.trim(), correo.trim().toLowerCase(), hash, rol, rol === 'cuidador']
     );
     const u = r.rows[0];
 
@@ -142,7 +179,7 @@ router.post('/reenviar-codigo', async (req, res) => {
 });
 
 router.post('/login', async (req, res) => {
-  const { correo, clave } = req.body;
+  const { correo, clave, dispositivoId } = req.body;
   if (!correo || !clave) {
     return res.status(400).json({ error: 'Escribe tu correo y tu contraseña' });
   }
@@ -178,10 +215,61 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'Debes verificar tu correo para ingresar', codigo: 'CORREO_SIN_VERIFICAR' });
     }
 
+    // Equipo nuevo con verificación en dos pasos: aún no hay sesión, primero el código.
+    if (u.dos_pasos) {
+      const hash = hashDispositivo(dispositivoId);
+      if (!hash) return res.status(400).json({ error: 'No pudimos identificar este dispositivo' });
+      if (!(await esConfiable(u.id, hash))) {
+        await enviarCodigo2fa(u);
+        return res.json({ requiere2fa: true, token2fa: crearToken2fa(u, hash) });
+      }
+    }
+
     res.json({ token: crearToken(u, await crearSesion(u.id, req)), usuario: publico(u) });
   } catch (e) {
     console.error(e.message);
     res.status(500).json({ error: 'No se pudo iniciar sesión' });
+  }
+});
+
+router.post('/2fa/verificar', async (req, res) => {
+  const { token2fa, codigo } = req.body;
+  if (!token2fa) return token2faInvalido(res);
+  if (!/^\d{6}$/.test(codigo ?? '')) return res.status(400).json({ error: 'Escribe el código de 6 dígitos' });
+
+  try {
+    const t = await leerToken2fa(token2fa);
+    if (!t) return token2faInvalido(res);
+
+    const v = await verificarCodigo(t.u.id, '2fa', codigo);
+    if (!v.ok) return responderFalloCodigo(res, v);
+
+    await confiarDispositivo(t.u.id, t.hash);
+    res.json({ token: crearToken(t.u, await crearSesion(t.u.id, req)), usuario: publico(t.u) });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudo verificar el código' });
+  }
+});
+
+router.post('/2fa/reenviar', async (req, res) => {
+  const { token2fa } = req.body;
+  if (!token2fa) return token2faInvalido(res);
+
+  try {
+    const t = await leerToken2fa(token2fa);
+    if (!t) return token2faInvalido(res);
+
+    const faltan = await segundosParaReenviar(t.u.id, '2fa');
+    if (faltan > 0) {
+      return res.status(429).json({ error: `Espera ${faltan} segundos para pedir otro código`, segundos: faltan });
+    }
+
+    await enviarCodigo(t.u.correo, t.u.nombre, await crearCodigo(t.u.id, '2fa'), '2fa');
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudo enviar el código' });
   }
 });
 
@@ -267,6 +355,7 @@ router.post('/restablecer-clave', async (req, res) => {
       [payload.id, await bcrypt.hash(clave, 10)]
     );
     await cerrarSesiones(payload.id);
+    await olvidarDispositivos(payload.id);
     res.json({ ok: true });
   } catch (e) {
     console.error(e.message);
@@ -328,6 +417,56 @@ router.post('/cambiar-clave', verificarToken, async (req, res) => {
   } catch (e) {
     console.error(e.message);
     res.status(500).json({ error: 'No se pudo cambiar la contraseña' });
+  }
+});
+
+router.patch('/2fa', verificarToken, async (req, res) => {
+  const { activo, clave, dispositivoId } = req.body;
+  if (typeof activo !== 'boolean' || !clave) return res.status(400).json({ error: 'Faltan datos' });
+
+  try {
+    const r = await pool.query(
+      `SELECT *,
+              COALESCE(bloqueado_hasta > NOW(), FALSE) AS bloqueada,
+              CEIL(EXTRACT(EPOCH FROM (bloqueado_hasta - NOW())) / 60)::int AS minutos_bloqueo
+       FROM usuarios WHERE id = $1`,
+      [req.usuario.id]
+    );
+    const u = r.rows[0];
+    if (!u) return res.status(401).json({ error: 'Tu sesión no es válida o venció' });
+
+    // El rol se lee de la base, no del token.
+    if (!activo && u.rol === 'cuidador') {
+      return res.status(403).json({
+        error: 'La verificación en dos pasos es obligatoria para cuidadores',
+        codigo: '2FA_OBLIGATORIO',
+      });
+    }
+
+    if (u.bloqueada) return res.status(423).json(respuestaBloqueo(u.minutos_bloqueo));
+
+    // La clave equivocada cuenta como intento fallido, igual que en el login.
+    if (!(await bcrypt.compare(clave, u.clave_hash))) {
+      if (await registrarFalloClave(u.id)) return res.status(423).json(respuestaBloqueo(MINUTOS_BLOQUEO));
+      return res.status(401).json({ error: 'La contraseña es incorrecta' });
+    }
+
+    if (u.intentos_fallidos > 0 || u.bloqueado_hasta) {
+      await pool.query('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = $1', [u.id]);
+    }
+
+    const hash = activo ? hashDispositivo(dispositivoId) : null;
+    if (activo && !hash) return res.status(400).json({ error: 'No pudimos identificar este dispositivo' });
+
+    await pool.query('UPDATE usuarios SET dos_pasos = $2, actualizado_en = NOW() WHERE id = $1', [u.id, activo]);
+    // Al activarla, este equipo queda confiable; al desactivarla se olvidan todos para no reactivar equipos viejos.
+    if (activo) await confiarDispositivo(u.id, hash);
+    else await olvidarDispositivos(u.id);
+
+    res.json({ ok: true, usuario: publico({ ...u, dos_pasos: activo }) });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudo cambiar la verificación en dos pasos' });
   }
 });
 
