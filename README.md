@@ -54,7 +54,7 @@ cd red-cuidadores
 4. Clic derecho en `red_cuidadores` → **Query Tool**. Abre el archivo `backend/db/01_usuarios.sql`, copia su contenido, pégalo en el editor y pulsa ▶ (o `F5`).
 5. Comprueba con `SELECT * FROM usuarios;`: debe mostrar las columnas, sin filas.
 
-Cada vez que alguien agregue un script nuevo en `backend/src/db/` (`02_...sql`, `03_...sql`), hay que ejecutarlo en el mismo orden.
+Cada vez que alguien agregue un script nuevo en `backend/db/` (`02_...sql`, `03_...sql`), hay que ejecutarlo en el mismo orden.
 
 ### 3. Backend
 
