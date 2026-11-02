@@ -1,0 +1,139 @@
+.seguridad-cabecera {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.seguridad h1 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.seguridad-titulo {
+    margin: 28px 0 8px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--slate);
+}
+
+.seguridad-tarjeta {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    background: #fff;
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.seguridad-fila {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 64px;
+    padding: 12px 14px;
+}
+
+.seguridad-fila + .seguridad-fila {
+    border-top: 1px solid var(--card-border);
+}
+
+.seguridad-enlace {
+    justify-content: space-between;
+    min-height: 52px;
+    color: var(--navy);
+    text-decoration: none;
+}
+
+.seguridad-enlace:focus-visible {
+    outline: 2px solid var(--teal-text);
+    outline-offset: -2px;
+}
+
+.seguridad-icono {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--bg);
+    color: var(--navy);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.seguridad-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.seguridad-nombre {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.seguridad-detalle {
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--slate);
+}
+
+.seguridad-actual {
+    flex: none;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: var(--tint);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--teal-text);
+}
+
+.seguridad-cerrar {
+    flex: none;
+    min-height: 44px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--danger);
+    cursor: pointer;
+}
+
+.seguridad-error {
+    margin-top: 16px;
+}
+
+.seguridad-cerrar-todas {
+    margin-top: auto;
+    width: 100%;
+    height: 52px;
+    border: 1.5px solid var(--danger);
+    border-radius: 14px;
+    background: #fff;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--danger);
+    cursor: pointer;
+}
+
+/* En computador la tarjeta no ocupa toda la altura: el botón se separa de la lista. */
+@media (min-width: 600px) {
+    .seguridad-cerrar-todas {
+        margin-top: 32px;
+    }
+}
+
+.seguridad-cerrar:disabled,
+.seguridad-cerrar-todas:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

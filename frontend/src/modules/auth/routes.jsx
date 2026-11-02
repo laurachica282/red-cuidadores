@@ -4,6 +4,7 @@ import VerificarCorreoPage from './pages/VerificarCorreoPage.jsx';
 import RecuperarClavePage from './pages/RecuperarClavePage.jsx';
 import NuevaClavePage from './pages/NuevaClavePage.jsx';
 import CambiarClavePage from './pages/CambiarClavePage.jsx';
+import SeguridadPage from './pages/SeguridadPage.jsx';
 
 export const publicRoutes = [
   { path: '/recuperar', element: <RecuperarClavePage /> },
@@ -16,4 +17,5 @@ export const publicRoutes = [
 
 export const privateRoutes = [
   { path: '/configuracion/cambiar-clave', element: <CambiarClavePage /> },
+  { path: '/configuracion/seguridad', element: <SeguridadPage /> },
 ];
