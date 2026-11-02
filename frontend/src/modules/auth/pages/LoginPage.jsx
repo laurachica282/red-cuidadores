@@ -32,7 +32,13 @@ export default function LoginPage() {
     setError('');
     setCargando(true);
     try {
-      iniciarSesion(await login(correo, clave));
+      const r = await login(correo, clave);
+      // Equipo nuevo con verificación en dos pasos: la sesión se crea después del código.
+      if (r.requiere2fa) {
+        navigate('/verificar-2fa', { state: { correo: correo.trim().toLowerCase(), token2fa: r.token2fa } });
+        return;
+      }
+      iniciarSesion(r);
       navigate('/inicio');
     } catch (err) {
       if (err.codigo === 'CORREO_SIN_VERIFICAR') {
