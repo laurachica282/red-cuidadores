@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { pool } from './db.js';
 import authRoutes from './modules/auth/auth.routes.js';
+import cuentaRoutes from './modules/cuenta/index.js';
 import cuidadoresRoutes from './modules/cuidadores/cuidadores.routes.js';
 import regionRoutes from './modules/region/region.routes.js';
 
@@ -10,6 +11,7 @@ const app = express();
 app.use(cors({ origin: 'http://localhost:5173' }));
 app.use(express.json());
 app.use('/api/auth', authRoutes);
+app.use('/api/cuenta', cuentaRoutes);
 app.use('/api/cuidadores', cuidadoresRoutes);
 app.use('/api/region', regionRoutes);
 
