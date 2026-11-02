@@ -6,7 +6,6 @@ import DesactivarCuentaPage from './pages/DesactivarCuentaPage.jsx';
 import NotificacionesPage from './pages/NotificacionesPage.jsx';
 import NuevaResenaPage from './pages/NuevaResenaPage.jsx';
 import ReactivarCuentaPage from './pages/ReactivarCuentaPage.jsx';
-import RegionPage from './pages/RegionPage.jsx';
 import ResenasPage from './pages/ResenasPage.jsx';
 import { RUTAS } from './rutas.js';
 
@@ -20,7 +19,6 @@ export const privateRoutes = [
   { path: RUTAS.datos, element: <DatosPersonalesPage /> },
   { path: RUTAS.correo, element: <CambiarCorreoPage /> },
   { path: RUTAS.notificaciones, element: <NotificacionesPage /> },
-  { path: RUTAS.region, element: <RegionPage /> },
   { path: RUTAS.resenas, element: <ResenasPage /> },
   { path: RUTAS.nuevaResenaPatron, element: <NuevaResenaPage /> },
   { path: RUTAS.desactivar, element: <DesactivarCuentaPage /> },

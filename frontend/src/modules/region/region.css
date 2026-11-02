@@ -1,0 +1,79 @@
+/* Estilo tomado de los mockups: botón de volver redondo, listas en tarjeta y botón fijo abajo. */
+.rg-fondo { min-height: 100vh; background: var(--bg); }
+
+.rg { max-width: 430px; min-height: 100vh; margin: 0 auto; padding: 20px 20px 0; display: flex; flex-direction: column; }
+
+@media (min-width: 600px) {
+  .rg-fondo { display: flex; align-items: center; justify-content: center; padding: 32px; }
+  .rg {
+    width: 100%; min-height: 760px; padding: 24px 24px 0;
+    background: var(--bg); border: 1px solid var(--card-border); border-radius: 32px;
+    box-shadow: 0 12px 40px rgba(11, 31, 58, 0.10);
+  }
+}
+
+.rg-cab { display: flex; align-items: center; gap: 14px; min-height: 52px; }
+.rg-cab h1 { margin: 0; font-size: 24px; line-height: 1.15; letter-spacing: -0.3px; }
+.rg-atras {
+  flex-shrink: 0; width: 48px; height: 48px; border: 1.5px solid #d6dde2; border-radius: 50%;
+  background: #fff; color: var(--navy); display: flex; align-items: center; justify-content: center; text-decoration: none;
+}
+.rg-atras:focus-visible { outline: 2px solid var(--teal-text); outline-offset: 2px; }
+
+.rg-cuerpo { flex: 1; padding-bottom: 20px; }
+.rg-sub { margin: 14px 0 0; font-size: 15px; line-height: 1.45; color: var(--slate); }
+.rg-pie { position: sticky; bottom: 0; margin: 0 -20px; padding: 12px 20px calc(16px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, var(--bg) 82%, rgba(247, 249, 250, 0)); }
+@media (min-width: 600px) { .rg-pie { margin: 0 -24px; padding: 12px 24px 24px; border-radius: 0 0 32px 32px; } }
+.rg-pie .btn-primary { margin: 0; }
+
+.input:focus, select.input:focus { outline: 2px solid var(--teal-text); outline-offset: 1px; }
+.rg-textarea { height: auto; min-height: 100px; padding: 12px 14px; line-height: 1.45; resize: vertical; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.rg-espacio { margin-top: 24px; }
+
+.rg-form { margin-top: 20px; display: flex; flex-direction: column; gap: 18px; }
+.rg-grupo { margin: 0; padding: 0; border: 0; min-width: 0; }
+.rg-grupo .label { padding: 0; }
+.rg-ayuda { margin: 8px 0 0; font-size: 13px; line-height: 1.4; color: var(--slate); }
+.rg-centro { text-align: center; }
+
+.rg-error { margin: 12px 0 0; font-size: 14px; font-weight: 700; color: var(--danger); }
+.rg-form .rg-error { margin: 0; }
+.rg-exito { margin: 14px 0 0; padding: 12px 14px; border-radius: 14px; background: var(--tint); font-size: 14px; font-weight: 700; color: var(--teal-text); }
+.rg-form .rg-exito { margin: 0; }
+.rg-enlace-inline { font-weight: 700; color: var(--teal-text); text-decoration: none; }
+
+
+.rg-enlace { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; color: var(--teal-text); text-decoration: none; }
+
+/* Selectores como en el mockup "Idioma, país y moneda" */
+.rg-select { position: relative; }
+.rg-select select.input { appearance: none; -webkit-appearance: none; padding-right: 44px; font-weight: 500; }
+.rg-select::after {
+  content: ''; position: absolute; right: 18px; top: 50%; width: 9px; height: 9px; margin-top: -7px;
+  border-right: 2px solid var(--slate); border-bottom: 2px solid var(--slate); transform: rotate(45deg); pointer-events: none;
+}
+.rg-caja { padding: 14px; border: 1.5px solid var(--card-border); border-radius: 18px; background: #fff; display: flex; gap: 12px; align-items: flex-start; color: var(--teal-text); }
+.rg-caja svg { flex-shrink: 0; margin-top: 2px; }
+.rg-caja p { margin: 0; font-size: 14px; line-height: 1.5; color: #32455a; }
+
+/* Términos */
+.rg-terminos { padding: 18px; border: 1px solid var(--card-border); border-radius: 18px; background: #fff; }
+.rg-terminos h2 { margin: 0 0 10px; font-size: 18px; }
+.rg-terminos p { margin: 0; font-size: 15px; line-height: 1.6; color: #32455a; }
+
+/* Cuidadores de la región (tarjetas "Cerca de ti") */
+.rg-buscar { margin-top: 16px; }
+.rg-cantidad { margin: 18px 0 10px 2px; font-size: 14px; color: var(--slate); }
+.rg-vacio { margin: 32px 0; text-align: center; color: var(--slate); }
+.rg-cards { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+.rg-card { padding: 12px; border: 1.5px solid var(--card-border); border-radius: 20px; background: #fff; display: flex; gap: 12px; }
+.rg-card-foto { flex-shrink: 0; width: 64px; height: 64px; border-radius: 16px; background: #d3ece8; color: var(--teal-text); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; text-transform: uppercase; overflow: hidden; }
+.rg-card-foto img { width: 100%; height: 100%; object-fit: cover; }
+.rg-card-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.rg-card-fila { width: 100%; display: flex; justify-content: space-between; gap: 8px; }
+.rg-card-fila strong { font-size: 16px; }
+.rg-precio { font-weight: 700; white-space: nowrap; }
+.rg-precio small { font-weight: 400; color: var(--slate); }
+.rg-card-texto > small { font-size: 13px; color: var(--slate); }
+.rg-verificado { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; background: var(--tint); color: var(--teal-text); font-size: 12px; font-weight: 700; }
