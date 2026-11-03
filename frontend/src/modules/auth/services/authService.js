@@ -4,14 +4,21 @@ import { obtenerDispositivoId } from './dispositivo.js';
 export const login = (correo, clave) =>
   api('/auth/login', { metodo: 'POST', cuerpo: { correo, clave, dispositivoId: obtenerDispositivoId() } });
 
-export const verificar2fa = (token2fa, codigo) =>
+// credential: id_token que entrega el botón de Google.
+export const loginGoogle = (credential) =>
+  api('/auth/google', { metodo: 'POST', cuerpo: { credential, dispositivoId: obtenerDispositivoId() } });
+
+export const verificar2fa =(token2fa, codigo) =>
   api('/auth/2fa/verificar', { metodo: 'POST', cuerpo: { token2fa, codigo } });
 
 export const reenviar2fa = (token2fa) =>
   api('/auth/2fa/reenviar', { metodo: 'POST', cuerpo: { token2fa } });
 
-export const cambiar2fa = (activo, clave) =>
-  api('/auth/2fa', { metodo: 'PATCH', cuerpo: { activo, clave, dispositivoId: obtenerDispositivoId() } });
+// Cuentas sin clave confirman con `codigo` (ver pedirCodigoConfirmacion) en vez de `clave`.
+export const cambiar2fa = (activo, clave, codigo) =>
+  api('/auth/2fa', { metodo: 'PATCH', cuerpo: { activo, clave, codigo, dispositivoId: obtenerDispositivoId() } });
+
+export const pedirCodigoConfirmacion = () => api('/auth/confirmacion/codigo', { metodo: 'POST' });
 
 export const registrar = (nombre, correo, clave, rol) =>
   api('/auth/registro', { metodo: 'POST', cuerpo: { nombre, correo, clave, rol } });
@@ -31,8 +38,8 @@ export const verificarCodigoRecuperacion = (correo, codigo) =>
 export const restablecerClave = (token, clave) =>
   api('/auth/restablecer-clave', { metodo: 'POST', cuerpo: { token, clave } });
 
-export const cambiarClave = ({ claveActual, claveNueva, cerrarOtras }) =>
-  api('/auth/cambiar-clave', { metodo: 'POST', cuerpo: { claveActual, claveNueva, cerrarOtras } });
+export const cambiarClave = ({ claveActual, codigo, claveNueva, cerrarOtras }) =>
+  api('/auth/cambiar-clave', { metodo: 'POST', cuerpo: { claveActual, codigo, claveNueva, cerrarOtras } });
 
 export const logout = () => api('/auth/logout', { metodo: 'POST' });
 

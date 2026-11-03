@@ -5,20 +5,19 @@ import { pool } from '../../db.js';
 import { enviarAvisoCambioClave, enviarCodigo } from './correo.service.js';
 import { crearCodigo, segundosParaReenviar, verificarCodigo } from './codigos.service.js';
 import { cerrarSesiones, crearSesion, describirDispositivo, DIAS_SESION } from './sesiones.service.js';
-import { confiarDispositivo, esConfiable, hashDispositivo, olvidarDispositivos } from './dispositivos.service.js';
+import { confiarDispositivo, hashDispositivo, olvidarDispositivos } from './dispositivos.service.js';
+import {
+  completarIngreso, crearToken, MINUTOS_BLOQUEO, publico, respuestaBloqueo,
+} from './ingreso.service.js';
+import { entrarConProveedor } from './social.service.js';
+import { googleConfigurado, verificarCredencialGoogle } from './google.service.js';
 import { verificarToken } from './verificarToken.js';
 
 const router = Router();
 const CLAVE_VALIDA = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
+const CODIGO_VALIDO = /^\d{6}$/;
 
 const MAX_INTENTOS = 5;
-const MINUTOS_BLOQUEO = 15; // debe coincidir con el INTERVAL del UPDATE de /login
-
-const respuestaBloqueo = (minutos) => ({
-  error: `Demasiados intentos. Intenta de nuevo en ${minutos} ${minutos === 1 ? 'minuto' : 'minutos'}.`,
-  codigo: 'CUENTA_BLOQUEADA',
-  minutos,
-});
 
 // Suma un intento fallido; al quinto bloquea la cuenta. Devuelve true si quedó bloqueada.
 const registrarFalloClave = async (id) => {
@@ -33,17 +32,9 @@ const registrarFalloClave = async (id) => {
   return f.rows[0].bloqueada;
 };
 
-// sid: id de la fila en sesiones; verificarToken rechaza el token si esa sesión se cerró.
-const crearToken = (u, sid) =>
-  jwt.sign({ id: u.id, rol: u.rol, sid }, process.env.JWT_SECRET, { expiresIn: `${DIAS_SESION}d` });
-
 // Token de un solo paso para cambiar la clave; no sirve como sesión (ver verificarToken).
 const crearTokenRestablecer = (u) =>
   jwt.sign({ id: u.id, proposito: 'restablecer' }, process.env.JWT_SECRET, { expiresIn: '10m' });
-
-// Token del paso intermedio del login con verificación en dos pasos; dh: hash del dispositivo que se va a confiar.
-const crearToken2fa = (u, hash) =>
-  jwt.sign({ id: u.id, proposito: '2fa', dh: hash }, process.env.JWT_SECRET, { expiresIn: '10m' });
 
 const token2faInvalido = (res) =>
   res.status(400).json({ error: 'El código venció. Inicia sesión de nuevo.', codigo: 'TOKEN_INVALIDO' });
@@ -67,16 +58,6 @@ const leerToken2fa = async (token) => {
   return { u, hash: payload.dh };
 };
 
-// Manda el código 2FA salvo que se haya enviado uno hace menos de 60 s (ese sigue vigente).
-const enviarCodigo2fa = async (u) => {
-  if ((await segundosParaReenviar(u.id, '2fa')) > 0) return;
-  try {
-    await enviarCodigo(u.correo, u.nombre, await crearCodigo(u.id, '2fa'), '2fa');
-  } catch (e) {
-    console.error('No se pudo enviar el código:', e.message);
-  }
-};
-
 const responderFalloCodigo = (res, v) => {
   if (v.motivo === 'intentos') {
     return res.status(429).json({ error: 'Demasiados intentos. Pide un código nuevo.' });
@@ -89,11 +70,13 @@ const responderFalloCodigo = (res, v) => {
   });
 };
 
-// Solo lo que el frontend puede ver (nunca la clave cifrada).
-const publico = (u) => ({
-  id: u.id, nombre: u.nombre, correo: u.correo, rol: u.rol,
-  pais: u.pais, idioma: u.idioma, moneda: u.moneda, dos_pasos: u.dos_pasos,
-});
+// Cuentas solo sociales (sin clave): confirman cambios sensibles con un código al correo en vez de la clave.
+// Devuelve null si el código es válido, o la respuesta de error ya enviada.
+const confirmarConCodigo = async (res, u, codigo) => {
+  if (!CODIGO_VALIDO.test(codigo ?? '')) return res.status(400).json({ error: 'Escribe el código de 6 dígitos' });
+  const v = await verificarCodigo(u.id, 'confirmacion', codigo);
+  return v.ok ? null : responderFalloCodigo(res, v);
+};
 
 router.post('/registro', async (req, res) => {
   const { nombre, correo, clave, rol = 'viajero' } = req.body;
@@ -197,6 +180,10 @@ router.post('/login', async (req, res) => {
     // Cuenta bloqueada: ni se compara la clave.
     if (u?.bloqueada) return res.status(423).json(respuestaBloqueo(u.minutos_bloqueo));
 
+    // Cuenta solo social (sin clave): mismo mensaje genérico y no suma intento, para que nadie
+    // pueda bloquearle también el ingreso con Google/Microsoft.
+    if (u && !u.clave_hash) return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
+
     const coincide = u && (await bcrypt.compare(clave, u.clave_hash));
 
     // Mismo mensaje si falla el correo o la clave, para no dar pistas.
@@ -210,25 +197,37 @@ router.post('/login', async (req, res) => {
     if (u.intentos_fallidos > 0 || u.bloqueado_hasta) {
       await pool.query('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = $1', [u.id]);
     }
-    if (!u.status) return res.status(403).json({ error: 'Esta cuenta está desactivada' });
-    if (!u.correo_verificado) {
-      return res.status(403).json({ error: 'Debes verificar tu correo para ingresar', codigo: 'CORREO_SIN_VERIFICAR' });
-    }
 
-    // Equipo nuevo con verificación en dos pasos: aún no hay sesión, primero el código.
-    if (u.dos_pasos) {
-      const hash = hashDispositivo(dispositivoId);
-      if (!hash) return res.status(400).json({ error: 'No pudimos identificar este dispositivo' });
-      if (!(await esConfiable(u.id, hash))) {
-        await enviarCodigo2fa(u);
-        return res.json({ requiere2fa: true, token2fa: crearToken2fa(u, hash) });
-      }
-    }
-
-    res.json({ token: crearToken(u, await crearSesion(u.id, req)), usuario: publico(u) });
+    const { http, cuerpo } = await completarIngreso(u, req, dispositivoId);
+    res.status(http).json(cuerpo);
   } catch (e) {
     console.error(e.message);
     res.status(500).json({ error: 'No se pudo iniciar sesión' });
+  }
+});
+
+// El frontend manda el id_token (credential) del botón de Google; aquí se verifica contra GOOGLE_CLIENT_ID.
+router.post('/google', async (req, res) => {
+  const { credential, dispositivoId } = req.body;
+  if (!googleConfigurado()) return res.status(503).json({ error: 'El inicio con Google no está disponible' });
+  if (!credential) return res.status(400).json({ error: 'Falta la credencial de Google' });
+
+  let perfil;
+  try {
+    perfil = await verificarCredencialGoogle(credential);
+  } catch {
+    return res.status(401).json({ error: 'No pudimos validar tu cuenta de Google' });
+  }
+  if (!perfil.correoVerificado) {
+    return res.status(401).json({ error: 'Tu cuenta de Google no tiene el correo verificado' });
+  }
+
+  try {
+    const { http, cuerpo } = await entrarConProveedor('google', perfil, req, dispositivoId);
+    res.status(http).json(cuerpo);
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudo iniciar sesión con Google' });
   }
 });
 
@@ -363,9 +362,31 @@ router.post('/restablecer-clave', async (req, res) => {
   }
 });
 
+// Envía el código para confirmar cambios en cuentas sin clave (crear contraseña, cambiar el 2FA).
+router.post('/confirmacion/codigo', verificarToken, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT id, nombre, correo, clave_hash FROM usuarios WHERE id = $1', [req.usuario.id]);
+    const u = r.rows[0];
+    if (!u) return res.status(401).json({ error: 'Tu sesión no es válida o venció' });
+    if (u.clave_hash) return res.status(400).json({ error: 'Tu cuenta ya tiene contraseña: úsala para confirmar' });
+
+    const faltan = await segundosParaReenviar(u.id, 'confirmacion');
+    if (faltan > 0) {
+      return res.status(429).json({ error: `Espera ${faltan} segundos para pedir otro código`, segundos: faltan });
+    }
+
+    await enviarCodigo(u.correo, u.nombre, await crearCodigo(u.id, 'confirmacion'), 'confirmacion');
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudo enviar el código' });
+  }
+});
+
+// Con clave se confirma con claveActual; en cuentas solo sociales, con el código de /confirmacion/codigo (crea la clave).
 router.post('/cambiar-clave', verificarToken, async (req, res) => {
-  const { claveActual, claveNueva, cerrarOtras } = req.body;
-  if (!claveActual || !claveNueva) return res.status(400).json({ error: 'Faltan datos' });
+  const { claveActual, codigo, claveNueva, cerrarOtras } = req.body;
+  if ((!claveActual && !codigo) || !claveNueva) return res.status(400).json({ error: 'Faltan datos' });
 
   try {
     const r = await pool.query(
@@ -380,29 +401,38 @@ router.post('/cambiar-clave', verificarToken, async (req, res) => {
 
     if (u.bloqueada) return res.status(423).json(respuestaBloqueo(u.minutos_bloqueo));
 
-    // La clave actual equivocada cuenta como intento fallido, igual que en el login.
-    if (!(await bcrypt.compare(claveActual, u.clave_hash))) {
-      if (await registrarFalloClave(u.id)) return res.status(423).json(respuestaBloqueo(MINUTOS_BLOQUEO));
-      return res.status(401).json({ error: 'La contraseña actual es incorrecta' });
-    }
+    if (!u.clave_hash) {
+      // Primero se valida la clave nueva, para no gastar el código si hay que corregirla.
+      if (!CLAVE_VALIDA.test(claveNueva)) {
+        return res.status(400).json({ error: 'La contraseña debe tener mínimo 8 caracteres, una mayúscula y un número' });
+      }
+      if (await confirmarConCodigo(res, u, codigo)) return;
+    } else {
+      // La clave actual equivocada cuenta como intento fallido, igual que en el login.
+      if (!claveActual || !(await bcrypt.compare(claveActual, u.clave_hash))) {
+        if (await registrarFalloClave(u.id)) return res.status(423).json(respuestaBloqueo(MINUTOS_BLOQUEO));
+        return res.status(401).json({ error: 'La contraseña actual es incorrecta' });
+      }
 
-    if (u.intentos_fallidos > 0 || u.bloqueado_hasta) {
-      await pool.query('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = $1', [u.id]);
-    }
+      if (u.intentos_fallidos > 0 || u.bloqueado_hasta) {
+        await pool.query('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = $1', [u.id]);
+      }
 
-    if (!CLAVE_VALIDA.test(claveNueva)) {
-      return res.status(400).json({ error: 'La contraseña debe tener mínimo 8 caracteres, una mayúscula y un número' });
-    }
-    if (await bcrypt.compare(claveNueva, u.clave_hash)) {
-      return res.status(400).json({ error: 'La nueva contraseña no puede ser igual a la actual', codigo: 'CLAVE_REPETIDA' });
+      if (!CLAVE_VALIDA.test(claveNueva)) {
+        return res.status(400).json({ error: 'La contraseña debe tener mínimo 8 caracteres, una mayúscula y un número' });
+      }
+      if (await bcrypt.compare(claveNueva, u.clave_hash)) {
+        return res.status(400).json({ error: 'La nueva contraseña no puede ser igual a la actual', codigo: 'CLAVE_REPETIDA' });
+      }
     }
 
     // Solo si pide cerrar las otras sesiones se mueve clave_cambiada_en (ver verificarToken).
+    const hashNuevo = await bcrypt.hash(claveNueva, 10);
     await pool.query(
       `UPDATE usuarios SET clave_hash = $2, actualizado_en = NOW()
               ${cerrarOtras ? ', clave_cambiada_en = NOW()' : ''}
        WHERE id = $1`,
-      [u.id, await bcrypt.hash(claveNueva, 10)]
+      [u.id, hashNuevo]
     );
     if (cerrarOtras) await cerrarSesiones(u.id, { excepto: req.usuario.sid });
 
@@ -413,16 +443,18 @@ router.post('/cambiar-clave', verificarToken, async (req, res) => {
     }
 
     // El token nuevo (misma sesión) mantiene activa esta sesión; los anteriores quedan invalidados.
-    res.json(cerrarOtras ? { ok: true, token: crearToken(u, req.usuario.sid), usuario: publico(u) } : { ok: true });
+    const usuario = publico({ ...u, clave_hash: hashNuevo });
+    res.json(cerrarOtras ? { ok: true, token: crearToken(u, req.usuario.sid), usuario } : { ok: true, usuario });
   } catch (e) {
     console.error(e.message);
     res.status(500).json({ error: 'No se pudo cambiar la contraseña' });
   }
 });
 
+// Se confirma con la clave; en cuentas solo sociales, con el código de /confirmacion/codigo.
 router.patch('/2fa', verificarToken, async (req, res) => {
-  const { activo, clave, dispositivoId } = req.body;
-  if (typeof activo !== 'boolean' || !clave) return res.status(400).json({ error: 'Faltan datos' });
+  const { activo, clave, codigo, dispositivoId } = req.body;
+  if (typeof activo !== 'boolean' || (!clave && !codigo)) return res.status(400).json({ error: 'Faltan datos' });
 
   try {
     const r = await pool.query(
@@ -445,14 +477,18 @@ router.patch('/2fa', verificarToken, async (req, res) => {
 
     if (u.bloqueada) return res.status(423).json(respuestaBloqueo(u.minutos_bloqueo));
 
-    // La clave equivocada cuenta como intento fallido, igual que en el login.
-    if (!(await bcrypt.compare(clave, u.clave_hash))) {
-      if (await registrarFalloClave(u.id)) return res.status(423).json(respuestaBloqueo(MINUTOS_BLOQUEO));
-      return res.status(401).json({ error: 'La contraseña es incorrecta' });
-    }
+    if (!u.clave_hash) {
+      if (await confirmarConCodigo(res, u, codigo)) return;
+    } else {
+      // La clave equivocada cuenta como intento fallido, igual que en el login.
+      if (!clave || !(await bcrypt.compare(clave, u.clave_hash))) {
+        if (await registrarFalloClave(u.id)) return res.status(423).json(respuestaBloqueo(MINUTOS_BLOQUEO));
+        return res.status(401).json({ error: 'La contraseña es incorrecta' });
+      }
 
-    if (u.intentos_fallidos > 0 || u.bloqueado_hasta) {
-      await pool.query('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = $1', [u.id]);
+      if (u.intentos_fallidos > 0 || u.bloqueado_hasta) {
+        await pool.query('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = $1', [u.id]);
+      }
     }
 
     const hash = activo ? hashDispositivo(dispositivoId) : null;
