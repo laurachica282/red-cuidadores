@@ -179,6 +179,7 @@ router.post('/reenviar-codigo', async (req, res) => {
 });
 
 router.post('/login', async (req, res) => {
+ console.log('Login:', req.body?.correo);
   const { correo, clave, dispositivoId } = req.body;
   if (!correo || !clave) {
     return res.status(400).json({ error: 'Escribe tu correo y tu contraseña' });
@@ -227,7 +228,7 @@ router.post('/login', async (req, res) => {
 
     res.json({ token: crearToken(u, await crearSesion(u.id, req)), usuario: publico(u) });
   } catch (e) {
-    console.error(e.message);
+    console.log('Error during login:', e);
     res.status(500).json({ error: 'No se pudo iniciar sesión' });
   }
 });
