@@ -5,6 +5,7 @@ import {
   cambiar2fa, cerrarSesionDispositivo, cerrarTodasLasSesiones, listarSesiones,
 } from '../services/authService.js';
 import CampoClave from '../components/CampoClave.jsx';
+import ConfirmarConCodigo from '../components/ConfirmarConCodigo.jsx';
 import {
   IconChevron, IconComputador, IconEscudo, IconFlechaAtras, IconTablet, IconTelefono,
 } from '../components/IconosRegistro.jsx';
@@ -44,6 +45,7 @@ export default function SeguridadPage() {
   const { usuario, actualizarUsuario } = useAuth();
   const [confirmar2fa, setConfirmar2fa] = useState(false); // panel para pedir la clave antes de cambiar el interruptor
   const [clave, setClave] = useState('');
+  const [codigo, setCodigo] = useState(''); // cuentas sin clave confirman con un código al correo
   const [verClave, setVerClave] = useState(false);
   const [guardando2fa, setGuardando2fa] = useState(false);
   const [error2fa, setError2fa] = useState('');
@@ -52,6 +54,9 @@ export default function SeguridadPage() {
   // Para cuidadores es obligatoria; dos_pasos falta en sesiones anteriores a esta función (entonces no estaba activa).
   const obligatoria = usuario?.rol === 'cuidador';
   const dosPasos = obligatoria || Boolean(usuario?.dos_pasos);
+  // Cuenta creada con Google/Microsoft sin contraseña; tiene_clave falta en sesiones anteriores (había clave).
+  const sinClave = usuario?.tiene_clave === false;
+  const confirmado = sinClave ? codigo.length === 6 : clave !== '';
 
   // Las respuestas SESION_CERRADA las maneja AuthContext (cierra la sesión local y ProtectedRoute lleva al login).
   useEffect(() => {
@@ -72,6 +77,7 @@ export default function SeguridadPage() {
   const cancelar2fa = () => {
     setConfirmar2fa(false);
     setClave('');
+    setCodigo('');
     setVerClave(false);
     setError2fa('');
   };
@@ -85,17 +91,19 @@ export default function SeguridadPage() {
 
   const guardar2fa = async (e) => {
     e.preventDefault();
-    if (!clave) return;
+    if (!confirmado) return;
     setError2fa('');
     setGuardando2fa(true);
     try {
-      const r = await cambiar2fa(!dosPasos, clave);
+      // Solo uno de los dos viene lleno: la clave o, en cuentas sin clave, el código.
+      const r = await cambiar2fa(!dosPasos, clave, codigo);
       actualizarUsuario(r.usuario);
       cancelar2fa();
       setExito2fa(r.usuario.dos_pasos ? 'Activamos la verificación en dos pasos.' : 'Desactivamos la verificación en dos pasos.');
     } catch (err) {
       setError2fa(err.message);
       setClave('');
+      setCodigo('');
     } finally {
       setGuardando2fa(false);
     }
@@ -170,15 +178,19 @@ export default function SeguridadPage() {
 
           {confirmar2fa && (
             <form className="seguridad-fila seguridad-confirmar" onSubmit={guardar2fa}>
-              <CampoClave id="clave-2fa" etiqueta="Confirma tu contraseña" placeholder="Tu contraseña actual"
-                valor={clave} onChange={setClave} ver={verClave} onVer={() => setVerClave(!verClave)}
-                autoComplete="current-password" />
+              {sinClave ? (
+                <ConfirmarConCodigo valor={codigo} onChange={setCodigo} deshabilitado={guardando2fa} />
+              ) : (
+                <CampoClave id="clave-2fa" etiqueta="Confirma tu contraseña" placeholder="Tu contraseña actual"
+                  valor={clave} onChange={setClave} ver={verClave} onVer={() => setVerClave(!verClave)}
+                  autoComplete="current-password" />
+              )}
               {error2fa && <p className="registro-error" role="alert">{error2fa}</p>}
               <div className="seguridad-acciones">
                 <button type="button" className="btn-secundario" onClick={cancelar2fa} disabled={guardando2fa}>
                   Cancelar
                 </button>
-                <button type="submit" className="btn-primary" disabled={!clave || guardando2fa}>
+                <button type="submit" className="btn-primary" disabled={!confirmado || guardando2fa}>
                   {guardando2fa ? 'Guardando…' : dosPasos ? 'Desactivar' : 'Activar'}
                 </button>
               </div>

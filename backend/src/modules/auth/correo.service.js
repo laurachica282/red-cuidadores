@@ -28,6 +28,13 @@ const TEXTOS = {
     plano: (codigo) =>
       `Tu código para iniciar sesión es ${codigo}. Vence en 10 minutos. No lo compartas con nadie. Si no intentaste entrar, cambia tu contraseña.`,
   },
+  confirmacion: {
+    asunto: (codigo) => `Tu código de confirmación: ${codigo}`,
+    titulo: 'Confirma que eres tú',
+    frase: 'usa este código para confirmar el cambio en la seguridad de tu cuenta en Red de Cuidadores:',
+    plano: (codigo) =>
+      `Tu código de confirmación es ${codigo}. Vence en 10 minutos. No lo compartas con nadie. Si no lo pediste, ignora este mensaje.`,
+  },
 };
 
 const html = (nombre, codigo, t) => `

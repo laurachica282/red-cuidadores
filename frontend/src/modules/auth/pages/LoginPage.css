@@ -182,9 +182,13 @@
 
 .login-redes {
     margin-top: 18px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 12px;
+}
+
+.login-redes > * {
+    width: 100%;
 }
 
 .btn-secundario {
@@ -197,6 +201,53 @@
     font-size: 15px;
     font-weight: 700;
     cursor: pointer;
+}
+
+.btn-secundario:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* Celda de un proveedor social: el botón ocupa todo el ancho */
+.login-red {
+    display: flex;
+    min-width: 0;
+}
+
+.login-red .btn-secundario {
+    width: 100%;
+}
+
+/* Celda del botón oficial de Google: lo centra sin recortarlo */
+.login-google {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 44px;
+}
+
+.login-google-boton {
+    display: flex;
+    justify-content: center;
+}
+
+.login-google-ocupado {
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.login-proximamente {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.2;
+}
+
+.login-proximamente small {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--slate);
 }
 
 .login-pie {
