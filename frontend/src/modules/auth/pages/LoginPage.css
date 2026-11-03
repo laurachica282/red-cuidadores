@@ -182,11 +182,13 @@
 
 .login-redes {
     margin-top: 18px;
-    display: grid;
-    /* minmax(0, 1fr): mitades iguales aunque el contenido (el iframe de Google) pida más ancho */
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: center;
+    display: flex;
+    flex-direction: column;
     gap: 12px;
+}
+
+.login-redes > * {
+    width: 100%;
 }
 
 .btn-secundario {
@@ -216,21 +218,17 @@
     width: 100%;
 }
 
-/* El botón oficial de Google mide 40 px: la celda toma la altura de .btn-secundario y lo centra.
-   Si Google lo dibuja más ancho que la celda, se centra y se recorta parejo a los lados
-   (el iframe trae 10 px transparentes por lado), en vez de salirse de la tarjeta. */
+/* Celda del botón oficial de Google: lo centra sin recortarlo */
 .login-google {
-    height: 52px;
-    align-items: center;
+    display: flex;
     justify-content: center;
-    overflow: hidden;
+    align-items: center;
+    min-height: 44px;
 }
 
 .login-google-boton {
     display: flex;
-    flex: none;
     justify-content: center;
-    align-items: center;
 }
 
 .login-google-ocupado {

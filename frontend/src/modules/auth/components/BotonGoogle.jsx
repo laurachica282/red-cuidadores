@@ -10,16 +10,10 @@ export default function BotonGoogle({ onCredencial, onError, deshabilitado = fal
   const caja = useRef(null);
   const [ancho, setAncho] = useState(0);
 
-  // Google pide el ancho en píxeles (máximo 400): se toma el de la celda y se vuelve a medir si cambia
-  // (p. ej. al pasar de móvil a tarjeta). Si Google lo dibuja más ancho, el CSS lo centra en la celda.
+  // Google pide el ancho en píxeles (entre 200 y 400): se mide la celda una sola vez al montar.
   useLayoutEffect(() => {
-    const celda = caja.current;
-    if (!celda) return undefined;
-    const medir = () => setAncho(Math.min(400, Math.floor(celda.getBoundingClientRect().width)));
-    medir();
-    const observador = new ResizeObserver(medir);
-    observador.observe(celda);
-    return () => observador.disconnect();
+    if (!caja.current) return;
+    setAncho(Math.min(400, Math.max(200, Math.floor(caja.current.getBoundingClientRect().width))));
   }, []);
 
   if (!CLIENT_ID) {
