@@ -6,6 +6,7 @@ import * as cuenta from '@/modules/cuenta';
 import * as cuidadores from '@/modules/cuidadores';
 import * as mascotas from '@/modules/mascotas';
 import * as region from '@/modules/region';
+import LayoutPrivado from '@/shared/components/LayoutPrivado.jsx';
 
 // Cada módulo aporta sus rutas. Para sumar uno nuevo, se agrega a esta lista.
 const modulos = [auth, busqueda, cuenta, cuidadores, mascotas, region];
@@ -17,7 +18,9 @@ export default function App() {
     <Routes>
       {rutasPublicas.map((r) => <Route key={r.path} path={r.path} element={r.element} />)}
       <Route element={<ProtectedRoute />}>
-        {rutasPrivadas.map((r) => <Route key={r.path} path={r.path} element={r.element} />)}
+        <Route element={<LayoutPrivado />}>
+          {rutasPrivadas.map((r) => <Route key={r.path} path={r.path} element={r.element} />)}
+        </Route>
       </Route>
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
