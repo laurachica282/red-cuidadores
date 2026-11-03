@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { IconCandado, IconCorreo, IconOjo, IconOjoCerrado, IconPata } from '@/shared/components/Icons.jsx';
 import { useAuth } from '../AuthContext.jsx';
-import { login, reenviarCodigo } from '../services/authService.js';
+import { login, loginGoogle, reenviarCodigo } from '../services/authService.js';
+import BotonGoogle from '../components/BotonGoogle.jsx';
 import './LoginPage.css';
 
 export default function LoginPage() {
@@ -26,20 +27,31 @@ export default function LoginPage() {
     return () => clearTimeout(t);
   }, [bloqueadoHasta]);
 
+  // Misma salida para la clave y los proveedores sociales.
+  const continuar = (r, correoUsuario) => {
+    // Equipo nuevo con verificación en dos pasos: la sesión se crea después del código.
+    if (r.requiere2fa) {
+      navigate('/verificar-2fa', { state: { correo: correoUsuario, token2fa: r.token2fa } });
+      return;
+    }
+    iniciarSesion(r);
+    navigate('/inicio');
+  };
+
+  const mostrarError = (err) => {
+    if (err.codigo === 'CUENTA_BLOQUEADA') {
+      setBloqueadoHasta(Date.now() + err.datos.minutos * 60000);
+    }
+    setError(err.message);
+  };
+
   const entrar = async (e) => {
     e.preventDefault();
     if (bloqueadoHasta) return;
     setError('');
     setCargando(true);
     try {
-      const r = await login(correo, clave);
-      // Equipo nuevo con verificación en dos pasos: la sesión se crea después del código.
-      if (r.requiere2fa) {
-        navigate('/verificar-2fa', { state: { correo: correo.trim().toLowerCase(), token2fa: r.token2fa } });
-        return;
-      }
-      iniciarSesion(r);
-      navigate('/inicio');
+      continuar(await login(correo, clave), correo.trim().toLowerCase());
     } catch (err) {
       if (err.codigo === 'CORREO_SIN_VERIFICAR') {
         // Si el reenvío falla (p. ej. aún no pasan 60 s) ya hay un código vigente: se sigue igual.
@@ -47,10 +59,21 @@ export default function LoginPage() {
         navigate('/verificar-correo', { state: { correo: correo.trim().toLowerCase() } });
         return;
       }
-      if (err.codigo === 'CUENTA_BLOQUEADA') {
-        setBloqueadoHasta(Date.now() + err.datos.minutos * 60000);
-      }
-      setError(err.message);
+      mostrarError(err);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const entrarConGoogle = async (credential) => {
+    if (bloqueadoHasta) return;
+    setError('');
+    setCargando(true);
+    try {
+      const r = await loginGoogle(credential);
+      continuar(r, r.correo);
+    } catch (err) {
+      mostrarError(err);
     } finally {
       setCargando(false);
     }
@@ -114,8 +137,11 @@ export default function LoginPage() {
 
         <div className="login-o">o continúa con</div>
         <div className="login-redes">
-          <button type="button" className="btn-secundario">Google</button>
-          <button type="button" className="btn-secundario">Apple</button>
+          <BotonGoogle onCredencial={entrarConGoogle} onError={setError} deshabilitado={cargando || !!bloqueadoHasta} />
+          <button type="button" className="btn-secundario login-proximamente" disabled>
+            Microsoft
+            <small>Próximamente</small>
+          </button>
         </div>
 
         <p className="login-pie">
