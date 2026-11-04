@@ -1,0 +1,129 @@
+.rs-pagina {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px 20px;
+}
+
+.rs-titulo {
+    margin: 8px 0 12px;
+    font-size: 26px;
+    font-weight: 700;
+}
+
+.rs-texto {
+    margin: 4px 0 10px;
+    font-size: 15px;
+    line-height: 1.45;
+    color: var(--slate);
+}
+
+.rs-volver {
+    display: inline-block;
+    min-height: 44px;
+    line-height: 44px;
+    font-weight: 700;
+    color: var(--teal-text);
+    text-decoration: none;
+}
+
+.rs-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.rs-fila {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.rs-nota {
+    height: 90px;
+    padding-top: 12px;
+    resize: vertical;
+}
+
+.rs-resumen {
+    margin: 0;
+    padding: 14px;
+    border-radius: 14px;
+    background: var(--tint);
+}
+
+.rs-aviso {
+    margin: 12px 0;
+    padding: 14px;
+    border-radius: 14px;
+    background: #fff;
+    border: 1px solid var(--card-border);
+}
+
+.rs-aviso--error {
+    background: #fdecea;
+    border-color: #f3b8b3;
+    color: #7a1812;
+}
+
+.rs-lista {
+    list-style: none;
+    margin: 16px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.rs-tarjeta {
+    padding: 16px;
+    background: #fff;
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+}
+
+.rs-cabecera {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.rs-estado {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    background: var(--tint);
+    color: var(--teal-text);
+}
+
+.rs-estado--pendiente {
+    background: #fff3d6;
+    color: #6b4b00;
+}
+
+.rs-estado--rechazada,
+.rs-estado--vencida,
+.rs-estado--cancelada {
+    background: #fdecea;
+    color: #7a1812;
+}
+
+.rs-acciones {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.rs-boton-claro {
+    height: 52px;
+    border: 1.5px solid var(--input-border);
+    border-radius: 16px;
+    background: #fff;
+    color: var(--navy);
+    font: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+}

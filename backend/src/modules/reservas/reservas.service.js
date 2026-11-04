@@ -70,11 +70,13 @@ export async function crear(viajeroId, d) {
   if (cruce.rows[0]) throw new ErrorReserva(409, 'El cuidador ya tiene una reserva confirmada en esas fechas');
 
   const nota = typeof d.nota === 'string' ? d.nota.trim().slice(0, 500) || null : null;
-  const r = await pool.query(
+    const r = await pool.query(
     `INSERT INTO reservas
        (viajero_id, cuidador_id, mascota_id, servicio, fecha_inicio, fecha_fin,
         tarifa, moneda, unidades, total, responder_antes, nota)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $7::numeric * $9, NOW() + INTERVAL '24 hours', $10)
+     VALUES ($1, $2, $3, $4, $5::date, $6::date,
+             $7::numeric, $8, $9::integer, $7::numeric * $9::integer,
+             NOW() + INTERVAL '24 hours', $10)
      RETURNING *`,
     [viajeroId, d.cuidador_id, d.mascota_id, d.servicio, d.fecha_inicio, d.fecha_fin, c.tarifa, c.moneda, unidades, nota]
   );
@@ -82,7 +84,8 @@ export async function crear(viajeroId, d) {
 }
 
 const SELECCION = `
-  SELECT r.*, m.nombre AS mascota, uc.nombre AS cuidador, uv.nombre AS viajero
+  SELECT r.*, r.fecha_inicio::text AS fecha_inicio, r.fecha_fin::text AS fecha_fin,
+         m.nombre AS mascota, uc.nombre AS cuidador, uv.nombre AS viajero
     FROM reservas r
     JOIN mascotas m  ON m.id = r.mascota_id
     JOIN usuarios uc ON uc.id = r.cuidador_id

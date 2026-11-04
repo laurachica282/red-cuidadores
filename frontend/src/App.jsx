@@ -8,9 +8,10 @@ import * as mascotas from '@/modules/mascotas';
 import * as region from '@/modules/region';
 import LayoutPrivado from '@/shared/components/LayoutPrivado.jsx';
 import * as pagos from '@/modules/pagos';
+import * as reservas from '@/modules/reservas';
 
 // Cada módulo aporta sus rutas. Para sumar uno nuevo, se agrega a esta lista.
-const modulos = [auth, busqueda, cuenta, cuidadores, mascotas, pagos, region];
+const modulos = [auth, busqueda, cuenta, cuidadores, mascotas, pagos, region, reservas];
 const rutasPublicas = modulos.flatMap((m) => m.publicRoutes ?? []);
 const rutasPrivadas = modulos.flatMap((m) => m.privateRoutes ?? []);
 
