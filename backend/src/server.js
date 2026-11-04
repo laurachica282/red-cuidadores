@@ -11,6 +11,7 @@ import regionRoutes from './modules/region/region.routes.js';
 import mascotasRoutes from './modules/mascotas/index.js';
 import busquedaRoutes from './modules/busqueda/index.js';
 import pagosRoutes from './modules/pagos/index.js';
+import reservasRoutes from './modules/reservas/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -25,6 +26,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/api/mascotas', mascotasRoutes);
 app.use('/api/busqueda', busquedaRoutes);
 app.use('/api/pagos', pagosRoutes);
+app.use('/api/reservas', reservasRoutes);
 
 // Ruta de prueba: confirma que el servidor y la base responden.
 app.get('/api/salud', async (req, res) => {
