@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { verificarToken } from '../auth/verificarToken.js';
 import * as pasarelas from './pasarelas.service.js';
+import { paisDeCoordenadas } from './deteccion.js';
 
 const router = Router();
 router.use(verificarToken);
@@ -44,6 +45,25 @@ router.put('/pasarelas/:pais', soloAdmin, async (req, res) => {
   if (errores.length) return res.status(400).json({ error: errores[0], errores });
   const datos = { ...req.body, comision_pct: Number(req.body.comision_pct) };
   res.json(await pasarelas.guardar(pais, datos));
+});
+
+// HU-19: país según las coordenadas del navegador, y si hay pasarela activa ahí.
+router.get('/pais-detectado', async (req, res) => {
+  const lat = Number(req.query.lat);
+  const lng = Number(req.query.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    return res.status(400).json({ error: 'Coordenadas no válidas' });
+  }
+  try {
+    const geo = await paisDeCoordenadas(lat, lng);
+    if (!geo) return res.status(404).json({ error: 'No pudimos saber en qué país estás' });
+    const config = await pasarelas.obtener(geo.pais);
+    const soportado = Boolean(config?.activa);
+    res.json({ pais: geo.pais, nombre: geo.nombre, soportado, pasarela: soportado ? config : null });
+  } catch (e) {
+    console.error(e.message);
+    res.status(502).json({ error: 'No pudimos detectar tu ubicación ahora. Inténtalo de nuevo.' });
+  }
 });
 
 export default router;
