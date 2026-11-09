@@ -75,7 +75,7 @@ function leerFiltros(q) {
 
 // Solo cuidadores visibles (antecedentes aprobados y vigentes, RN-3) y de la región de quien busca (HU-36).
 // Con un punto (lat/lng) se buscan los que están dentro del radio; sin punto, por ciudad.
-// Las fechas se validan pero aún no filtran: hace falta la tabla de reservas (HU-17) para saber quién está ocupado.
+// Con fechas, no salen los cuidadores que ya tienen una reserva confirmada o en curso que se cruce (HU-17).
 router.get('/cuidadores', async (req, res) => {
   const f = leerFiltros(req.query);
   if (f.error) return res.status(400).json({ error: f.error });
@@ -142,8 +142,13 @@ router.get('/cuidadores', async (req, res) => {
           AND ($3 = '' OR $3 = ANY (p.tipos_mascota))
           AND ($6 = '' OR lower(v.ciudad) = lower($6))
           AND ($7::float8 IS NULL OR d.distancia_km <= $9::float8)
+          AND ($12::date IS NULL OR NOT EXISTS (
+            SELECT 1 FROM reservas x
+             WHERE x.cuidador_id = v.usuario_id AND x.estado IN ('confirmada', 'en_curso')
+               AND daterange(x.fecha_inicio, x.fecha_fin, '[]') && daterange($12::date, $13::date, '[]')
+          ))
         ORDER BY ${ORDENES[f.orden]}, v.nombre`,
-      [req.usuario.id, f.texto, f.tipo, f.precioMin, f.precioMax, filtroCiudad, f.lat, f.lng, f.radioKm, f.servicio, Object.keys(SERVICIOS)]
+      [req.usuario.id, f.texto, f.tipo, f.precioMin, f.precioMax, filtroCiudad, f.lat, f.lng, f.radioKm, f.servicio, Object.keys(SERVICIOS), f.desde || null, f.hasta || null]
     );
 
     res.json({
@@ -152,7 +157,7 @@ router.get('/cuidadores', async (req, res) => {
       ciudadAplicada: ciudad,
       punto: conPunto ? { lat: f.lat, lng: f.lng, radioKm: f.radioKm } : null,
       servicio: f.servicio || null,
-      fechasAplicadas: false,
+      fechasAplicadas: Boolean(f.desde),
       cuidadores: r.rows.map((c) => ({
         id: c.usuario_id,
         nombre: c.nombre,
@@ -216,6 +221,10 @@ router.get('/direcciones/inversa', async (req, res) => {
 
 router.get('/cuidadores/:id', async (req, res) => {
   if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: 'Este cuidador no está disponible' });
+  const desde = String(req.query.desde ?? '');
+  const hasta = String(req.query.hasta ?? '');
+  const conFechas = Boolean(desde || hasta);
+  if (conFechas && errorFechas(desde, hasta)) return res.status(400).json({ error: errorFechas(desde, hasta) });
 
   try {
     const r = await pool.query(
@@ -230,7 +239,7 @@ router.get('/cuidadores/:id', async (req, res) => {
     const c = r.rows[0];
     if (!c) return res.status(404).json({ error: 'Este cuidador no está disponible' });
 
-    const [fotos, resumen, resenas, servicios] = await Promise.all([
+    const [fotos, resumen, resenas, servicios, cruce] = await Promise.all([
       pool.query(
         `SELECT id FROM archivos_cuidador WHERE usuario_id = $1 AND tipo = 'foto_espacio' AND activo ORDER BY id`,
         [c.usuario_id]
@@ -255,6 +264,16 @@ router.get('/cuidadores/:id', async (req, res) => {
           ORDER BY array_position($2::text[], servicio::text)`,
         [c.usuario_id, Object.keys(SERVICIOS)]
       ),
+      // ¿Ya tiene una reserva confirmada o en curso en esas fechas?
+      conFechas
+        ? pool.query(
+          `SELECT 1 FROM reservas
+            WHERE cuidador_id = $1 AND estado IN ('confirmada', 'en_curso')
+              AND daterange(fecha_inicio, fecha_fin, '[]') && daterange($2::date, $3::date, '[]')
+            LIMIT 1`,
+          [c.usuario_id, desde, hasta]
+        )
+        : null,
     ]);
 
     const s = resumen.rows[0];
@@ -270,6 +289,8 @@ router.get('/cuidadores/:id', async (req, res) => {
       moneda: c.moneda.trim(),
       tiposMascota: c.tipos_mascota,
       antecedentesVerificados: true,
+      // null sin fechas; false si ya está ocupado en esas fechas.
+      disponible: cruce ? cruce.rows.length === 0 : null,
       antecedentesVencenEn: c.antecedentes_vencen_en,
       enLaRedDesde: c.en_la_red_desde,
       fotos: fotos.rows.map((f) => f.id),

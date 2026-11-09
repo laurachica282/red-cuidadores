@@ -12,11 +12,12 @@ import mascotasRoutes from './modules/mascotas/index.js';
 import busquedaRoutes from './modules/busqueda/index.js';
 import pagosRoutes from './modules/pagos/index.js';
 import reservasRoutes from './modules/reservas/index.js';
+import seguimientoRoutes from './modules/seguimiento/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
-app.use(cors({ origin: 'http://localhost:5173' }));
+app.use(cors({ origin: ['http://localhost:5173', process.env.FRONTEND_URL].filter(Boolean) }));
 app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/cuenta', cuentaRoutes);
@@ -27,6 +28,7 @@ app.use('/api/mascotas', mascotasRoutes);
 app.use('/api/busqueda', busquedaRoutes);
 app.use('/api/pagos', pagosRoutes);
 app.use('/api/reservas', reservasRoutes);
+app.use('/api/seguimiento', seguimientoRoutes);
 
 // Ruta de prueba: confirma que el servidor y la base responden.
 app.get('/api/salud', async (req, res) => {

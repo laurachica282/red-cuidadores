@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { crearReserva, misMascotas, obtenerCuidador } from '../services/reservasService.js';
 import { SERVICIOS, dias, fechaHora, hoyISO, precio } from '../utils.js';
+import { IconPata } from '@/shared/components/Icons.jsx';
 import './reservas.css';
 
 export default function NuevaReservaPage() {
   const { cuidadorId } = useParams();
   const [params] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [cuidador, setCuidador] = useState(null);
   const [mascotas, setMascotas] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -93,13 +96,23 @@ export default function NuevaReservaPage() {
 
   return (
     <main className="rs-pagina">
-      <Link className="rs-volver" to={`/cuidadores/${cuidadorId}`}>← Volver al perfil</Link>
+      {/* Si se llegó desde el perfil se retrocede; así el historial no se repite (perfil → reserva → perfil → ...). */}
+      <Link className="rs-volver" to={`/cuidadores/${cuidadorId}`} replace
+        onClick={(e) => { if (location.state?.desdePerfil) { e.preventDefault(); navigate(-1); } }}>
+        ← Volver al perfil
+      </Link>
       <h1 className="rs-titulo">Reservar con {cuidador.nombre}</h1>
 
       {mascotas.length === 0 ? (
-        <p className="rs-aviso">
-          Primero registra a tu mascota. <Link to="/mascotas/nueva">Agregar mascota</Link>
-        </p>
+        <section className="rs-vacio">
+          <span className="rs-vacio-icono"><IconPata /></span>
+          <h2>Primero registra a tu mascota</h2>
+          <p>
+            {cuidador.nombre.split(' ')[0]} necesita saber a quién va a cuidar: especie, raza, vacunas e indicaciones médicas.
+          </p>
+          <Link className="btn-primary rs-vacio-boton" to="/mascotas/nueva">Agregar mascota</Link>
+          <small>Solo toma un minuto. Luego vuelve aquí para terminar tu reserva.</small>
+        </section>
       ) : (
         <form className="rs-form" onSubmit={enviar}>
           <div>

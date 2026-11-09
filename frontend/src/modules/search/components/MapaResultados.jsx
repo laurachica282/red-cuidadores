@@ -63,7 +63,7 @@ export default function MapaResultados({ cuidadores, punto, precio, enlacePerfil
               html: `<span class="bs-pin-precio${resaltado === c.id ? ' bs-pin-precio--activo' : ''}">${escapar(precio(c.tarifa, c.moneda))}</span>`,
               iconSize: null,
             })}
-            eventHandlers={{ click: () => navigate(enlacePerfil(c)) }} />
+            eventHandlers={{ click: () => navigate(enlacePerfil(c), { state: { desdeBusqueda: true } }) }} />
         ))}
       </MapContainer>
     </div>

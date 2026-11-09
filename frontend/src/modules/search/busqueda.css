@@ -16,6 +16,8 @@
 .bs-menu-texto strong { font-size: 16px; }
 .bs-menu-texto small { color: var(--slate); font-size: 13px; }
 
+.bs-arriba { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin: 8px 0 20px; }
+.bs-arriba .bs-titulo { margin: 0; }
 .bs-titulo { margin: 8px 0 20px; font-size: 30px; line-height: 1.15; }
 
 .bs-personalizar { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 16px; border: 1.5px solid var(--card-border); border-radius: 16px; background: #fff; color: var(--navy); font: inherit; text-align: left; cursor: pointer; }
@@ -150,7 +152,11 @@
 .bs-miniatura img { width: 100%; height: 100%; object-fit: cover; }
 
 .bs-servicios { margin: 0; padding: 0; list-style: none; border: 1px solid var(--card-border); border-radius: 16px; background: #fff; }
-.bs-servicios li { display: flex; justify-content: space-between; padding: 16px; }
+.bs-servicio { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 16px; border: 0; background: none; color: var(--navy); font: inherit; text-align: left; cursor: pointer; }
+.bs-servicio:hover { background: var(--bg); }
+.bs-servicio--activo { background: var(--tint); box-shadow: inset 3px 0 0 var(--teal-text); }
+.bs-servicios li:first-child .bs-servicio { border-radius: 16px 16px 0 0; }
+.bs-servicios li:last-child .bs-servicio { border-radius: 0 0 16px 16px; }
 .bs-servicios li + li { border-top: 1px solid var(--card-border); }
 .bs-servicios small { color: var(--slate); }
 .bs-etiquetas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
@@ -164,6 +170,14 @@
 .bs-reservar { position: fixed; left: 50%; bottom: 65px; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; max-width: 430px; padding: 14px 24px; border-top: 1px solid var(--card-border); background: #fff; transform: translateX(-50%); }
 .bs-reservar p { margin: 0; font-size: 24px; }
 .bs-reservar p small { font-size: 15px; color: var(--slate); }
-.bs-boton { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 52px; padding: 0 32px; border: 0; border-radius: 16px; background: var(--navy); color: #fff; font: inherit; font-size: 17px; font-weight: 700; cursor: pointer; }
+.bs-boton { display: inline-flex; text-decoration: none; align-items: center; justify-content: center; gap: 8px; height: 52px; padding: 0 32px; border: 0; border-radius: 16px; background: var(--navy); color: #fff; font: inherit; font-size: 17px; font-weight: 700; cursor: pointer; }
 .bs-boton--secundario { border: 1.5px solid var(--input-border); background: #fff; color: var(--navy); }
 .bs-boton:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Insignia "Verificado" con explicación al pasar el mouse o tocarla (HU-13). */
+.bs-insignia { position: relative; display: inline-block; }
+.bs-insignia-boton { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border: 0; border-radius: 999px; background: var(--tint); color: var(--teal-text); font: inherit; font-size: 14px; font-weight: 700; cursor: help; }
+.bs-insignia-boton:focus-visible { outline: 2px solid var(--teal-text); outline-offset: 2px; }
+.bs-insignia-globo { position: absolute; top: calc(100% + 8px); left: 0; z-index: 30; display: grid; gap: 6px; width: min(280px, 78vw); padding: 14px; border-radius: 14px; background: var(--navy); color: #fff; font-size: 14px; line-height: 1.4; box-shadow: 0 12px 28px rgba(11, 31, 58, .25); animation: bs-aparecer .12s ease-out; }
+.bs-insignia-globo::before { content: ''; position: absolute; top: -6px; left: var(--flecha, 22px); width: 12px; height: 12px; background: var(--navy); transform: rotate(45deg); }
+.bs-insignia-globo small { color: #c5d0dc; font-size: 13px; }

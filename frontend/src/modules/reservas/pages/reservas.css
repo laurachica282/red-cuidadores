@@ -59,6 +59,52 @@
     border: 1px solid var(--card-border);
 }
 
+.rs-vacio {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin: 16px 0;
+    padding: 28px 22px 22px;
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    background: #fff;
+    text-align: center;
+    box-shadow: 0 6px 20px rgba(11, 31, 58, 0.06);
+}
+
+.rs-vacio-icono {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 4px;
+    border-radius: 50%;
+    background: var(--tint);
+    color: var(--teal-text);
+}
+
+.rs-vacio h2 {
+    margin: 0;
+    font-size: 19px;
+}
+
+.rs-vacio p {
+    margin: 0 0 8px;
+    color: var(--slate);
+    font-size: 15px;
+    line-height: 1.45;
+}
+
+.rs-vacio-boton {
+    height: 52px;
+}
+
+.rs-vacio small {
+    color: var(--slate);
+    font-size: 13px;
+}
+
 .rs-aviso--error {
     background: #fdecea;
     border-color: #f3b8b3;
@@ -126,4 +172,186 @@
     font-size: 16px;
     font-weight: 700;
     cursor: pointer;
+}
+.rs-encabezado {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.rs-enlace {
+    display: inline-block;
+    margin-top: 4px;
+    color: var(--teal-text);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.rs-filtros {
+    display: flex;
+    gap: 8px;
+    margin: 4px -20px 12px;
+    padding: 0 20px 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.rs-filtro {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: 1.5px solid var(--card-border);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--navy);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.rs-filtro span {
+    min-width: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--bg);
+    color: var(--slate);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.rs-filtro--activo {
+    border-color: var(--navy);
+    background: var(--navy);
+    color: #fff;
+}
+
+.rs-filtro--activo span {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+.rs-vacio-lista {
+    padding: 18px;
+    border: 1px dashed var(--card-border);
+    border-radius: 16px;
+    color: var(--slate);
+    text-align: center;
+}
+
+.rs-tarjeta--en-curso {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 1px var(--teal);
+}
+
+.rs-estado--en_curso {
+    background: var(--gold);
+    color: var(--navy);
+}
+
+.rs-seguimiento {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.rs-boton-seguimiento {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 42px;
+    padding: 0 10px;
+    border-radius: 12px;
+    background: var(--tint);
+    color: var(--teal-text);
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.rs-enlace--chico {
+    flex-shrink: 0;
+    font-size: 14px;
+}
+
+.rs-cuenta {
+    min-width: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #fff;
+    font-size: 12px;
+}
+
+.rs-sin-leer {
+    display: grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 12px;
+}
+
+/* Filtros como control segmentado: siempre caben en el ancho de la pantalla. */
+.rs-segmentos {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    margin: 4px 0 14px;
+    padding: 4px;
+    border-radius: 14px;
+    background: #e9eef2;
+}
+
+.rs-segmento {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    min-width: 0;
+    padding: 6px 2px;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    color: var(--slate);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.rs-segmento span {
+    font-size: 12px;
+    font-weight: 400;
+}
+
+.rs-segmento--activo {
+    background: #fff;
+    color: var(--navy);
+    box-shadow: 0 1px 4px rgba(11, 31, 58, 0.12);
+}
+
+.rs-tarjeta-enlace {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+
+.rs-ver {
+    display: inline-block;
+    margin-top: 2px;
+    color: var(--teal-text);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+/* La emergencia ocupa su propia fila para que se vea y no se salga de la tarjeta. */
+.rs-emergencia {
+    grid-column: 1 / -1;
 }
