@@ -218,6 +218,25 @@
     width: 100%;
 }
 
+/* Botón de Microsoft: misma altura que el de Google, con el logo de cuatro cuadros */
+.login-microsoft {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    height: 44px;
+    border-color: #dadce0;
+    border-width: 1px;
+    border-radius: 4px;
+    color: #3c4043;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.login-microsoft:hover:not(:disabled) {
+    background: #f8faff;
+}
+
 /* Celda del botón oficial de Google: lo centra sin recortarlo */
 .login-google {
     display: flex;
