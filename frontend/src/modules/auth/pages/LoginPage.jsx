@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { IconCandado, IconCorreo, IconOjo, IconOjoCerrado, IconPata } from '@/shared/components/Icons.jsx';
 import { useAuth } from '../AuthContext.jsx';
-import { login, loginGoogle, reenviarCodigo } from '../services/authService.js';
+import { login, loginGoogle, loginMicrosoft, reenviarCodigo } from '../services/authService.js';
 import BotonGoogle from '../components/BotonGoogle.jsx';
+import BotonMicrosoft from '../components/BotonMicrosoft.jsx';
 import './LoginPage.css';
 
 export default function LoginPage() {
@@ -65,12 +66,13 @@ export default function LoginPage() {
     }
   };
 
-  const entrarConGoogle = async (credential) => {
+  // Google y Microsoft siguen el mismo camino: el backend valida el token y responde como /login.
+  const entrarConProveedor = (pedir) => async (token) => {
     if (bloqueadoHasta) return;
     setError('');
     setCargando(true);
     try {
-      const r = await loginGoogle(credential);
+      const r = await pedir(token);
       continuar(r, r.correo);
     } catch (err) {
       mostrarError(err);
@@ -78,6 +80,8 @@ export default function LoginPage() {
       setCargando(false);
     }
   };
+  const entrarConGoogle = entrarConProveedor(loginGoogle);
+  const entrarConMicrosoft = entrarConProveedor(loginMicrosoft);
 
   return (
     <div className="login-fondo">
@@ -138,10 +142,7 @@ export default function LoginPage() {
         <div className="login-o">o continúa con</div>
         <div className="login-redes">
           <BotonGoogle onCredencial={entrarConGoogle} onError={setError} deshabilitado={cargando || !!bloqueadoHasta} />
-          <button type="button" className="btn-secundario login-proximamente" disabled>
-            Microsoft
-            <small>Próximamente</small>
-          </button>
+          <BotonMicrosoft onIdToken={entrarConMicrosoft} onError={setError} deshabilitado={cargando || !!bloqueadoHasta} />
         </div>
 
         <p className="login-pie">

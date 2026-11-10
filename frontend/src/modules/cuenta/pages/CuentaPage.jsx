@@ -9,6 +9,8 @@ import { useCarga } from '../hooks/useCarga.js';
 import { obtenerPerfil } from '../services/cuentaService.js';
 import { RUTAS } from '../rutas.js';
 
+const ROLES = { viajero: 'Viajero', cuidador: 'Cuidador', admin: 'Administrador' };
+
 function Opcion({ a, Icono, titulo }) {
   return (
     <li>
@@ -37,16 +39,16 @@ export default function CuentaPage() {
   const esAdmin = (perfil?.rol ?? usuario.rol) === 'admin';
 
   return (
-    <Pantalla titulo="Configuración" atras="/inicio" etiquetaAtras="Volver al inicio">
-      <Link className="cu-perfil" to={RUTAS.datos}>
+    <Pantalla titulo="Configuración" atras={null}>
+      {/* Solo información: los datos se editan en "Datos personales" (un único camino). */}
+      <section className="cu-perfil" aria-label="Tu cuenta">
         <Avatar foto={perfil?.foto} nombre={nombre} tamano={56} />
         <span className="cu-perfil-texto">
-          <span className="cu-sr">Datos personales de </span>
           <span className="cu-perfil-nombre">{nombre}</span>
           <span className="cu-perfil-correo">{perfil?.correo ?? usuario.correo}</span>
+          <span className="cu-perfil-rol">{ROLES[perfil?.rol ?? usuario.rol] ?? ''}</span>
         </span>
-        <IconSiguiente />
-      </Link>
+      </section>
 
       {!cargando && error && <Aviso>{error}</Aviso>}
 

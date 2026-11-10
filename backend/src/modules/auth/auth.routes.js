@@ -11,6 +11,7 @@ import {
 } from './ingreso.service.js';
 import { entrarConProveedor } from './social.service.js';
 import { googleConfigurado, verificarCredencialGoogle } from './google.service.js';
+import { microsoftConfigurado, verificarCredencialMicrosoft } from './microsoft.service.js';
 import { verificarToken } from './verificarToken.js';
 
 const router = Router();
@@ -229,6 +230,31 @@ router.post('/google', async (req, res) => {
   } catch (e) {
     console.error(e.message);
     res.status(500).json({ error: 'No se pudo iniciar sesión con Google' });
+  }
+});
+
+// El frontend manda el id_token de Microsoft (MSAL); aquí se verifica contra MICROSOFT_CLIENT_ID.
+router.post('/microsoft', async (req, res) => {
+  const { idToken, dispositivoId } = req.body;
+  if (!microsoftConfigurado()) return res.status(503).json({ error: 'El inicio con Microsoft no está disponible' });
+  if (!idToken) return res.status(400).json({ error: 'Falta la credencial de Microsoft' });
+
+  let perfil;
+  try {
+    perfil = await verificarCredencialMicrosoft(idToken);
+  } catch {
+    return res.status(401).json({ error: 'No pudimos validar tu cuenta de Microsoft' });
+  }
+  if (!perfil.correoVerificado) {
+    return res.status(401).json({ error: 'Microsoft no confirma que ese correo sea tuyo. Usa tu correo y contraseña.' });
+  }
+
+  try {
+    const { http, cuerpo } = await entrarConProveedor('microsoft', perfil, req, dispositivoId);
+    res.status(http).json(cuerpo);
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudo iniciar sesión con Microsoft' });
   }
 });
 
