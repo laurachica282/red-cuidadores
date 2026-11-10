@@ -1,42 +1,31 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useAuth } from '@/modules/auth';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { InsigniaAntecedentes } from '@/modules/cuidadores';
 import { useIdioma } from '@/modules/region';
 import { obtenerPerfilCuidador, urlApi, urlFotoCuidador } from '../services/busquedaService.js';
 import { IconAtras, IconCasa, IconEstrella } from '../components/Iconos.jsx';
-import InsigniaVerificado from '../components/InsigniaVerificado.jsx';
 import { TIPOS_MASCOTA, formatoCalificacion, iniciales, noches, rangoFechas, servicio, tiempoEnLaRed } from '../utils.js';
 import '../busqueda.css';
 
 const nombreTipo = (v) => TIPOS_MASCOTA.find((t) => t.valor === v)?.texto ?? v;
-
-// Unidades a cobrar, con la misma cuenta del módulo reservas: alojamiento por noche, lo demás por día.
-const unidades = (servicioElegido, n) => (servicioElegido === 'alojamiento' ? n : n + 1);
 
 // HU-16 · mockup 2: fotos, reseñas, insignia de antecedentes y tarifa.
 export default function PerfilCuidadorPage() {
   const { id } = useParams();
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const { precio, fecha } = useIdioma();
-  const { usuario } = useAuth();
-  const desde = params.get('desde');
-  const hasta = params.get('hasta');
   const [c, setC] = useState(null);
-  // Servicio que se va a reservar; por defecto el que venía de la búsqueda.
-  const [elegido, setElegido] = useState(params.get('servicio'));
   const [error, setError] = useState('');
   const [fotoActiva, setFotoActiva] = useState(0);
 
   useEffect(() => {
     let vivo = true;
-    obtenerPerfilCuidador(id, { desde, hasta }).then((d) => vivo && setC(d)).catch((e) => vivo && setError(e.message));
+    obtenerPerfilCuidador(id).then((d) => vivo && setC(d)).catch((e) => vivo && setError(e.message));
     return () => { vivo = false; };
-  }, [id, desde, hasta]);
+  }, [id]);
 
-  // Se retrocede solo si se llegó desde la búsqueda; si no (enlace directo, desde la reserva...) se va a la búsqueda.
-  const volver = () => (location.state?.desdeBusqueda ? navigate(-1) : navigate('/inicio'));
+  const volver = () => (window.history.length > 1 ? navigate(-1) : navigate('/inicio'));
 
   if (error) {
     return (
@@ -49,16 +38,10 @@ export default function PerfilCuidadorPage() {
   }
   if (!c) return <main className="page bs-page"><p className="bs-sub">Cargando perfil…</p></main>;
 
+  const desde = params.get('desde');
+  const hasta = params.get('hasta');
   const n = noches(desde, hasta);
   const km = params.get('km');
-  const s = c.servicios.find((x) => x.servicio === elegido) ?? c.servicios[0];
-  const cantidad = n > 0 && s ? unidades(s.servicio, n) : 0;
-  const ocupado = c.disponible === false;
-  const puedeReservar = usuario?.rol === 'viajero' && s && !ocupado;
-  const qs = new URLSearchParams({ ...(s && { servicio: s.servicio }), ...(n > 0 && { desde, hasta }) }).toString();
-  let leyenda = s ? `${servicio(s.servicio).texto} desde` : 'Sin servicios';
-  if (cantidad > 0) leyenda = `${rangoFechas(desde, hasta)} · ${cantidad} × ${s.unidad}`;
-  if (ocupado) leyenda = 'No está disponible en esas fechas';
 
   return (
     <main className="bs-perfil">
@@ -77,7 +60,7 @@ export default function PerfilCuidadorPage() {
           <div>
             <h1>{c.nombre}</h1>
             <p className="bs-sub">{[c.barrio ?? c.ciudad, km ? `a ${km.replace('.', ',')} km` : null].filter(Boolean).join(' · ')}</p>
-            <InsigniaVerificado venceEn={c.antecedentesVencenEn} nombre={c.nombre.split(' ')[0]} />
+            <InsigniaAntecedentes venceEn={c.antecedentesVencenEn} />
           </div>
         </div>
 
@@ -117,13 +100,10 @@ export default function PerfilCuidadorPage() {
         <section>
           <h2>Servicios</h2>
           <ul className="bs-servicios">
-            {c.servicios.map((x) => (
-              <li key={x.servicio}>
-                <button type="button" aria-pressed={x.servicio === s?.servicio}
-                  className={`bs-servicio${x.servicio === s?.servicio ? ' bs-servicio--activo' : ''}`} onClick={() => setElegido(x.servicio)}>
-                  <span>{servicio(x.servicio).texto}</span>
-                  <span><strong>{precio(x.tarifa, c.moneda)}</strong> <small>/{x.unidad}</small></span>
-                </button>
+            {c.servicios.map((s) => (
+              <li key={s.servicio}>
+                <span>{servicio(s.servicio).texto}</span>
+                <span><strong>{precio(s.tarifa, c.moneda)}</strong> <small>/{s.unidad}</small></span>
               </li>
             ))}
           </ul>
@@ -157,21 +137,14 @@ export default function PerfilCuidadorPage() {
 
       <div className="bs-reservar">
         <div>
-          <small className={ocupado ? 'bs-error' : 'bs-sub'}>{leyenda}</small>
-          {s && (
-            <p>
-              <strong>{precio(cantidad > 0 ? s.tarifa * cantidad : s.tarifa, c.moneda)}</strong>{' '}
-              <small>{cantidad > 0 ? 'total' : `/${s.unidad}`}</small>
-            </p>
-          )}
+          <small className="bs-sub">{n > 0 ? `${rangoFechas(desde, hasta)} · ${n} ${n === 1 ? 'noche' : 'noches'}` : 'Alojamiento desde'}</small>
+          <p>
+            <strong>{precio(n > 0 ? c.tarifaNoche * n : c.tarifaNoche, c.moneda)}</strong>{' '}
+            <small>{n > 0 ? 'total' : '/noche'}</small>
+          </p>
         </div>
-        {/* La solicitud la hace el módulo reservas (HU-17); se le pasa el servicio y las fechas. */}
-        {puedeReservar ? (
-          <Link className="bs-boton" to={`/reservas/nueva/${c.id}${qs ? `?${qs}` : ''}`} state={{ desdePerfil: true }}>Reservar</Link>
-        ) : (
-          <button type="button" className="bs-boton" disabled
-            title={ocupado ? 'Elige otras fechas' : 'Solo los viajeros pueden reservar'}>Reservar</button>
-        )}
+        {/* La solicitud de reserva es HU-17 (módulo reservas). */}
+        <button type="button" className="bs-boton" disabled title="Disponible cuando esté el módulo de reservas">Reservar</button>
       </div>
     </main>
   );

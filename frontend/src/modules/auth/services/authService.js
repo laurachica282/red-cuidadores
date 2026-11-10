@@ -8,9 +8,6 @@ export const login = (correo, clave) =>
 export const loginGoogle = (credential) =>
   api('/auth/google', { metodo: 'POST', cuerpo: { credential, dispositivoId: obtenerDispositivoId() } });
 
-export const loginMicrosoft = (idToken) =>
-  api('/auth/microsoft', { metodo: 'POST', cuerpo: { idToken, dispositivoId: obtenerDispositivoId() } });
-
 export const verificar2fa =(token2fa, codigo) =>
   api('/auth/2fa/verificar', { metodo: 'POST', cuerpo: { token2fa, codigo } });
 

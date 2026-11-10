@@ -4,7 +4,7 @@ import BarraNavegacion from './BarraNavegacion.jsx';
 export default function LayoutPrivado() {
   return (
     <>
-      <div style={{ paddingBottom: 80 }}>
+      <div style={{ paddingBottom: 96 }}>
         <Outlet />
       </div>
       <BarraNavegacion />

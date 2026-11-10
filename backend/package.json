@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
+    "db:crear": "node src/db/crear_db.js",
     "test": "node --test --test-concurrency=1"
   },
   "keywords": [],
@@ -20,7 +21,6 @@
     "express-rate-limit": "^8.7.2",
     "geoip-lite": "^2.0.3",
     "google-auth-library": "^11.3.2",
-    "jose": "^6.2.16",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.5.0",
     "nodemailer": "^10.3.1",

@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { IconCandado, IconCorreo, IconOjo, IconOjoCerrado, IconPata } from '@/shared/components/Icons.jsx';
 import { useAuth } from '../AuthContext.jsx';
-import { login, loginGoogle, loginMicrosoft, reenviarCodigo } from '../services/authService.js';
+import { login, loginGoogle, reenviarCodigo } from '../services/authService.js';
 import BotonGoogle from '../components/BotonGoogle.jsx';
-import BotonMicrosoft from '../components/BotonMicrosoft.jsx';
+import { CaminoHuellas, PerroYGato } from '../components/DecoracionMascotas.jsx';
 import './LoginPage.css';
 
 export default function LoginPage() {
@@ -66,13 +66,12 @@ export default function LoginPage() {
     }
   };
 
-  // Google y Microsoft siguen el mismo camino: el backend valida el token y responde como /login.
-  const entrarConProveedor = (pedir) => async (token) => {
+  const entrarConGoogle = async (credential) => {
     if (bloqueadoHasta) return;
     setError('');
     setCargando(true);
     try {
-      const r = await pedir(token);
+      const r = await loginGoogle(credential);
       continuar(r, r.correo);
     } catch (err) {
       mostrarError(err);
@@ -80,18 +79,19 @@ export default function LoginPage() {
       setCargando(false);
     }
   };
-  const entrarConGoogle = entrarConProveedor(loginGoogle);
-  const entrarConMicrosoft = entrarConProveedor(loginMicrosoft);
 
   return (
-    <div className="login-fondo">
-      <main className="login">
+    <div className="login-fondo login-fondo--huellas">
+      <CaminoHuellas />
+      <main className="login login--inicio">
+        <PerroYGato />
+
         <div className="login-marca">
           <span className="login-logo"><IconPata /></span>
           Red de Cuidadores
         </div>
 
-        <h1>Inicia sesión</h1>
+        <h1>Inicia sesión <span className="login-saludo" aria-hidden="true">🐾</span></h1>
         <p className="login-sub">Deja a tu mascota con vecinos de confianza, sin preocuparte.</p>
 
         {state?.cuentaActivada && (
@@ -142,7 +142,10 @@ export default function LoginPage() {
         <div className="login-o">o continúa con</div>
         <div className="login-redes">
           <BotonGoogle onCredencial={entrarConGoogle} onError={setError} deshabilitado={cargando || !!bloqueadoHasta} />
-          <BotonMicrosoft onIdToken={entrarConMicrosoft} onError={setError} deshabilitado={cargando || !!bloqueadoHasta} />
+          <button type="button" className="btn-secundario login-proximamente" disabled>
+            Microsoft
+            <small>Próximamente</small>
+          </button>
         </div>
 
         <p className="login-pie">

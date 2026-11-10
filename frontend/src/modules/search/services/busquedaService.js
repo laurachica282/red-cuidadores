@@ -18,9 +18,7 @@ export function buscarCuidadores(filtros = {}) {
 }
 
 // HU-16: perfil con fotos, reseñas, insignia y tarifa.
-// Con fechas ({ desde, hasta }) dice si el cuidador está libre (disponible).
-export const obtenerPerfilCuidador = (id, { desde, hasta } = {}) =>
-  api(desde && hasta ? `/busqueda/cuidadores/${id}?desde=${desde}&hasta=${hasta}` : `/busqueda/cuidadores/${id}`);
+export const obtenerPerfilCuidador = (id) => api(`/busqueda/cuidadores/${id}`);
 
 // Mapa: dirección escrita → lugares posibles, y punto del mapa → dirección.
 // cerca: { lat, lng } opcional para preferir lugares de esa zona.

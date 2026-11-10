@@ -1,9 +1,18 @@
+/* Fondo de todas las pantallas de acceso: manchas de color suaves + patrón de huellitas */
 .login-fondo {
+    position: relative;
     min-height: 100vh;
-    background: var(--bg);
+    overflow: hidden;
+    background:
+        var(--patron-huellas),
+        radial-gradient(circle at 0% 0%, rgba(0, 168, 150, 0.18), transparent 45%),
+        radial-gradient(circle at 100% 100%, rgba(244, 185, 66, 0.22), transparent 45%),
+        var(--bg);
 }
 
 .login {
+    position: relative;
+    z-index: 1;
     max-width: 430px;
     min-height: 100vh;
     margin: 0 auto;
@@ -24,10 +33,15 @@
     .login {
         min-height: auto;
         width: 100%;
-        background: #fff;
+        background: rgba(255, 255, 255, 0.96);
         border: 1px solid var(--card-border);
-        border-radius: 28px;
-        box-shadow: 0 12px 40px rgba(11, 31, 58, 0.08);
+        border-radius: 32px;
+        box-shadow: var(--shadow), 0 30px 60px -20px rgba(0, 107, 97, 0.18);
+    }
+
+    /* El perro y el gato se asoman por encima de la tarjeta */
+    .login-fondo--huellas {
+        padding-top: 120px;
     }
 }
 
@@ -35,26 +49,162 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    font-size: 19px;
-    font-weight: 700;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 600;
 }
 
 .login-logo {
     width: 48px;
     height: 48px;
-    border-radius: 50%;
-    background: var(--teal);
-    color: var(--navy);
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--teal-2), var(--teal));
+    color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: var(--shadow-teal);
+    transform: rotate(-8deg);
+    transition: transform 0.3s ease;
+}
+
+.login-marca:hover .login-logo {
+    transform: rotate(8deg) scale(1.05);
 }
 
 .login h1 {
     margin: 36px 0 0;
-    font-size: 32px;
+    font-size: 34px;
     line-height: 1.1;
-    letter-spacing: -0.5px;
+}
+
+.login-saludo {
+    display: inline-block;
+    font-size: 26px;
+    animation: saludo 2.4s ease-in-out infinite;
+    transform-origin: 50% 80%;
+}
+
+@keyframes saludo {
+    0%, 60%, 100% { transform: rotate(0); }
+    70% { transform: rotate(-18deg); }
+    80% { transform: rotate(14deg); }
+    90% { transform: rotate(-8deg); }
+}
+
+/* ───── Perro y gato ───── */
+.perro-gato {
+    display: block;
+    width: 190px;
+    height: auto;
+    margin: -12px auto 8px;
+    overflow: visible;
+}
+
+@media (min-width: 600px) {
+    .perro-gato {
+        position: absolute;
+        top: -98px;
+        left: 50%;
+        width: 210px;
+        margin: 0;
+        transform: translateX(-50%);
+    }
+
+    .login--inicio .login-marca {
+        margin-top: 8px;
+    }
+}
+
+.perro-gato__perro { animation: asomar 0.7s cubic-bezier(.34, 1.56, .64, 1) both; }
+.perro-gato__gato { animation: asomar 0.7s 0.15s cubic-bezier(.34, 1.56, .64, 1) both; }
+
+@keyframes asomar {
+    from { transform: translateY(40px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.perro-gato .parpadeo {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: parpadeo 4s infinite;
+}
+.perro-gato__gato .parpadeo { animation-delay: 1.3s; }
+
+@keyframes parpadeo {
+    0%, 92%, 100% { transform: scaleY(1); }
+    95% { transform: scaleY(0.1); }
+}
+
+.perro-gato .oreja-izq,
+.perro-gato .oreja-der {
+    transform-box: fill-box;
+    transform-origin: 50% 0;
+}
+.perro-gato .oreja-izq { animation: oreja 3s ease-in-out infinite; }
+.perro-gato .oreja-der { animation: oreja 3s ease-in-out infinite reverse; }
+
+@keyframes oreja {
+    0%, 100% { transform: rotate(0); }
+    50% { transform: rotate(6deg); }
+}
+
+.perro-gato .lengua {
+    transform-box: fill-box;
+    transform-origin: 50% 0;
+    animation: lengua 1.2s ease-in-out infinite;
+}
+
+@keyframes lengua {
+    0%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(1.25); }
+}
+
+/* ───── Camino de huellitas que aparece paso a paso ───── */
+.huellas-camino {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.huella {
+    position: absolute;
+    width: 26px;
+    height: 29px;
+    background: var(--teal);
+    -webkit-mask: var(--huella-mask) center / contain no-repeat;
+    mask: var(--huella-mask) center / contain no-repeat;
+    opacity: 0;
+    transform: rotate(var(--giro));
+    animation: pisada 5s ease-in-out infinite;
+}
+
+.huella:nth-child(even) {
+    background: var(--gold);
+    margin-left: 16px;
+}
+
+@keyframes pisada {
+    0% { opacity: 0; transform: rotate(var(--giro)) scale(0.6); }
+    8% { opacity: 0.35; transform: rotate(var(--giro)) scale(1); }
+    60% { opacity: 0.3; }
+    100% { opacity: 0; transform: rotate(var(--giro)) scale(1); }
+}
+
+/* Huellita en el botón de ingresar */
+.login--inicio .btn-primary::after {
+    content: '';
+    width: 18px;
+    height: 20px;
+    background: currentColor;
+    -webkit-mask: var(--huella-mask) center / contain no-repeat;
+    mask: var(--huella-mask) center / contain no-repeat;
+    transform: rotate(20deg);
+    transition: transform 0.2s ease;
+}
+
+.login--inicio .btn-primary:hover:not(:disabled)::after {
+    transform: rotate(-10deg) scale(1.15);
 }
 
 .login-sub {
@@ -125,9 +275,8 @@
     cursor: pointer;
 }
 
-.input:focus {
-    outline: 2px solid var(--teal-text);
-    outline-offset: 1px;
+.campo:focus-within .campo-icono {
+    color: var(--teal);
 }
 
 .login-fila {
@@ -201,6 +350,12 @@
     font-size: 15px;
     font-weight: 700;
     cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.btn-secundario:hover:not(:disabled) {
+    border-color: var(--teal);
+    background: var(--tint);
 }
 
 .btn-secundario:disabled {
@@ -216,25 +371,6 @@
 
 .login-red .btn-secundario {
     width: 100%;
-}
-
-/* Botón de Microsoft: misma altura que el de Google, con el logo de cuatro cuadros */
-.login-microsoft {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    height: 44px;
-    border-color: #dadce0;
-    border-width: 1px;
-    border-radius: 4px;
-    color: #3c4043;
-    font-size: 14px;
-    font-weight: 500;
-}
-
-.login-microsoft:hover:not(:disabled) {
-    background: #f8faff;
 }
 
 /* Celda del botón oficial de Google: lo centra sin recortarlo */

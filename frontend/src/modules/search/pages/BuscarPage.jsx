@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useIdioma } from '@/modules/region';
-import { Campana } from '@/modules/seguimiento';
 import { buscarCuidadores, urlApi } from '../services/busquedaService.js';
 import { IconEscudo, IconEstrella, IconLupa, IconUbicacion } from '../components/Iconos.jsx';
 import MapaResultados from '../components/MapaResultados.jsx';
@@ -100,7 +99,6 @@ export default function BuscarPage() {
   const enlacePerfil = (c) => {
     const params = new URLSearchParams();
     if (fechasListas) { params.set('desde', desde); params.set('hasta', hasta); }
-    if (filtros.servicio) params.set('servicio', filtros.servicio);
     if (c.distanciaKm !== null) params.set('km', c.distanciaKm);
     const qs = params.toString();
     return qs ? `/cuidadores/${c.id}?${qs}` : `/cuidadores/${c.id}`;
@@ -118,10 +116,7 @@ export default function BuscarPage() {
 
   return (
     <main className="page bs-page">
-      <div className="bs-arriba">
-        <h1 className="bs-titulo">Encuentra un cuidador para tu mascota</h1>
-        <Campana />
-      </div>
+      <h1 className="bs-titulo">Encuentra un cuidador para tu mascota</h1>
 
       <button type="button" className="bs-personalizar" aria-haspopup="dialog" onClick={() => setVerFiltros(true)}>
         <span className="bs-personalizar-icono"><IconLupa width="22" height="22" /></span>
@@ -171,7 +166,7 @@ export default function BuscarPage() {
       <ul className={`bs-lista${cargando ? ' bs-lista--cargando' : ''}`} aria-busy={cargando}>
         {lista.map((c) => (
           <li key={c.id} onMouseEnter={() => setResaltado(c.id)} onMouseLeave={() => setResaltado(null)}>
-            <Link to={enlacePerfil(c)} state={{ desdeBusqueda: true }} className="bs-card">
+            <Link to={enlacePerfil(c)} className="bs-card">
               <span className="bs-avatar">
                 {c.fotoPerfil ? <img src={urlApi(c.fotoPerfil)} alt="" loading="lazy" /> : iniciales(c.nombre)}
               </span>

@@ -5,13 +5,12 @@ import { RUTAS } from '../rutas.js';
 
 // Marco común de las pantallas del módulo: cabecera con "volver" y contenido.
 // En celular ocupa todo el ancho; en computador se ve como tarjeta centrada, igual que el login.
-// atras={null}: pantallas principales de la barra de navegación, sin flecha de volver.
 export default function Pantalla({ titulo, atras = RUTAS.configuracion, etiquetaAtras = 'Volver', children }) {
   return (
     <div className="cu-fondo">
       <main className="cu">
         <header className="cu-cabecera">
-          {atras && <Link className="cu-atras" to={atras} aria-label={etiquetaAtras}><IconAtras /></Link>}
+          <Link className="cu-atras" to={atras} aria-label={etiquetaAtras}><IconAtras /></Link>
           <h1>{titulo}</h1>
         </header>
         {children}

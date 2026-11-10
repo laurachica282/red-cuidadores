@@ -1,28 +1,77 @@
+/* Barra flotante tipo "píldora" */
 .barra-nav {
     position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: 50%;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    width: calc(100% - 24px);
+    max-width: 420px;
     display: flex;
-    background: #fff;
-    border-top: 1px solid #d5dee4;
+    gap: 4px;
+    padding: 6px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--card-border);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
     z-index: 10;
 }
 
 .barra-nav__item {
+    position: relative;
     flex: 1;
-    min-height: 64px;
+    min-height: 56px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 2px;
+    border-radius: 18px;
     font-size: 12px;
     font-weight: 700;
-    color: #4a5d70;
+    color: var(--slate);
     text-decoration: none;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.barra-nav__item svg {
+    transition: transform 0.2s ease;
+}
+
+.barra-nav__item:hover {
+    color: var(--teal-text);
+}
+
+.barra-nav__item:focus-visible {
+    outline: 2px solid var(--teal);
+    outline-offset: 2px;
 }
 
 .barra-nav__item--activo {
-    color: #006b61;
+    color: var(--teal-text);
+    background: var(--tint);
+}
+
+.barra-nav__item--activo svg {
+    transform: translateY(-1px) scale(1.08);
+}
+
+/* Huellita sobre el ítem activo */
+.barra-nav__item--activo::after {
+    content: '';
+    position: absolute;
+    top: 5px;
+    right: calc(50% - 22px);
+    width: 10px;
+    height: 10px;
+    background: var(--teal);
+    -webkit-mask: var(--huella-mask) center / contain no-repeat;
+    mask: var(--huella-mask) center / contain no-repeat;
+    animation: barra-huella 0.35s ease-out;
+}
+
+@keyframes barra-huella {
+    from { opacity: 0; transform: scale(0.3) rotate(-30deg); }
+    to { opacity: 1; transform: scale(1) rotate(0); }
 }
