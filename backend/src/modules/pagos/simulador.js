@@ -1,12 +1,13 @@
 import crypto from 'node:crypto';
+import { METODOS } from './metodos.js';
 
 // Pasarela simulada: no toca dinero real. Todas las pasarelas del proyecto se comportan igual.
-// Regla de prueba: una tarjeta que termina en 0002 es rechazada; cualquier otra se aprueba.
-export function simularCobro({ numero }, pasarela) {
+// Reglas de prueba para rechazar (el resto se aprueba):
+//   tarjeta, nequi, spei, pix: dato que termina en 0002 · paypal: correo con la palabra "rechazar" · pse: "Banco de prueba (sin fondos)".
+export function simularCobro({ metodo, valor }, pasarela) {
   const prefijo = String(pasarela).split('_')[0].slice(0, 4).toUpperCase();
   const referencia = `${prefijo}-${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
-  if (numero.endsWith('0002')) {
-    return { aprobado: false, referencia, motivo: 'El banco rechazó la tarjeta. Prueba con otra' };
-  }
+  const rechazado = metodo === 'tarjeta' ? valor.endsWith('0002') : METODOS[metodo].rechaza(valor);
+  if (rechazado) return { aprobado: false, referencia, motivo: 'El pago fue rechazado. Prueba con otro dato o con otro método' };
   return { aprobado: true, referencia };
 }

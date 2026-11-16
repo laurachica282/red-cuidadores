@@ -3,6 +3,7 @@ import { verificarToken } from '../auth/verificarToken.js';
 import * as pasarelas from './pasarelas.service.js';
 import { paisDeCoordenadas } from './deteccion.js';
 import * as pagos from './pagos.service.js';
+import { METODOS } from './metodos.js';
 
 const router = Router();
 router.use(verificarToken);
@@ -21,6 +22,8 @@ function validar(d) {
   const c = Number(d.comision_pct);
   if (!Number.isFinite(c) || c < 0 || c > 100) errores.push('La comisión debe estar entre 0 y 100');
   if (typeof d.activa !== 'boolean') errores.push('"activa" debe ser verdadero o falso');
+  if (!Array.isArray(d.metodos) || d.metodos.length === 0) errores.push('Elige al menos un método de pago');
+  else if (d.metodos.some((m) => !Object.hasOwn(METODOS, m))) errores.push('Hay un método de pago que no existe');
   return errores;
 }
 
@@ -44,7 +47,7 @@ router.put('/pasarelas/:pais', soloAdmin, async (req, res) => {
   if (!/^[A-Z]{2}$/.test(pais)) return res.status(400).json({ error: 'El país debe ser un código de 2 letras, como CO' });
   const errores = validar(req.body);
   if (errores.length) return res.status(400).json({ error: errores[0], errores });
-  const datos = { ...req.body, comision_pct: Number(req.body.comision_pct) };
+  const datos = { ...req.body, comision_pct: Number(req.body.comision_pct), metodos: [...new Set(req.body.metodos)] };
   res.json(await pasarelas.guardar(pais, datos));
 });
 
