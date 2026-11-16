@@ -35,7 +35,7 @@
 
 .seguridad-banner-pendiente {
     border-color: var(--gold);
-    background: #fff;
+    background: var(--tint-gold);
 }
 
 .seguridad-interruptor {
@@ -62,7 +62,8 @@
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    background: #fff;
+    background: var(--surface);
+    box-shadow: 0 1px 3px rgba(11, 31, 58, 0.3);
     transition: transform 0.2s;
 }
 
@@ -71,7 +72,7 @@
 }
 
 .seguridad-interruptor:focus-visible {
-    outline: 2px solid var(--navy);
+    outline: 3px solid var(--teal);
     outline-offset: 2px;
 }
 
@@ -121,9 +122,10 @@
     margin: 0;
     padding: 0;
     list-style: none;
-    background: #fff;
+    background: var(--surface);
     border: 1px solid var(--card-border);
-    border-radius: 16px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
     overflow: hidden;
 }
 
@@ -144,6 +146,11 @@
     min-height: 52px;
     color: var(--navy);
     text-decoration: none;
+    transition: background 0.15s ease;
+}
+
+.seguridad-enlace:hover {
+    background: var(--tint);
 }
 
 .seguridad-enlace:focus-visible {
@@ -156,8 +163,8 @@
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: var(--bg);
-    color: var(--navy);
+    background: var(--tint);
+    color: var(--teal-text);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -216,12 +223,23 @@
     height: 52px;
     border: 1.5px solid var(--danger);
     border-radius: 14px;
-    background: #fff;
+    background: var(--surface);
     font: inherit;
     font-size: 15px;
     font-weight: 700;
     color: var(--danger);
     cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.seguridad-cerrar-todas:hover:not(:disabled) {
+    background: #fdecea;
+}
+
+.seguridad-cerrar-todas:focus-visible,
+.seguridad-cerrar:focus-visible {
+    outline: 3px solid var(--danger);
+    outline-offset: 2px;
 }
 
 /* En computador la tarjeta no ocupa toda la altura: el botón se separa de la lista. */

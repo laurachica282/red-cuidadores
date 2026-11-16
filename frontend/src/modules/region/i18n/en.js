@@ -153,4 +153,11 @@ export default {
   'terminos.sub': 'The rules change depending on the country.',
   'perfil.guardar': 'Save changes',
   'cr.una': '1 verified caregiver',
+
+  // Barra de navegación (shared/BarraNavegacion.jsx)
+  'nav.menu': 'Main menu',
+  'nav.inicio': 'Home',
+  'nav.mascotas': 'Pets',
+  'nav.reservas': 'Bookings',
+  'nav.cuenta': 'Account',
 };

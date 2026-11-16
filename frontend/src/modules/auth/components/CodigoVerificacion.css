@@ -10,18 +10,24 @@
     height: 56px;
     border: 1.5px solid var(--input-border);
     border-radius: 14px;
-    background: #fff;
+    background: var(--surface);
     color: var(--navy);
     font: inherit;
     font-size: 24px;
     font-weight: 700;
     text-align: center;
     caret-color: var(--teal-text);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.codigo-casilla:hover:not(:disabled) {
+    border-color: #93a5b6;
 }
 
 .codigo-casilla:focus {
-    outline: 2px solid var(--teal-text);
-    outline-offset: 1px;
+    outline: none;
+    border-color: var(--teal);
+    box-shadow: 0 0 0 4px rgba(0, 168, 150, 0.16);
 }
 
 .codigo-casilla:disabled {

@@ -30,6 +30,11 @@ app.use('/api/pagos', pagosRoutes);
 app.use('/api/reservas', reservasRoutes);
 app.use('/api/seguimiento', seguimientoRoutes);
 
+// Raíz: al abrir la URL del backend en el navegador se ve que está corriendo (sin tocar la base).
+app.get('/', (req, res) => {
+  res.json({ servicio: 'Red de Cuidadores API', estado: 'Backend is running', salud: '/api/salud' });
+});
+
 // Ruta de prueba: confirma que el servidor y la base responden.
 app.get('/api/salud', async (req, res) => {
   try {

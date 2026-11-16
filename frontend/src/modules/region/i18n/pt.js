@@ -153,4 +153,11 @@ export default {
   'terminos.sub': 'As regras mudam conforme o país.',
   'perfil.guardar': 'Salvar alterações',
   'cr.una': '1 cuidador verificado',
+
+  // Barra de navegación (shared/BarraNavegacion.jsx)
+  'nav.menu': 'Menu principal',
+  'nav.inicio': 'Início',
+  'nav.mascotas': 'Pets',
+  'nav.reservas': 'Reservas',
+  'nav.cuenta': 'Conta',
 };

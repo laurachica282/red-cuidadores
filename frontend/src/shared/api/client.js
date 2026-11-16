@@ -1,5 +1,11 @@
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 
+// En el plan gratis de Render el backend se duerme y tarda ~30-60 s en arrancar con la primera petición.
+// Se llama al abrir la app para que vaya despertando mientras la persona ve el login. No espera ni avisa errores.
+export function despertarServidor() {
+  fetch(`${API}/salud`, { cache: 'no-store' }).catch(() => {});
+}
+
 export async function api(ruta, { metodo = 'GET', cuerpo } = {}) {
   const token = localStorage.getItem('token');
   let resp;
