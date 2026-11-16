@@ -21,11 +21,26 @@ let actual = leerAlmacen();
 const oyentes = new Set();
 const suscribir = (fn) => { oyentes.add(fn); return () => oyentes.delete(fn); };
 
+// <html lang> sigue al idioma (lectores de pantalla, traductor del navegador, guiones).
+const marcarDocumento = () => { if (typeof document !== 'undefined') document.documentElement.lang = actual; };
+marcarDocumento();
+
 export function cambiarIdioma(idioma) {
   if (!IDIOMAS.includes(idioma) || idioma === actual) return;
   actual = idioma;
   try { localStorage.setItem('idioma', idioma); } catch { /* ignorar */ }
+  marcarDocumento();
   oyentes.forEach((fn) => fn());
+}
+
+// El idioma se vuelve a leer apenas cambia la sesión, sin esperar a que monte una pantalla con useIdioma:
+// - 'usuario-actualizado': login o cambio del usuario en esta pestaña (lo emite AuthContext).
+// - 'storage': otra pestaña del navegador cambió la sesión o el idioma.
+if (typeof window !== 'undefined') {
+  window.addEventListener('usuario-actualizado', () => cambiarIdioma(leerAlmacen()));
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'usuario' || e.key === 'idioma') cambiarIdioma(leerAlmacen());
+  });
 }
 
 // Guarda en la sesión local el país, idioma y moneda que devolvió el servidor.
@@ -35,6 +50,8 @@ export function guardarRegionLocal({ pais, idioma, moneda }) {
     if (u) localStorage.setItem('usuario', JSON.stringify({ ...u, pais, idioma, moneda }));
   } catch { /* ignorar */ }
   cambiarIdioma(idioma);
+  // AuthContext escucha este aviso para que usuario.pais / usuario.moneda no queden con los valores anteriores.
+  window.dispatchEvent(new CustomEvent('region-cambiada', { detail: { pais, idioma, moneda } }));
 }
 
 export function useIdioma() {

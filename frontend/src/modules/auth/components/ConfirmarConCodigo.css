@@ -31,6 +31,15 @@
     cursor: pointer;
 }
 
+.confirmar-codigo-reenviar:hover:not(:disabled) {
+    text-decoration: underline;
+}
+
+.confirmar-codigo-reenviar:focus-visible {
+    outline: 3px solid var(--teal);
+    outline-offset: 2px;
+}
+
 .confirmar-codigo-reenviar:disabled {
     opacity: 0.55;
     cursor: not-allowed;

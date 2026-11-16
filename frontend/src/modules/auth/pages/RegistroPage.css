@@ -3,13 +3,23 @@
     height: 44px;
     margin-left: -10px;
     border: 0;
-    border-radius: 12px;
+    border-radius: var(--radius-sm);
     background: none;
     color: var(--navy);
     display: flex;
     align-items: center;
     justify-content: center;
     text-decoration: none;
+    transition: background 0.15s ease;
+}
+
+.registro-atras:hover {
+    background: var(--tint);
+}
+
+.registro-atras:focus-visible {
+    outline: 3px solid var(--teal);
+    outline-offset: 2px;
 }
 
 .registro .login-form {
@@ -44,9 +54,16 @@
     gap: 4px;
     padding: 14px;
     border: 1.5px solid var(--card-border);
-    border-radius: 16px;
-    background: #fff;
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
     cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rol:hover {
+    border-color: #a8ddd5;
+    box-shadow: var(--shadow);
 }
 
 .rol input {
@@ -91,7 +108,7 @@
     height: 20px;
     border: 1.5px solid var(--input-border);
     border-radius: 50%;
-    background: #fff;
+    background: var(--surface);
 }
 
 .rol-activo .rol-marca {

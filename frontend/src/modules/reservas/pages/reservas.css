@@ -55,7 +55,7 @@
     margin: 12px 0;
     padding: 14px;
     border-radius: 14px;
-    background: #fff;
+    background: var(--surface);
     border: 1px solid var(--card-border);
 }
 
@@ -68,7 +68,7 @@
     padding: 28px 22px 22px;
     border: 1px solid var(--card-border);
     border-radius: 20px;
-    background: #fff;
+    background: var(--surface);
     text-align: center;
     box-shadow: 0 6px 20px rgba(11, 31, 58, 0.06);
 }
@@ -122,9 +122,9 @@
 
 .rs-tarjeta {
     padding: 16px;
-    background: #fff;
+    background: var(--surface);
     border: 1px solid var(--card-border);
-    border-radius: 16px;
+    border-radius: var(--radius);
 }
 
 .rs-cabecera {
@@ -144,7 +144,7 @@
 }
 
 .rs-estado--pendiente {
-    background: #fff3d6;
+    background: var(--tint-gold);
     color: #6b4b00;
 }
 
@@ -165,8 +165,8 @@
 .rs-boton-claro {
     height: 52px;
     border: 1.5px solid var(--input-border);
-    border-radius: 16px;
-    background: #fff;
+    border-radius: var(--radius);
+    background: var(--surface);
     color: var(--navy);
     font: inherit;
     font-size: 16px;
@@ -205,7 +205,7 @@
     padding: 8px 14px;
     border: 1.5px solid var(--card-border);
     border-radius: 999px;
-    background: #fff;
+    background: var(--surface);
     color: var(--navy);
     font: inherit;
     font-size: 14px;
@@ -236,7 +236,7 @@
 .rs-vacio-lista {
     padding: 18px;
     border: 1px dashed var(--card-border);
-    border-radius: 16px;
+    border-radius: var(--radius);
     color: var(--slate);
     text-align: center;
 }
@@ -265,7 +265,7 @@
     gap: 6px;
     min-height: 42px;
     padding: 0 10px;
-    border-radius: 12px;
+    border-radius: var(--radius-sm);
     background: var(--tint);
     color: var(--teal-text);
     font-size: 14px;
@@ -282,7 +282,7 @@
     min-width: 20px;
     padding: 0 6px;
     border-radius: 999px;
-    background: #fff;
+    background: var(--surface);
     font-size: 12px;
 }
 
@@ -332,7 +332,7 @@
 }
 
 .rs-segmento--activo {
-    background: #fff;
+    background: var(--surface);
     color: var(--navy);
     box-shadow: 0 1px 4px rgba(11, 31, 58, 0.12);
 }
@@ -355,3 +355,16 @@
 .rs-emergencia {
     grid-column: 1 / -1;
 }
+
+/* ───── Diseño (tema con huellitas): tarjetas con sombra y botones con estado hover ───── */
+.rs-tarjeta { border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); transition: transform .15s ease, box-shadow .15s ease; }
+.rs-tarjeta:has(.rs-tarjeta-enlace:hover) { transform: translateY(-1px); box-shadow: var(--shadow); }
+.rs-tarjeta--en-curso { box-shadow: 0 0 0 1px var(--teal), var(--shadow-sm); }
+.rs-tarjeta-enlace:focus-visible { outline: 3px solid var(--teal); outline-offset: 4px; border-radius: var(--radius); }
+.rs-cabecera strong { font-family: var(--font-display); font-weight: 600; font-size: 17px; }
+.rs-segmentos { box-shadow: inset 0 1px 2px rgba(11, 31, 58, .06); }
+.rs-boton-seguimiento { transition: background .15s ease, transform .15s ease; }
+.rs-boton-seguimiento:hover { background: #cdeee8; transform: translateY(-1px); }
+.rs-boton-claro { transition: border-color .15s ease, background .15s ease; }
+.rs-boton-claro:hover:not(:disabled) { border-color: var(--teal); background: var(--tint); }
+.rs-vacio, .rs-aviso, .rs-form { box-shadow: var(--shadow-sm); }
