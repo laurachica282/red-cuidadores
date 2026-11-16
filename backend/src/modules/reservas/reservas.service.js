@@ -15,11 +15,14 @@ export class ErrorReserva extends Error {
   }
 }
 
-// HU-17: la solicitud que el cuidador no responde en 24 h pasa a "vencida".
 export async function vencerPendientes() {
   await pool.query(
     `UPDATE reservas SET estado = 'vencida', actualizado_en = NOW()
       WHERE estado = 'pendiente' AND responder_antes < NOW()`
+  );
+  await pool.query(
+    `UPDATE reservas SET estado = 'completada', actualizado_en = NOW()
+      WHERE estado IN ('confirmada','en_curso') AND fecha_fin < CURRENT_DATE`
   );
 }
 
