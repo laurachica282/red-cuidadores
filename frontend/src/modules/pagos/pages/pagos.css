@@ -47,6 +47,10 @@
 
 .pg-boton {
     width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
     height: 52px;
     margin-top: 10px;
     border: 0;
@@ -114,3 +118,7 @@
     border-color: #f3b8b3;
     color: #7a1812;
 }
+
+.pg-form { display: grid; gap: 0.75rem; margin: 1rem 0; }
+.pg-fila { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.pg-nota { font-size: 0.85rem; color: var(--slate); }

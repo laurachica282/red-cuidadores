@@ -5,3 +5,5 @@ export const pasarelaDePais = (pais) => api(`/pagos/pasarelas/${pais}`);
 export const obtenerMiPais = () => api('/region/mi-region');
 // El país nuevo trae su idioma y moneda por defecto (RN-6).
 export const cambiarMiPais = (pais) => api('/region/mi-region', { metodo: 'PUT', cuerpo: { pais } });
+export const reservaPorId = (id) => api(`/reservas/${id}`);
+export const pagarReserva = (id, tarjeta) => api(`/pagos/reservas/${id}/pagar`, { metodo: 'POST', cuerpo: tarjeta });

@@ -8,3 +8,4 @@ export const reservasRecibidas = () => api('/reservas/recibidas');
 export const confirmarReserva = (id) => api(`/reservas/${id}/confirmar`, { metodo: 'POST' });
 export const rechazarReserva = (id, motivo) => api(`/reservas/${id}/rechazar`, { metodo: 'POST', cuerpo: { motivo } });
 export const cancelarReserva = (id) => api(`/reservas/${id}/cancelar`, { metodo: 'POST' });
+export const misPagos = () => api('/pagos/mios');
