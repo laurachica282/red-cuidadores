@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { verificarToken } from '../auth/verificarToken.js';
 import * as pasarelas from './pasarelas.service.js';
 import { paisDeCoordenadas } from './deteccion.js';
+import * as pagos from './pagos.service.js';
 
 const router = Router();
 router.use(verificarToken);
@@ -63,6 +64,29 @@ router.get('/pais-detectado', async (req, res) => {
   } catch (e) {
     console.error(e.message);
     res.status(502).json({ error: 'No pudimos detectar tu ubicación ahora. Inténtalo de nuevo.' });
+  }
+});
+
+// HU-18: el viajero paga una reserva confirmada.
+router.post('/reservas/:id/pagar', async (req, res) => {
+  if (req.usuario.rol !== 'viajero') return res.status(403).json({ error: 'Solo los viajeros pagan reservas' });
+  if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: 'Reserva no encontrada' });
+  try {
+    res.status(201).json(await pagos.pagar(req.usuario.id, req.params.id, req.body ?? {}));
+  } catch (e) {
+    if (e instanceof pagos.ErrorPago) return res.status(e.estado).json({ error: e.message });
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudo procesar el pago' });
+  }
+});
+
+// Mis pagos (los que hice o los que recibí).
+router.get('/mios', async (req, res) => {
+  try {
+    res.json(await pagos.delUsuario(req.usuario.id));
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudieron cargar los pagos' });
   }
 });
 
