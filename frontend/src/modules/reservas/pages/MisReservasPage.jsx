@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/modules/auth';
 import { BotonEmergencia, Campana, resumenReservas } from '@/modules/seguimiento';
-import {cancelarReserva, confirmarReserva, rechazarReserva, reservasMias, reservasRecibidas, misPagos} from '../services/reservasService.js';
+import { cancelarReserva, confirmarReserva, rechazarReserva, reservasMias, reservasRecibidas, misPagos } from '../services/reservasService.js';
 import { ESTADOS, SERVICIOS, fechaCorta, fechaHora, precio } from '../utils.js';
 import './reservas.css';
 
@@ -24,7 +24,7 @@ const CON_SEGUIMIENTO = ['pendiente', 'confirmada', 'en_curso', 'completada'];
 function textoPago(pago, esCuidador, moneda) {
   const neto = precio(pago.neto_cuidador, moneda);
   if (pago.estado === 'retenido') {
-    return esCuidador ? `Pago retenido · recibirás ${neto} al terminar el servicio` : 'Pago recibido · queda retenido hasta que termine el servicio';
+    return esCuidador ? `Pago retenido · recibirás ${neto} al terminar el servicio` : `Pago recibido (${pago.detalle}) · queda retenido hasta que termine el servicio`;
   }
   if (pago.estado === 'liberado') return esCuidador ? `Pago liberado · recibiste ${neto}` : 'Pago liberado al cuidador';
   return 'Pago reembolsado';
@@ -50,13 +50,13 @@ export default function MisReservasPage() {
     }
     try {
       const [lista, resumen, pagosLista] = await Promise.all([
-  esCuidador ? reservasRecibidas() : reservasMias(),
-  resumenReservas().catch(() => []),
-  misPagos().catch(() => []),
-]);
-setReservas(lista);
-setSeguimiento(Object.fromEntries(resumen.map((r) => [String(r.id), r])));
-setPagos(Object.fromEntries(pagosLista.map((p) => [String(p.reserva_id), p])));
+        esCuidador ? reservasRecibidas() : reservasMias(),
+        resumenReservas().catch(() => []),
+        misPagos().catch(() => []),
+      ]);
+      setReservas(lista);
+      setSeguimiento(Object.fromEntries(resumen.map((r) => [String(r.id), r])));
+      setPagos(Object.fromEntries(pagosLista.map((p) => [String(p.reserva_id), p])));
     } catch (e) {
       setError(e.message);
     } finally {
@@ -158,11 +158,11 @@ setPagos(Object.fromEntries(pagosLista.map((p) => [String(p.reserva_id), p])));
                 </div>
               )}
               {pago && <p className="rs-texto">{textoPago(pago, esCuidador, r.moneda.trim())}</p>}
-{r.estado === 'confirmada' && !esCuidador && !pago && (
-  <div className="rs-acciones">
-    <Link className="btn-primary" to={`/pagos/reserva/${r.id}`}>Pagar {precio(r.total, r.moneda.trim())}</Link>
-  </div>
-)}
+              {r.estado === 'confirmada' && !esCuidador && !pago && (
+                <div className="rs-acciones">
+                  <Link className="btn-primary" to={`/pagos/reserva/${r.id}`}>Pagar {precio(r.total, r.moneda.trim())}</Link>
+                </div>
+              )}
 
               {r.estado === 'pendiente' && esCuidador && (
                 <div className="rs-acciones">

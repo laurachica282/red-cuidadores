@@ -1,5 +1,6 @@
 import { pool } from '../../db.js';
 import { simularCobro } from './simulador.js';
+import { METODOS } from './metodos.js';
 
 export class ErrorPago extends Error {
   constructor(estado, mensaje) {
@@ -9,7 +10,7 @@ export class ErrorPago extends Error {
 }
 
 const COLUMNAS = `id, reserva_id, viajero_id, cuidador_id, pasarela, moneda, monto, comision_pct,
-  comision, neto_cuidador, estado, tarjeta_ultimos4, referencia, creado_en, liberado_en`;
+  comision, neto_cuidador, estado, metodo, detalle, tarjeta_ultimos4, referencia, creado_en, liberado_en`;
 
 // El dinero retenido pasa al cuidador cuando el servicio ya terminó.
 export async function liberarCompletadas() {
@@ -39,11 +40,25 @@ function validarTarjeta(d = {}) {
   return { numero, ultimos4: numero.slice(-4) };
 }
 
+// Valida lo que pide cada método. Devuelve el dato a cobrar y una descripción segura para mostrar.
+function validarMetodo(metodo, d) {
+  if (metodo === 'tarjeta') {
+    const t = validarTarjeta(d);
+    return { valor: t.numero, detalle: `Tarjeta ••••${t.ultimos4}`, ultimos4: t.ultimos4 };
+  }
+  const m = METODOS[metodo];
+  const valor = String(d.dato ?? '').trim();
+  if (!m.valida(valor)) throw new ErrorPago(400, m.error);
+  return { valor, detalle: m.detalle(valor), ultimos4: null };
+}
+
 const redondear = (n) => Math.round(n * 100) / 100;
 
 // HU-18: el viajero paga una reserva confirmada. El dinero queda retenido hasta que termine el servicio.
-export async function pagar(viajeroId, reservaId, tarjeta) {
-  const t = validarTarjeta(tarjeta);
+export async function pagar(viajeroId, reservaId, datos = {}) {
+  const metodo = String(datos.metodo ?? 'tarjeta');
+  if (!Object.hasOwn(METODOS, metodo)) throw new ErrorPago(400, 'Elige un método de pago válido');
+  const t = validarMetodo(metodo, datos);
 
   const rs = await pool.query(
     `SELECT r.id, r.cuidador_id, r.estado, r.total, r.moneda, u.pais
@@ -63,11 +78,12 @@ export async function pagar(viajeroId, reservaId, tarjeta) {
 
   // RN-1: la pasarela depende del país del viajero.
   const ps = await pool.query(
-    'SELECT pasarela, moneda, comision_pct FROM pasarelas_pais WHERE pais = $1 AND activa',
+    'SELECT pasarela, moneda, comision_pct, metodos FROM pasarelas_pais WHERE pais = $1 AND activa',
     [r.pais]
   );
   const p = ps.rows[0];
   if (!p) throw new ErrorPago(409, 'Todavía no hay pagos disponibles en tu país');
+  if (!p.metodos.includes(metodo)) throw new ErrorPago(409, 'Ese método de pago no está disponible en tu país');
   if (p.moneda.trim() !== r.moneda.trim()) {
     throw new ErrorPago(409, `La pasarela de tu país cobra en ${p.moneda.trim()} y la reserva está en ${r.moneda.trim()}`);
   }
@@ -75,17 +91,18 @@ export async function pagar(viajeroId, reservaId, tarjeta) {
   const monto = Number(r.total);
   const comision = redondear((monto * Number(p.comision_pct)) / 100);
   const neto = redondear(monto - comision);
-  const cobro = simularCobro(t, p.pasarela);
+  const cobro = simularCobro({ metodo, valor: t.valor }, p.pasarela);
 
   try {
     // Se guarda la pasarela y la comisión de ESTE pago: si el admin las cambia después, no se altera lo ya cobrado.
     const ins = await pool.query(
       `INSERT INTO pagos (reserva_id, viajero_id, cuidador_id, pasarela, moneda, monto,
-                          comision_pct, comision, neto_cuidador, estado, tarjeta_ultimos4, referencia)
-       VALUES ($1, $2, $3, $4, $5, $6::numeric, $7::numeric, $8::numeric, $9::numeric, $10, $11, $12)
+                          comision_pct, comision, neto_cuidador, estado, tarjeta_ultimos4, referencia,
+                          metodo, detalle)
+       VALUES ($1, $2, $3, $4, $5, $6::numeric, $7::numeric, $8::numeric, $9::numeric, $10, $11, $12, $13, $14)
        RETURNING ${COLUMNAS}`,
       [reservaId, viajeroId, r.cuidador_id, p.pasarela, r.moneda, monto, p.comision_pct, comision, neto,
-        cobro.aprobado ? 'retenido' : 'fallido', t.ultimos4, cobro.referencia]
+        cobro.aprobado ? 'retenido' : 'fallido', t.ultimos4, cobro.referencia, metodo, t.detalle]
     );
     if (!cobro.aprobado) throw new ErrorPago(402, cobro.motivo);
     return ins.rows[0];
