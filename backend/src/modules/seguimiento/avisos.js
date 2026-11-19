@@ -1,7 +1,4 @@
-import nodemailer from 'nodemailer';
-
-const smtpConfigurado = () =>
-  ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'MAIL_FROM'].every((v) => process.env[v]);
+import { correoConfigurado, enviarCorreo } from '../../shared/mailer.js';
 
 // Correo de soporte que recibe las emergencias (HU-28). Sin él, el aviso queda en la consola.
 export const correoSoporte = () => process.env.SOPORTE_CORREO || null;
@@ -10,17 +7,11 @@ export const correoSoporte = () => process.env.SOPORTE_CORREO || null;
 export async function avisar(correo, asunto, texto) {
   if (!correo) return false;
   try {
-    if (!smtpConfigurado()) {
+    if (!correoConfigurado()) {
       console.log(`[seguimiento] Para ${correo} · ${asunto}\n${texto}`);
       return true;
     }
-    const t = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT),
-      secure: Number(process.env.SMTP_PORT) === 465,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    });
-    await t.sendMail({ from: process.env.MAIL_FROM, to: correo, subject: asunto, text: texto });
+    await enviarCorreo({ para: correo, asunto, texto });
     return true;
   } catch (e) {
     // Un correo que falla no debe impedir registrar la emergencia.
