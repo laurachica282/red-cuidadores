@@ -1,5 +1,5 @@
 -- Red de Cuidadores · estructura completa de la base de datos.
--- GENERADO por src/db/generar_esquema.js a partir de: 01_usuarios.sql, 02_codigos_verificacion.sql, 03_bloqueo_login.sql, 04_clave_cambiada.sql, 05_cuidadores.sql, 06_regiones.sql, 07_sesiones.sql, 08_dispositivos_confiables.sql, 09_mascotas.sql, 10_cuenta.sql, 11_login_social.sql, 11_ubicacion_cuidadores.sql, 12_servicios_cuidador.sql, 13_pasarelas_pais.sql, 14_pasarelas_br_us.sql, 15_reservas.sql, 16_seguimiento.sql, 17_pagos.sql.
+-- GENERADO por src/db/generar_esquema.js a partir de: 01_usuarios.sql, 02_codigos_verificacion.sql, 03_bloqueo_login.sql, 04_clave_cambiada.sql, 05_cuidadores.sql, 06_regiones.sql, 07_sesiones.sql, 08_dispositivos_confiables.sql, 09_mascotas.sql, 10_cuenta.sql, 11_login_social.sql, 11_ubicacion_cuidadores.sql, 12_servicios_cuidador.sql, 13_pasarelas_pais.sql, 14_pasarelas_br_us.sql, 15_reservas.sql, 16_seguimiento.sql, 17_pagos.sql, 18_metodos_pago.sql.
 -- No lo edites a mano: cambia el script numerado y vuelve a correr "npm run db:esquema".
 -- Ejecútalo una sola vez sobre una base vacía (en Supabase: SQL Editor → pegar → Run).
 
@@ -575,3 +575,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_pago_vigente_por_reserva
   ON pagos (reserva_id) WHERE estado IN ('retenido', 'liberado');
 CREATE INDEX IF NOT EXISTS idx_pagos_viajero ON pagos (viajero_id, creado_en DESC);
 CREATE INDEX IF NOT EXISTS idx_pagos_cuidador ON pagos (cuidador_id, estado);
+
+-- ═════════════════════════════ 18_metodos_pago.sql ═════════════════════════════
+-- Métodos de pago por país (todos simulados).
+-- Ejecutar después de 17_pagos.sql.
+ALTER TABLE pasarelas_pais ADD COLUMN IF NOT EXISTS metodos TEXT[] NOT NULL DEFAULT ARRAY['tarjeta'];
+
+UPDATE pasarelas_pais SET metodos = ARRAY['tarjeta', 'pse', 'nequi']   WHERE pais = 'CO';
+UPDATE pasarelas_pais SET metodos = ARRAY['tarjeta', 'spei', 'oxxo']   WHERE pais = 'MX';
+UPDATE pasarelas_pais SET metodos = ARRAY['tarjeta', 'pix']            WHERE pais = 'BR';
+UPDATE pasarelas_pais SET metodos = ARRAY['tarjeta', 'paypal']         WHERE pais = 'US';
+
+-- Con qué método se hizo cada pago y una descripción segura para mostrarla (nunca el dato completo).
+ALTER TABLE pagos ADD COLUMN IF NOT EXISTS metodo VARCHAR(20) NOT NULL DEFAULT 'tarjeta'
+  CHECK (metodo IN ('tarjeta', 'paypal', 'pse', 'nequi', 'spei', 'oxxo', 'pix'));
+ALTER TABLE pagos ADD COLUMN IF NOT EXISTS detalle VARCHAR(80);
+UPDATE pagos SET detalle = 'Tarjeta ••••' || tarjeta_ultimos4 WHERE detalle IS NULL AND tarjeta_ultimos4 IS NOT NULL;
