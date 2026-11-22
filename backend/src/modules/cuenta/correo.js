@@ -1,26 +1,16 @@
-import nodemailer from 'nodemailer';
+import { correoConfigurado, enviarCorreo } from '../../shared/mailer.js';
 import { ErrorHttp } from './errores.js';
 
-// Envío de correos. Usa las mismas variables que el módulo auth (SMTP_HOST, SMTP_PORT, SMTP_USER,
-// SMTP_PASS y MAIL_FROM). Con todas configuradas envía por SMTP; sin ellas, en desarrollo imprime
+// Envío de correos con el mailer compartido (API de Brevo si hay BREVO_API_KEY; si no, SMTP con
+// SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS y MAIL_FROM). Sin ninguno, en desarrollo imprime
 // el correo en la consola del backend para poder probar los flujos con código. En producción sin
-// SMTP falla en vez de fingir que envió algo.
-const VARIABLES_SMTP = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'MAIL_FROM'];
-
+// correo configurado falla en vez de fingir que envió algo.
 export function crearCorreo({ env = process.env, log = console } = {}) {
-  const transporte = VARIABLES_SMTP.every((v) => env[v])
-    ? nodemailer.createTransport({
-        host: env.SMTP_HOST,
-        port: Number(env.SMTP_PORT),
-        secure: Number(env.SMTP_PORT) === 465,
-        auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
-      })
-    : null;
-  const remitente = env.MAIL_FROM;
+  const configurado = correoConfigurado(env);
 
   return {
     async enviar({ para, asunto, texto }) {
-      if (!transporte) {
+      if (!configurado) {
         if (env.NODE_ENV === 'production') {
           throw new ErrorHttp(502, 'No pudimos enviar el correo. Inténtalo más tarde.');
         }
@@ -28,7 +18,7 @@ export function crearCorreo({ env = process.env, log = console } = {}) {
         return;
       }
       try {
-        await transporte.sendMail({ from: remitente, to: para, subject: asunto, text: texto });
+        await enviarCorreo({ para, asunto, texto }, { env });
       } catch (e) {
         log.error(`No se pudo enviar el correo a ${enmascarar(para)}: ${e.message}`);
         throw new ErrorHttp(502, 'No pudimos enviar el correo. Inténtalo más tarde.');

@@ -1,5 +1,5 @@
 -- Red de Cuidadores · estructura completa de la base de datos.
--- GENERADO por src/db/generar_esquema.js a partir de: 01_usuarios.sql, 02_codigos_verificacion.sql, 03_bloqueo_login.sql, 04_clave_cambiada.sql, 05_cuidadores.sql, 06_regiones.sql, 07_sesiones.sql, 08_dispositivos_confiables.sql, 09_mascotas.sql, 10_cuenta.sql, 11_login_social.sql, 11_ubicacion_cuidadores.sql, 12_servicios_cuidador.sql, 13_pasarelas_pais.sql, 14_pasarelas_br_us.sql, 15_reservas.sql, 16_seguimiento.sql.
+-- GENERADO por src/db/generar_esquema.js a partir de: 01_usuarios.sql, 02_codigos_verificacion.sql, 03_bloqueo_login.sql, 04_clave_cambiada.sql, 05_cuidadores.sql, 06_regiones.sql, 07_sesiones.sql, 08_dispositivos_confiables.sql, 09_mascotas.sql, 10_cuenta.sql, 11_login_social.sql, 11_ubicacion_cuidadores.sql, 12_servicios_cuidador.sql, 13_pasarelas_pais.sql, 14_pasarelas_br_us.sql, 15_reservas.sql, 16_seguimiento.sql, 17_pagos.sql.
 -- No lo edites a mano: cambia el script numerado y vuelve a correr "npm run db:esquema".
 -- Ejecútalo una sola vez sobre una base vacía (en Supabase: SQL Editor → pegar → Run).
 
@@ -546,3 +546,32 @@ CREATE TABLE IF NOT EXISTS notificaciones_leidas (
   leido_en    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (usuario_id, aviso_id)
 );
+
+-- ═════════════════════════════ 17_pagos.sql ═════════════════════════════
+-- HU-18: pagos de las reservas (pasarela simulada).
+-- Ejecutar después de 15_reservas.sql.
+-- Cada pago guarda su propia pasarela, moneda y comisión (si el admin las cambia después, no altera lo ya cobrado).
+CREATE TABLE IF NOT EXISTS pagos (
+  id                BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  reserva_id        BIGINT        NOT NULL REFERENCES reservas(id),
+  viajero_id        BIGINT        NOT NULL REFERENCES usuarios(id),
+  cuidador_id       BIGINT        NOT NULL REFERENCES usuarios(id),
+  pasarela          VARCHAR(40)   NOT NULL,
+  moneda            CHAR(3)       NOT NULL,
+  monto             NUMERIC(12,2) NOT NULL CHECK (monto > 0),
+  comision_pct      NUMERIC(5,2)  NOT NULL,
+  comision          NUMERIC(12,2) NOT NULL,
+  neto_cuidador     NUMERIC(12,2) NOT NULL,
+  estado            VARCHAR(20)   NOT NULL
+                    CHECK (estado IN ('retenido', 'liberado', 'reembolsado', 'fallido')),
+  tarjeta_ultimos4  CHAR(4),
+  referencia        VARCHAR(40)   NOT NULL,
+  creado_en         TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+  liberado_en       TIMESTAMPTZ
+);
+
+-- Una reserva no puede tener dos pagos vigentes.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_pago_vigente_por_reserva
+  ON pagos (reserva_id) WHERE estado IN ('retenido', 'liberado');
+CREATE INDEX IF NOT EXISTS idx_pagos_viajero ON pagos (viajero_id, creado_en DESC);
+CREATE INDEX IF NOT EXISTS idx_pagos_cuidador ON pagos (cuidador_id, estado);

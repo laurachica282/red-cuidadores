@@ -2,9 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/modules/auth';
 import { BotonEmergencia, Campana, resumenReservas } from '@/modules/seguimiento';
-import {
-  cancelarReserva, confirmarReserva, rechazarReserva, reservasMias, reservasRecibidas,
-} from '../services/reservasService.js';
+import { cancelarReserva, confirmarReserva, rechazarReserva, reservasMias, reservasRecibidas, misPagos } from '../services/reservasService.js';
 import { ESTADOS, SERVICIOS, fechaCorta, fechaHora, precio } from '../utils.js';
 import './reservas.css';
 
@@ -23,6 +21,15 @@ const ORDEN = { en_curso: 0, pendiente: 1, proxima: 2, terminada: 3, inactiva: 4
 // El seguimiento (reportes, chat, emergencia) existe desde la solicitud hasta después del servicio.
 const CON_SEGUIMIENTO = ['pendiente', 'confirmada', 'en_curso', 'completada'];
 
+function textoPago(pago, esCuidador, moneda) {
+  const neto = precio(pago.neto_cuidador, moneda);
+  if (pago.estado === 'retenido') {
+    return esCuidador ? `Pago retenido · recibirás ${neto} al terminar el servicio` : `Pago recibido (${pago.detalle}) · queda retenido hasta que termine el servicio`;
+  }
+  if (pago.estado === 'liberado') return esCuidador ? `Pago liberado · recibiste ${neto}` : 'Pago liberado al cuidador';
+  return 'Pago reembolsado';
+}
+
 export default function MisReservasPage() {
   const { usuario } = useAuth();
   const rol = usuario?.rol;
@@ -34,6 +41,7 @@ export default function MisReservasPage() {
   const [rechazando, setRechazando] = useState(null);
   const [motivo, setMotivo] = useState('');
   const [filtro, setFiltro] = useState('activas');
+  const [pagos, setPagos] = useState({});
 
   const cargar = useCallback(async () => {
     if (rol === 'admin') {
@@ -41,12 +49,14 @@ export default function MisReservasPage() {
       return;
     }
     try {
-      const [lista, resumen] = await Promise.all([
+      const [lista, resumen, pagosLista] = await Promise.all([
         esCuidador ? reservasRecibidas() : reservasMias(),
         resumenReservas().catch(() => []),
+        misPagos().catch(() => []),
       ]);
       setReservas(lista);
       setSeguimiento(Object.fromEntries(resumen.map((r) => [String(r.id), r])));
+      setPagos(Object.fromEntries(pagosLista.map((p) => [String(p.reserva_id), p])));
     } catch (e) {
       setError(e.message);
     } finally {
@@ -109,6 +119,7 @@ export default function MisReservasPage() {
       <ul className="rs-lista">
         {visibles.map((r) => {
           const s = seguimiento[String(r.id)];
+          const pago = pagos[String(r.id)];
           const enCurso = fase(r) === 'en_curso';
           return (
             <li key={r.id} className={`rs-tarjeta${enCurso ? ' rs-tarjeta--en-curso' : ''}`}>
@@ -144,6 +155,12 @@ export default function MisReservasPage() {
                     Chat{s?.resumen.sinLeer ? <span className="rs-sin-leer">{s.resumen.sinLeer}</span> : ''}
                   </Link>
                   {enCurso && !esCuidador && <BotonEmergencia reservaId={r.id} className="rs-emergencia" />}
+                </div>
+              )}
+              {pago && <p className="rs-texto">{textoPago(pago, esCuidador, r.moneda.trim())}</p>}
+              {r.estado === 'confirmada' && !esCuidador && !pago && (
+                <div className="rs-acciones">
+                  <Link className="btn-primary" to={`/pagos/reserva/${r.id}`}>Pagar {precio(r.total, r.moneda.trim())}</Link>
                 </div>
               )}
 

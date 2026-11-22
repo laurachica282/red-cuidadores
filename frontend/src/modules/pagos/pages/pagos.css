@@ -47,6 +47,10 @@
 
 .pg-boton {
     width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
     height: 52px;
     margin-top: 10px;
     border: 0;
@@ -113,4 +117,48 @@
     background: #fdecea;
     border-color: #f3b8b3;
     color: #7a1812;
+}
+
+.pg-form {
+    display: grid;
+    gap: 0.75rem;
+    margin: 1rem 0;
+}
+
+.pg-fila {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.pg-nota {
+    font-size: 0.85rem;
+    color: var(--slate);
+}
+
+.pg-metodos {
+    display: grid;
+    gap: 8px;
+    margin: 4px 0 12px;
+}
+
+.pg-metodo {
+    padding: 12px 14px;
+    border: 1.5px solid var(--input-border);
+    border-radius: 14px;
+    background: var(--surface);
+    color: var(--navy);
+    font: inherit;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+
+.pg-metodo:hover {
+    border-color: var(--teal);
+}
+
+.pg-metodo--activo {
+    border-color: var(--teal);
+    background: var(--tint);
 }
