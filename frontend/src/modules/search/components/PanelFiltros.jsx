@@ -7,6 +7,7 @@ import { obtenerMiUbicacion } from '../ubicacion.js';
 import MapaDireccion from './MapaDireccion.jsx';
 import { HORAS, SERVICIOS, TIPOS_MASCOTA, esPorHora, hoyISO, servicio, textoHora } from '../utils.js';
 import { FILTROS_VACIOS, ORDENES, RADIOS_KM, errorFechas } from '../filtros.js';
+import Desplegable from '@/shared/components/Desplegable.jsx';
 
 // Fila de botones donde se elige una sola opción.
 function Opciones({ opciones, valor, onElegir }) {
@@ -148,17 +149,17 @@ export default function PanelFiltros({ inicial, zonaInicial, ciudades, pais, mon
                 <div className="bs-precios">
                   <label>
                     <span className="label">{t('busqueda.campoDesde')}</span>
-                    <select className="input" value={f.horaDesde} onChange={(e) => cambiarHoraDesde(e.target.value)}>
+                    <Desplegable className="input" value={f.horaDesde} onChange={(e) => cambiarHoraDesde(e.target.value)}>
                       <option value="">{t('busqueda.cualquierHora')}</option>
                       {HORAS.slice(0, -1).map((h) => <option key={h} value={h}>{textoHora(h)}</option>)}
-                    </select>
+                    </Desplegable>
                   </label>
                   <label>
                     <span className="label">{t('busqueda.campoHasta')}</span>
-                    <select className="input" value={f.horaHasta} disabled={!f.horaDesde} onChange={(e) => cambiar('horaHasta', e.target.value)}>
+                    <Desplegable className="input" value={f.horaHasta} disabled={!f.horaDesde} onChange={(e) => cambiar('horaHasta', e.target.value)}>
                       <option value="">—</option>
                       {HORAS.filter((h) => h > f.horaDesde).map((h) => <option key={h} value={h}>{textoHora(h)}</option>)}
-                    </select>
+                    </Desplegable>
                   </label>
                 </div>
               </>

@@ -4,6 +4,7 @@ import { useIdioma } from '@/modules/region';
 import { obtenerMiPais, pagarReserva, pasarelaDePais, reservaPorId } from '../services/pagosService.js';
 import '../i18n.js';
 import './pagos.css';
+import Desplegable from '@/shared/components/Desplegable.jsx';
 
 const formatoNumero = (v) => v.replace(/\D/g, '').slice(0, 16).replace(/(\d{4})(?=\d)/g, '$1 ');
 const formatoVence = (v) => {
@@ -182,12 +183,12 @@ export default function PagarPage() {
             <>
               <label className="label" htmlFor="dato">{t(m.etiqueta)}</label>
               {m.opciones ? (
-                <select id="dato" className="input" value={dato} onChange={(e) => setDato(e.target.value)}>
+                <Desplegable id="dato" className="input" value={dato} onChange={(e) => setDato(e.target.value)}>
                   <option value="">{t('pagos.elige_banco')}</option>
                   {m.opciones.map(([valor, texto]) => (
                     <option key={valor} value={valor}>{texto ?? t('pagos.banco_prueba')}</option>
                   ))}
-                </select>
+                </Desplegable>
               ) : (
                 <input id="dato" className="input" autoComplete="off" placeholder={textoCampo(m.placeholder)}
                   inputMode={m.digitos ? 'numeric' : undefined} value={dato}

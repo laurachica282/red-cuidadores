@@ -49,12 +49,7 @@
 .rg-enlace { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; color: var(--teal-text); text-decoration: none; }
 
 /* Selectores como en el mockup "Idioma, país y moneda" */
-.rg-select { position: relative; }
-.rg-select select.input { appearance: none; -webkit-appearance: none; padding-right: 44px; font-weight: 500; }
-.rg-select::after {
-  content: ''; position: absolute; right: 18px; top: 50%; width: 9px; height: 9px; margin-top: -7px;
-  border-right: 2px solid var(--slate); border-bottom: 2px solid var(--slate); transform: rotate(45deg); pointer-events: none;
-}
+.rg-select .dsp-boton { font-weight: 500; }
 .rg-caja { padding: 14px; border: 1px solid var(--card-border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-sm); display: flex; gap: 12px; align-items: flex-start; color: var(--teal-text); }
 .rg-caja svg { flex-shrink: 0; margin-top: 2px; }
 .rg-caja p { margin: 0; font-size: 14px; line-height: 1.5; color: #32455a; }

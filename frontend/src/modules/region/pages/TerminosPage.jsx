@@ -3,6 +3,7 @@ import { useAuth } from '@/modules/auth';
 import Pantalla from '../components/Pantalla.jsx';
 import { useIdioma } from '../i18n/i18n.js';
 import { listarPaises, obtenerTerminos } from '../services/regionService.js';
+import Desplegable from '@/shared/components/Desplegable.jsx';
 
 // HU-36: los términos legales cambian según el país. Es pública (también sirve desde el registro).
 export default function TerminosPage() {
@@ -29,9 +30,9 @@ export default function TerminosPage() {
       <div className="rg-form">
         <div>
           <label className="label" htmlFor="pais-terminos">{t('terminos.pais')}</label>
-          <select id="pais-terminos" className="input" value={pais} onChange={(e) => setPais(e.target.value)}>
+          <Desplegable id="pais-terminos" className="input" value={pais} onChange={(e) => setPais(e.target.value)}>
             {paises.map((p) => <option key={p.pais} value={p.pais}>{nombrePais(p.pais)}</option>)}
-          </select>
+          </Desplegable>
         </div>
 
         {error && <p className="rg-error" role="alert">{error}</p>}

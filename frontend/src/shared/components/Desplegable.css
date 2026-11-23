@@ -1,0 +1,91 @@
+.dsp { position: relative; width: 100%; }
+
+.dsp-boton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+.dsp-boton:disabled { cursor: not-allowed; opacity: 0.55; }
+.dsp-boton--abierto { border-color: var(--teal); box-shadow: 0 0 0 4px rgba(0, 168, 150, 0.16); }
+
+.dsp-texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dsp-texto--vacio { color: #8a9bab; }
+
+.dsp-flecha {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: var(--slate);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.15s ease;
+}
+.dsp-boton--abierto .dsp-flecha { transform: rotate(180deg); stroke: var(--teal-text); }
+
+/* Select nativo oculto (solo para validación del formulario) */
+.dsp-nativo {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  border: 0;
+  padding: 0;
+}
+
+.dsp-lista {
+  position: fixed;
+  z-index: 3000;
+  max-height: 280px;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  list-style: none;
+  background: var(--surface);
+  border: 1.5px solid var(--card-border);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(11, 31, 58, 0.16);
+  font-family: var(--font);
+  animation: dsp-entrar 0.12s ease-out;
+}
+
+@keyframes dsp-entrar {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.dsp-opcion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 15px;
+  color: var(--navy);
+  cursor: pointer;
+  user-select: none;
+}
+.dsp-opcion--activa { background: var(--tint); }
+.dsp-opcion--elegida { font-weight: 700; color: var(--teal-text); }
+.dsp-opcion--off { color: #a7b4c0; cursor: default; }
+.dsp-opcion--off.dsp-opcion--activa { background: none; }
+
+.dsp-check {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--teal-text);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
