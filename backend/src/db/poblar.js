@@ -71,6 +71,11 @@ const PAISES = {
   BR: { peso: 8, idioma: 'pt', moneda: 'BRL', tel: '+55 11', factor: 0.0013, redondeo: 5, ciudades: {
     'São Paulo': [['Pinheiros', -23.567, -46.692], ['Vila Mariana', -23.589, -46.634], ['Moema', -23.601, -46.665]],
   } },
+  ES: { peso: 8, idioma: 'es', moneda: 'EUR', tel: '+34 6', factor: 0.00022, redondeo: 1, ciudades: {
+    'Madrid': [['Malasaña', 40.426, -3.704], ['Chamberí', 40.434, -3.704], ['Retiro', 40.411, -3.676], ['Salamanca', 40.43, -3.677]],
+    'Barcelona': [['Gràcia', 41.403, 2.157], ['Eixample', 41.39, 2.162], ['Sant Martí', 41.405, 2.199]],
+    'Valencia': [['Ruzafa', 39.462, -0.375], ['El Carmen', 39.479, -0.38]],
+  } },
   US: { peso: 7, idioma: 'en', moneda: 'USD', tel: '+1 305', factor: 0.00025, redondeo: 1, ciudades: {
     'Miami': [['Brickell', 25.76, -80.193], ['Coral Gables', 25.721, -80.268], ['Wynwood', 25.801, -80.199]],
   } },
@@ -309,7 +314,8 @@ async function main() {
       const metodo = uno(p.metodos);
       const ultimos4 = String(entre(1000, 9999));
       const dato = { paypal: `${r._viajero.correo}`, pse: uno(['bancolombia', 'davivienda', 'bbva', 'bogota']), nequi: `3${entre(100000000, 999999999)}`,
-        spei: `${entre(100000000, 999999999)}${entre(100000000, 999999999)}`, oxxo: r._viajero.nombre, pix: `${entre(10000000000, 99999999999)}` }[metodo];
+        spei: `${entre(100000000, 999999999)}${entre(100000000, 999999999)}`, oxxo: r._viajero.nombre, pix: `${entre(10000000000, 99999999999)}`,
+        bizum: `6${entre(10000000, 99999999)}` }[metodo];
       const comision = Math.round(r.total * Number(p.comision_pct)) / 100;
       const pagadoDia = Math.min(r._ini - entre(1, 3), 0);
       pagos.push({

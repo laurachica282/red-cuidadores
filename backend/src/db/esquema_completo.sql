@@ -1,5 +1,5 @@
 -- Red de Cuidadores · estructura completa de la base de datos.
--- GENERADO por src/db/generar_esquema.js a partir de: 01_usuarios.sql, 02_codigos_verificacion.sql, 03_bloqueo_login.sql, 04_clave_cambiada.sql, 05_cuidadores.sql, 06_regiones.sql, 07_sesiones.sql, 08_dispositivos_confiables.sql, 09_mascotas.sql, 10_cuenta.sql, 11_login_social.sql, 11_ubicacion_cuidadores.sql, 12_servicios_cuidador.sql, 13_pasarelas_pais.sql, 14_pasarelas_br_us.sql, 15_reservas.sql, 16_seguimiento.sql, 17_pagos.sql, 18_metodos_pago.sql, 19_movimientos_pago.sql.
+-- GENERADO por src/db/generar_esquema.js a partir de: 01_usuarios.sql, 02_codigos_verificacion.sql, 03_bloqueo_login.sql, 04_clave_cambiada.sql, 05_cuidadores.sql, 06_regiones.sql, 07_sesiones.sql, 08_dispositivos_confiables.sql, 09_mascotas.sql, 10_cuenta.sql, 11_login_social.sql, 11_ubicacion_cuidadores.sql, 12_servicios_cuidador.sql, 13_pasarelas_pais.sql, 14_pasarelas_br_us.sql, 15_reservas.sql, 16_seguimiento.sql, 17_pagos.sql, 18_metodos_pago.sql, 19_movimientos_pago.sql, 20_espana.sql.
 -- No lo edites a mano: cambia el script numerado y vuelve a correr "npm run db:esquema".
 -- Ejecútalo una sola vez sobre una base vacía (en Supabase: SQL Editor → pegar → Run).
 
@@ -634,3 +634,19 @@ SELECT p.id, p.reserva_id, 'liberacion', p.cuidador_id, p.moneda, p.neto_cuidado
   FROM pagos p
  WHERE p.estado = 'liberado'
    AND NOT EXISTS (SELECT 1 FROM movimientos_pago m WHERE m.pago_id = p.id AND m.tipo = 'liberacion');
+
+-- ═════════════════════════════ 20_espana.sql ═════════════════════════════
+-- España como país de la red: reglas y términos (RN-6, HU-36), pasarela y métodos de pago (RN-1, HU-19).
+INSERT INTO regiones_reglas (pais, nombre, idioma, moneda, terminos_titulo, terminos) VALUES
+('ES', 'España', 'es', 'EUR', 'Términos y protección de datos (España)',
+ 'Tus datos personales se tratan conforme al Reglamento General de Protección de Datos (RGPD) y a la Ley Orgánica 3/2018 (LOPDGDD). Puedes ejercer tus derechos de acceso, rectificación, supresión, oposición, limitación y portabilidad. Los documentos de verificación se conservan cifrados. Las reservas y pagos se rigen por la ley española. (Texto de ejemplo.)')
+ON CONFLICT (pais) DO NOTHING;
+
+-- Bizum: pago con el número de móvil, muy usado en España (simulado como los demás).
+ALTER TABLE pagos DROP CONSTRAINT IF EXISTS pagos_metodo_check;
+ALTER TABLE pagos ADD CONSTRAINT pagos_metodo_check
+  CHECK (metodo IN ('tarjeta', 'paypal', 'pse', 'nequi', 'spei', 'oxxo', 'pix', 'bizum'));
+
+INSERT INTO pasarelas_pais (pais, nombre_pais, pasarela, moneda, metodos) VALUES
+  ('ES', 'España', 'redsys_simulada', 'EUR', ARRAY['tarjeta', 'bizum', 'paypal'])
+ON CONFLICT (pais) DO NOTHING;

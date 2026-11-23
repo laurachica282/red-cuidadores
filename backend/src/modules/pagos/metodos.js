@@ -49,6 +49,13 @@ export const METODOS = {
     rechaza: () => false,
     detalle: () => 'OXXO · pago en efectivo',
   },
+  bizum: {
+    nombre: 'Bizum',
+    valida: (v) => /^[67]\d{8}$/.test(v),
+    error: 'El móvil debe tener 9 dígitos y empezar por 6 o 7',
+    rechaza: termina0002,
+    detalle: (v) => `Bizum ${ultimos(v)}`,
+  },
   pix: {
     nombre: 'Pix',
     valida: (v) => /^\d{11}$/.test(v),

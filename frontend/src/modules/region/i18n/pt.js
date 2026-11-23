@@ -142,6 +142,7 @@ export default {
   'moneda.COP': 'Peso colombiano (COP)',
   'moneda.MXN': 'Peso mexicano (MXN)',
   'moneda.BRL': 'Real brasileiro (BRL)',
+  'moneda.EUR': 'Euro (EUR)',
   'moneda.USD': 'Dólar americano (USD)',
   'cr.titulo': 'Cuidadores da sua região',
   'cr.sub': 'Somente cuidadores verificados da sua região.',
