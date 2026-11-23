@@ -1,7 +1,7 @@
 import { pool } from '../../db.js';
 import { simularCobro } from './simulador.js';
 import { METODOS } from './metodos.js';
-import { hoyISO } from '../../shared/fecha.js';
+import { horaActual, hoyISO } from '../../shared/fecha.js';
 
 export class ErrorPago extends Error {
   constructor(estado, mensaje) {
@@ -70,7 +70,7 @@ export async function pagar(viajeroId, reservaId, datos = {}) {
   const t = validarMetodo(metodo, datos);
 
   const rs = await pool.query(
-    `SELECT r.id, r.cuidador_id, r.estado, r.total, r.moneda, r.fecha_inicio::text AS fecha_inicio, u.pais
+    `SELECT r.id, r.cuidador_id, r.estado, r.total, r.moneda, r.fecha_inicio::text AS fecha_inicio, to_char(r.hora_inicio, 'HH24') AS hora_inicio, u.pais
        FROM reservas r JOIN usuarios u ON u.id = r.viajero_id
       WHERE r.id = $1 AND r.viajero_id = $2`,
     [reservaId, viajeroId]
@@ -79,7 +79,10 @@ export async function pagar(viajeroId, reservaId, datos = {}) {
   if (!r) throw new ErrorPago(404, 'Reserva no encontrada');
   if (r.estado !== 'confirmada') throw new ErrorPago(409, 'Solo puedes pagar una reserva que el cuidador ya confirmó');
   // Se paga hasta el mismo día de inicio; después la reserva se cancela sola (reservas/ciclo.js).
-  if (r.fecha_inicio < hoyISO()) throw new ErrorPago(409, 'Ya pasó la fecha de inicio: esta reserva no se pagó a tiempo');
+  // Por horas: se paga antes de la hora de inicio.
+  const tarde = r.fecha_inicio < hoyISO()
+    || (r.hora_inicio !== null && r.fecha_inicio === hoyISO() && Number(r.hora_inicio) <= horaActual());
+  if (tarde) throw new ErrorPago(409, 'Ya pasó la fecha de inicio: esta reserva no se pagó a tiempo');
 
   const ya = await pool.query(
     `SELECT 1 FROM pagos WHERE reserva_id = $1 AND estado IN ('retenido', 'liberado')`,

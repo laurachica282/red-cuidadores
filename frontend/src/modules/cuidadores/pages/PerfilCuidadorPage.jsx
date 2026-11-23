@@ -10,12 +10,22 @@ const MAX_FOTOS = 8;
 const MAX_BYTES = 5 * 1024 * 1024;
 const IMAGENES = ['image/jpeg', 'image/png', 'image/webp'];
 
-// HU-10: el cuidador arma su perfil (fotos del espacio, tarifa por noche y tipos de mascota).
+// Servicios y unidad de cobro (backend/src/shared/servicios.js): alojamiento por noche; los demás por hora.
+const SERVICIOS = [
+  { servicio: 'alojamiento', unidad: 'noche' },
+  { servicio: 'domicilio', unidad: 'hora' },
+  { servicio: 'paseo', unidad: 'hora' },
+  { servicio: 'guarderia', unidad: 'hora' },
+];
+
+// HU-10: el cuidador arma su perfil (fotos del espacio, servicios con su precio y tipos de mascota).
 export default function PerfilCuidadorPage() {
   const { usuario } = useAuth();
   const { t } = useIdioma();
   const [descripcion, setDescripcion] = useState('');
-  const [tarifa, setTarifa] = useState('');
+  // { alojamiento: { ofrece, tarifa }, ... }
+  const [servicios, setServicios] = useState(() =>
+    Object.fromEntries(SERVICIOS.map((x) => [x.servicio, { ofrece: x.servicio === 'alojamiento', tarifa: '' }])));
   const [tipos, setTipos] = useState([]);
   const [fotos, setFotos] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -32,7 +42,12 @@ export default function PerfilCuidadorPage() {
         if (!vivo) return;
         if (d.perfil) {
           setDescripcion(d.perfil.descripcion);
-          setTarifa(String(d.perfil.tarifaNoche));
+          setServicios(Object.fromEntries(SERVICIOS.map((x) => {
+            const s = d.servicios?.find((y) => y.servicio === x.servicio);
+            // Perfil viejo sin servicios: el alojamiento con su tarifa por noche.
+            if (!d.servicios && x.servicio === 'alojamiento') return [x.servicio, { ofrece: true, tarifa: String(d.perfil.tarifaNoche) }];
+            return [x.servicio, { ofrece: Boolean(s?.ofrece), tarifa: s?.tarifa ? String(s.tarifa) : '' }];
+          })));
           setTipos(d.perfil.tiposMascota);
         }
         setFotos(d.fotos);
@@ -41,6 +56,11 @@ export default function PerfilCuidadorPage() {
       .finally(() => vivo && setCargando(false));
     return () => { vivo = false; };
   }, []);
+
+  const cambiarServicio = (servicio, cambio) => {
+    setOk(false);
+    setServicios((prev) => ({ ...prev, [servicio]: { ...prev[servicio], ...cambio } }));
+  };
 
   const alternarTipo = (tipo) => {
     setOk(false);
@@ -51,11 +71,18 @@ export default function PerfilCuidadorPage() {
     e.preventDefault();
     setError('');
     setOk(false);
-    if (!(Number(tarifa) > 0)) return setError(t('perfil.pon_tarifa'));
+    const elegidos = SERVICIOS.filter((x) => servicios[x.servicio].ofrece);
+    if (elegidos.length === 0 || !elegidos.every((x) => Number(servicios[x.servicio].tarifa) > 0)) {
+      return setError(t('perfil.elige_servicio'));
+    }
     if (tipos.length === 0) return setError(t('perfil.elige_tipo'));
     setGuardando(true);
     try {
-      await guardarMiPerfil({ descripcion, tarifaNoche: Number(tarifa), tiposMascota: tipos });
+      await guardarMiPerfil({
+        descripcion,
+        tiposMascota: tipos,
+        servicios: elegidos.map((x) => ({ servicio: x.servicio, tarifa: Number(servicios[x.servicio].tarifa) })),
+      });
       setOk(true);
     } catch (err) {
       setError(err.message);
@@ -107,14 +134,30 @@ export default function PerfilCuidadorPage() {
               onChange={(e) => { setDescripcion(e.target.value); setOk(false); }} />
           </div>
 
-          <div>
-            <label className="label" htmlFor="tarifa">{t('perfil.tarifa')}</label>
-            <div className="cd-moneda">
-              <input id="tarifa" className="input" type="number" inputMode="numeric" min="1" step="any" required
-                placeholder="45000" value={tarifa} onChange={(e) => { setTarifa(e.target.value); setOk(false); }} />
-              <span className="cd-moneda-codigo">{usuario.moneda ?? 'COP'}</span>
+          <fieldset className="cd-grupo">
+            <legend className="label">{t('perfil.servicios')}</legend>
+            <div className="cd-servicios">
+              {SERVICIOS.map(({ servicio, unidad }) => {
+                const s = servicios[servicio];
+                return (
+                  <div key={servicio} className={`cd-servicio${s.ofrece ? ' cd-servicio--activo' : ''}`}>
+                    <label className="cd-servicio-nombre">
+                      <input type="checkbox" checked={s.ofrece} onChange={(e) => cambiarServicio(servicio, { ofrece: e.target.checked })} />
+                      {t(`servicio.${servicio}`)}
+                    </label>
+                    <div className="cd-moneda">
+                      <input className="input" type="number" inputMode="numeric" min="1" step="any" disabled={!s.ofrece}
+                        aria-label={`${t(`servicio.${servicio}`)} ${t(unidad === 'noche' ? 'perfil.por_noche' : 'perfil.por_hora')}`}
+                        placeholder={unidad === 'noche' ? '45000' : '12000'} value={s.tarifa}
+                        onChange={(e) => cambiarServicio(servicio, { tarifa: e.target.value })} />
+                      <span className="cd-moneda-codigo">{usuario.moneda ?? 'COP'} {t(unidad === 'noche' ? 'perfil.por_noche' : 'perfil.por_hora')}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
+            <p className="cd-ayuda">{t('perfil.servicios_ayuda')}</p>
+          </fieldset>
 
           <fieldset className="cd-grupo">
             <legend className="label">{t('perfil.tipos')}</legend>

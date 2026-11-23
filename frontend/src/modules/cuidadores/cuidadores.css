@@ -182,3 +182,17 @@
 .cd-barra small { display: block; font-size: 13px; color: var(--slate); }
 .cd-barra strong { font-family: var(--font-display); font-size: 20px; font-weight: 600; }
 .cd-barra strong small { display: inline; font-size: 14px; font-weight: 400; }
+
+/* HU-10: servicios que ofrece el cuidador, cada uno con su precio (por noche o por hora). */
+.cd-servicios { display: flex; flex-direction: column; gap: 10px; }
+.cd-servicio {
+  display: grid; grid-template-columns: 1fr minmax(0, 1.3fr); align-items: center; gap: 12px;
+  padding: 10px 12px; border: 1.5px solid var(--input-border); border-radius: var(--radius); background: var(--surface);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.cd-servicio--activo { border-color: var(--teal); background: var(--tint); }
+.cd-servicio-nombre { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--navy); cursor: pointer; }
+.cd-servicio-nombre input { width: 20px; height: 20px; margin: 0; accent-color: var(--teal-text); }
+.cd-servicio .input:disabled { opacity: 0.5; }
+.cd-servicio .cd-moneda-codigo { height: 48px; white-space: nowrap; font-size: 13px; }
+@media (max-width: 420px) { .cd-servicio { grid-template-columns: 1fr; } }

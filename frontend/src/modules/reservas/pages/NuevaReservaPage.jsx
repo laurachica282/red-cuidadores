@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { crearReserva, misMascotas, obtenerCuidador } from '../services/reservasService.js';
-import { SERVICIOS, dias, fechaHora, hoyISO, precio } from '../utils.js';
+import { HORAS, SERVICIOS, dias, esPorHora, fechaHora, horasEntre, hoyISO, precio } from '../utils.js';
 import { IconPata } from '@/shared/components/Icons.jsx';
 import './reservas.css';
 
@@ -21,6 +21,8 @@ export default function NuevaReservaPage() {
     mascota_id: '',
     fecha_inicio: params.get('desde') ?? '',
     fecha_fin: params.get('hasta') ?? '',
+    hora_inicio: params.get('horaDesde') ?? '',
+    hora_fin: params.get('horaHasta') ?? '',
     nota: '',
   });
 
@@ -46,22 +48,33 @@ export default function NuevaReservaPage() {
 
   const cambiar = (campo) => (e) => setForm((f) => ({ ...f, [campo]: e.target.value }));
 
-  // Vista previa del total, con la misma cuenta que hace el servidor.
+  const porHora = esPorHora(form.servicio);
+  // Si la hora de fin queda antes de la de inicio, se corre a una hora después.
+  const cambiarHoraInicio = (e) => {
+    const v = e.target.value;
+    setForm((f) => ({ ...f, hora_inicio: v, hora_fin: f.hora_fin > v ? f.hora_fin : (HORAS[HORAS.indexOf(v) + 1] ?? '') }));
+  };
+
+  // Vista previa del total, con la misma cuenta que hace el servidor: noches o horas.
   const resumen = useMemo(() => {
     const s = cuidador?.servicios.find((x) => x.servicio === form.servicio);
-    if (!s || !form.fecha_inicio || !form.fecha_fin) return null;
-    const n = dias(form.fecha_inicio, form.fecha_fin);
-    const unidades = form.servicio === 'alojamiento' ? n : n + 1;
-    if (n < 0 || unidades < 1) return null;
+    if (!s || !form.fecha_inicio) return null;
+    const unidades = porHora
+      ? horasEntre(form.hora_inicio, form.hora_fin)
+      : (form.fecha_fin ? dias(form.fecha_inicio, form.fecha_fin) : 0);
+    if (unidades < 1) return null;
     return { unidades, tarifa: s.tarifa, total: s.tarifa * unidades };
-  }, [cuidador, form]);
+  }, [cuidador, form, porHora]);
 
   async function enviar(e) {
     e.preventDefault();
     setError('');
     setEnviando(true);
     try {
-      setCreada(await crearReserva({ ...form, cuidador_id: cuidadorId }));
+      const datos = porHora
+        ? { ...form, fecha_fin: form.fecha_inicio }
+        : { ...form, hora_inicio: undefined, hora_fin: undefined };
+      setCreada(await crearReserva({ ...datos, cuidador_id: cuidadorId }));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -135,18 +148,46 @@ export default function NuevaReservaPage() {
             </select>
           </div>
 
-          <div className="rs-fila">
-            <div>
-              <label className="label" htmlFor="desde">Entrada</label>
-              <input id="desde" type="date" className="input" min={hoyISO()} value={form.fecha_inicio}
-                onChange={cambiar('fecha_inicio')} required />
+          {porHora ? (
+            <>
+              <div>
+                <label className="label" htmlFor="dia">Día</label>
+                <input id="dia" type="date" className="input" min={hoyISO()} value={form.fecha_inicio}
+                  onChange={cambiar('fecha_inicio')} required />
+              </div>
+              <div className="rs-fila">
+                <div>
+                  <label className="label" htmlFor="hora-inicio">Desde</label>
+                  <select id="hora-inicio" className="input" value={form.hora_inicio} onChange={cambiarHoraInicio} required>
+                    <option value="" disabled>Hora</option>
+                    {HORAS.slice(0, -1).map((h) => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label" htmlFor="hora-fin">Hasta</label>
+                  <select id="hora-fin" className="input" value={form.hora_fin} onChange={cambiar('hora_fin')} required
+                    disabled={!form.hora_inicio}>
+                    <option value="" disabled>Hora</option>
+                    {HORAS.filter((h) => h > form.hora_inicio && horasEntre(form.hora_inicio, h) <= 12)
+                      .map((h) => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="rs-fila">
+              <div>
+                <label className="label" htmlFor="desde">Entrada</label>
+                <input id="desde" type="date" className="input" min={hoyISO()} value={form.fecha_inicio}
+                  onChange={cambiar('fecha_inicio')} required />
+              </div>
+              <div>
+                <label className="label" htmlFor="hasta">Salida</label>
+                <input id="hasta" type="date" className="input" min={form.fecha_inicio || hoyISO()} value={form.fecha_fin}
+                  onChange={cambiar('fecha_fin')} required />
+              </div>
             </div>
-            <div>
-              <label className="label" htmlFor="hasta">Salida</label>
-              <input id="hasta" type="date" className="input" min={form.fecha_inicio || hoyISO()} value={form.fecha_fin}
-                onChange={cambiar('fecha_fin')} required />
-            </div>
-          </div>
+          )}
 
           <div>
             <label className="label" htmlFor="nota">Nota para el cuidador (opcional)</label>
@@ -155,7 +196,7 @@ export default function NuevaReservaPage() {
 
           {resumen && (
             <p className="rs-resumen">
-              {resumen.unidades} {unidad}{resumen.unidades === 1 ? '' : 's'} × {precio(resumen.tarifa, cuidador.moneda)} ={' '}
+              {resumen.unidades} {unidad === 'hora' ? (resumen.unidades === 1 ? 'hora' : 'horas') : (resumen.unidades === 1 ? 'noche' : 'noches')} × {precio(resumen.tarifa, cuidador.moneda)} ={' '}
               <strong>{precio(resumen.total, cuidador.moneda)}</strong>
             </p>
           )}

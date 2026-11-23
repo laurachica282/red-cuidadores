@@ -1,4 +1,4 @@
-import { TIPOS_MASCOTA, servicio } from './utils.js';
+import { MAX_HORAS, TIPOS_MASCOTA, esPorHora, horasEntre, servicio } from './utils.js';
 
 export const ORDENES = [
   { valor: 'calificacion', texto: 'Mejor calificados' },
@@ -10,7 +10,7 @@ export const ORDENES = [
 export const RADIOS_KM = [2, 5, 10, 20];
 
 export const FILTROS_VACIOS = {
-  servicio: '', desde: '', hasta: '', q: '', tipo: '', precioMin: '', precioMax: '', orden: 'calificacion', radioKm: 10,
+  servicio: '', desde: '', hasta: '', horaDesde: '', horaHasta: '', q: '', tipo: '', precioMin: '', precioMax: '', orden: 'calificacion', radioKm: 10,
 };
 
 // Cuántos filtros cambió la persona, sin contar las fechas (se muestran aparte).
@@ -31,11 +31,50 @@ export function resumirFiltros(f, precio, moneda) {
   return partes;
 }
 
-// Las fechas valen si están las dos, la entrada no pasó y la salida es después.
-export function errorFechas({ desde, hasta }, hoy) {
-  if (!desde && !hasta) return '';
-  if (!desde || !hasta) return 'Elige la fecha de entrada y la de salida.';
-  if (desde < hoy) return 'La fecha de entrada ya pasó.';
-  if (hasta <= desde) return 'La salida debe ser después de la entrada.';
+// Las fechas se adaptan al servicio:
+//   alojamiento: entrada y salida (al menos una noche);
+//   por hora (domicilio, paseo, guardería): un día y, si se eligen, hora de inicio y de fin;
+//   todos: un día o un rango.
+export function errorFechas({ servicio: s, desde, hasta, horaDesde, horaHasta }, hoy) {
+  if (!desde && !hasta && !horaDesde && !horaHasta) return '';
+  if (!desde) return esPorHora(s) ? 'Elige el día.' : 'Elige la fecha de entrada.';
+  if (desde < hoy) return 'La fecha ya pasó.';
+  if (esPorHora(s)) {
+    if (!horaDesde && !horaHasta) return '';
+    if (!horaDesde || !horaHasta) return 'Elige la hora de inicio y la de fin.';
+    const h = horasEntre(horaDesde, horaHasta);
+    if (h <= 0) return 'La hora de fin debe ser después de la de inicio.';
+    if (h > MAX_HORAS) return `Máximo ${MAX_HORAS} horas por reserva.`;
+    return '';
+  }
+  if (s === 'alojamiento') {
+    if (!hasta) return 'Elige la fecha de salida.';
+    if (hasta <= desde) return 'La salida debe ser después de la entrada.';
+  }
+  if (hasta && hasta < desde) return 'La fecha final no puede ser antes de la inicial.';
   return '';
+}
+
+// Parámetros de fecha que se envían al backend según el servicio (vacío si no hay fechas completas).
+export function fechasParaBuscar(f, hoy) {
+  if (!f.desde || errorFechas(f, hoy)) return {};
+  if (esPorHora(f.servicio)) {
+    return f.horaDesde ? { desde: f.desde, horaDesde: f.horaDesde, horaHasta: f.horaHasta } : { desde: f.desde };
+  }
+  return { desde: f.desde, hasta: f.hasta || f.desde };
+}
+
+// Texto de las fechas elegidas: "27 nov · 09:00–11:00 · 2 h", "12 – 14 nov · 2 noches" o "27 nov".
+export function textoFechas(f, rango, noches) {
+  const p = fechasParaBuscar(f, '');
+  if (!p.desde) return '';
+  if (p.horaDesde) {
+    const h = horasEntre(p.horaDesde, p.horaHasta);
+    return `${rango(p.desde, p.desde)} · ${p.horaDesde}–${p.horaHasta} · ${h} h`;
+  }
+  if (f.servicio === 'alojamiento') {
+    const n = noches(p.desde, p.hasta);
+    return `${rango(p.desde, p.hasta)} · ${n} ${n === 1 ? 'noche' : 'noches'}`;
+  }
+  return rango(p.desde, p.hasta ?? p.desde);
 }

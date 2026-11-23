@@ -1,21 +1,11 @@
 import multer from 'multer';
-import path from 'node:path';
-import fs from 'node:fs';
-import crypto from 'node:crypto';
-import { fileURLToPath } from 'node:url';
+import { guardarSubida } from '../../shared/almacen.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// backend/uploads/mascotas
-const DIR = path.join(__dirname, '../../../uploads/mascotas');
-fs.mkdirSync(DIR, { recursive: true });
-
+// Los archivos se guardan con el almacén compartido (disco en local, Supabase Storage desplegado)
+// en la carpeta "mascotas" y se sirven en /uploads/mascotas/<nombre>.
 function crear(tiposPermitidos) {
   return multer({
-    storage: multer.diskStorage({
-      destination: DIR,
-      filename: (req, file, cb) =>
-        cb(null, crypto.randomUUID() + path.extname(file.originalname).toLowerCase()),
-    }),
+    storage: multer.memoryStorage(),
     limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
     fileFilter: (req, file, cb) =>
       tiposPermitidos.includes(file.mimetype)
@@ -28,9 +18,11 @@ const IMAGENES = ['image/jpeg', 'image/png', 'image/webp'];
 const subirFoto = crear(IMAGENES);
 const subirComprobante = crear([...IMAGENES, 'application/pdf']);
 
-// Devuelve el error como JSON en vez de romper la petición
-const envolver = (mw) => (req, res, next) =>
-  mw(req, res, (err) => (err ? res.status(400).json({ error: err.message }) : next()));
+// Devuelve el error como JSON en vez de romper la petición; luego guarda el archivo en el almacén.
+const envolver = (mw, guardar) => (req, res, next) =>
+  mw(req, res, (err) => (err ? res.status(400).json({ error: err.message }) : guardar(req, res, next)));
 
-export const foto = envolver(subirFoto.single('foto'));
-export const comprobante = envolver(subirComprobante.single('comprobante'));
+export const foto = envolver(subirFoto.single('foto'),
+  guardarSubida('mascotas', ['jpg', 'png', 'webp'], 'La foto debe ser JPG, PNG o WEBP'));
+export const comprobante = envolver(subirComprobante.single('comprobante'),
+  guardarSubida('mascotas', ['jpg', 'png', 'webp', 'pdf'], 'El comprobante debe ser una imagen o un PDF'));

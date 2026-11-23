@@ -10,3 +10,11 @@ export function hoyISO(ahora = new Date()) {
   // en-CA da el formato AAAA-MM-DD.
   return new Intl.DateTimeFormat('en-CA', { timeZone: ZONA, year: 'numeric', month: '2-digit', day: '2-digit' }).format(ahora);
 }
+
+// Fecha y hora actuales en la zona de la región (timestamp sin zona), para comparar con fecha + hora de una reserva.
+export const AHORA_SQL = `(NOW() AT TIME ZONE '${ZONA}')`;
+
+// Hora actual (0-23) en la zona de la región.
+export function horaActual(ahora = new Date()) {
+  return Number(new Intl.DateTimeFormat('en-GB', { timeZone: ZONA, hour: '2-digit', hourCycle: 'h23' }).format(ahora));
+}

@@ -82,7 +82,8 @@ const PAISES = {
 };
 
 // Tarifas base en COP; se convierten a la moneda del país.
-const TARIFAS = { alojamiento: [45000, 150000], domicilio: [25000, 50000], paseo: [15000, 30000], guarderia: [25000, 45000] };
+// Alojamiento por noche; domicilio, paseo y guardería por hora (shared/servicios.js).
+const TARIFAS = { alojamiento: [45000, 150000], domicilio: [12000, 25000], paseo: [10000, 20000], guarderia: [8000, 15000] };
 const precio = (pais, cop) => {
   const p = PAISES[pais];
   return Math.max(p.redondeo, Math.round((cop * p.factor) / p.redondeo) * p.redondeo);
@@ -247,9 +248,14 @@ async function main() {
         const v = uno(clientes);
         const m = uno(mascotasDe.get(v.id));
         const servicio = uno(Object.keys(c.servicios));
-        const noches = servicio === 'alojamiento' ? entre(1, 6) : entre(0, 3);
-        const fin = inicio + Math.max(noches, servicio === 'alojamiento' ? 1 : 0);
-        const unidades = servicio === 'alojamiento' ? fin - inicio : fin - inicio + 1;
+        const porHora = servicio !== 'alojamiento';
+        // Por horas: un solo día, de 1 a 4 horas entre las 7:00 y las 21:00. Nunca hoy, para que su estado
+        // no dependa de la hora en que se cargan los datos.
+        if (porHora && inicio === 0) inicio = 1;
+        const fin = porHora ? inicio : inicio + entre(1, 6);
+        const horaIni = porHora ? entre(7, 17) : null;
+        const horas = porHora ? entre(1, 4) : null;
+        const unidades = porHora ? horas : fin - inicio;
         let estado;
         if (fin < 0) estado = pesado([['completada', 75], ['cancelada', 10], ['rechazada', 10], ['vencida', 5]]);
         // Lo que ya empezó está pagado y en curso (reservas/ciclo.js no deja empezar una reserva sin pago).
@@ -258,6 +264,8 @@ async function main() {
         const creado = estado === 'pendiente' ? new Date(Date.now() - entre(1, 20) * 3600000) : momento(Math.min(inicio - entre(2, 20), 0));
         reservas.push({
           viajero_id: v.id, cuidador_id: c.id, mascota_id: m.id, servicio, fecha_inicio: dia(inicio), fecha_fin: dia(fin),
+          hora_inicio: porHora ? `${String(horaIni).padStart(2, '0')}:00` : null,
+          hora_fin: porHora ? `${String(horaIni + horas).padStart(2, '0')}:00` : null,
           tarifa: c.servicios[servicio], moneda: PAISES[c.pais].moneda, unidades, total: c.servicios[servicio] * unidades, estado,
           responder_antes: new Date(creado.getTime() + DIA),
           respondida_en: ['pendiente', 'vencida'].includes(estado) ? null : new Date(creado.getTime() + entre(1, 10) * 3600000),
@@ -268,7 +276,7 @@ async function main() {
         inicio = fin + entre(1, 10);
       }
     }
-    const columnasReserva = ['viajero_id', 'cuidador_id', 'mascota_id', 'servicio', 'fecha_inicio', 'fecha_fin', 'tarifa', 'moneda', 'unidades', 'total', 'estado', 'responder_antes', 'respondida_en', 'motivo_rechazo', 'nota', 'creado_en'];
+    const columnasReserva = ['viajero_id', 'cuidador_id', 'mascota_id', 'servicio', 'fecha_inicio', 'fecha_fin', 'hora_inicio', 'hora_fin', 'tarifa', 'moneda', 'unidades', 'total', 'estado', 'responder_antes', 'respondida_en', 'motivo_rechazo', 'nota', 'creado_en'];
     const idsR = await insertar(db, 'reservas', columnasReserva, reservas);
     reservas.forEach((r, i) => { r.id = idsR[i].id; });
 

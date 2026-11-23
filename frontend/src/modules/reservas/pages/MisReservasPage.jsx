@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/modules/auth';
 import { BotonEmergencia, Campana, resumenReservas } from '@/modules/seguimiento';
 import { cancelarReserva, confirmarReserva, cotizarCancelacion, rechazarReserva, reservasMias, reservasRecibidas, misPagos } from '../services/reservasService.js';
-import { ESTADOS, SERVICIOS, fechaCorta, fechaHora, precio } from '../utils.js';
+import { ESTADOS, SERVICIOS, cuandoReserva, fechaCorta, fechaHora, precio } from '../utils.js';
 import './reservas.css';
 
 // Fase de cada reserva según las fechas (la calcula el módulo seguimiento); si no llegó, se deduce del estado.
@@ -156,7 +156,7 @@ export default function MisReservasPage() {
                   {esCuidador ? `Viajero: ${r.viajero}` : `Cuidador: ${r.cuidador}`} · Mascota: {r.mascota}
                 </p>
                 <p className="rs-texto">
-                  {fechaCorta(r.fecha_inicio)} – {fechaCorta(r.fecha_fin)} · <strong>{precio(r.total, r.moneda.trim())}</strong>
+                  {cuandoReserva(r)} · <strong>{precio(r.total, r.moneda.trim())}</strong>
                 </p>
                 {r.nota && <p className="rs-texto">“{r.nota}”</p>}
                 {r.estado === 'pendiente' && (
@@ -165,9 +165,15 @@ export default function MisReservasPage() {
                 {['rechazada', 'cancelada'].includes(r.estado) && r.motivo_rechazo && <p className="rs-texto">Motivo: {r.motivo_rechazo}</p>}
                 {r.estado === 'confirmada' && !pago && (
                   <p className="rs-texto rs-texto--aviso">
-                    {esCuidador
-                      ? `Esperando el pago del viajero (hasta el ${fechaCorta(r.fecha_inicio)})`
-                      : `Paga hasta el ${fechaCorta(r.fecha_inicio)}; si no, la reserva se cancela sola`}
+                    {(() => {
+                      // Alojamiento: se paga hasta el día de inicio; por horas, antes de la hora de inicio.
+                      const plazo = r.hora_inicio
+                        ? `antes de las ${r.hora_inicio.slice(0, 5)} del ${fechaCorta(r.fecha_inicio)}`
+                        : `hasta el ${fechaCorta(r.fecha_inicio)}`;
+                      return esCuidador
+                        ? `Esperando el pago del viajero (${plazo})`
+                        : `Paga ${plazo}; si no, la reserva se cancela sola`;
+                    })()}
                   </p>
                 )}
                 <span className="rs-ver">Ver reserva →</span>
