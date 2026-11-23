@@ -1,5 +1,7 @@
 import { randomBytes } from 'node:crypto';
-import { borrar, guardar, servir } from '../../shared/almacen.js';
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { TIPOS, borrar, guardar, servir } from '../../shared/almacen.js';
 import { ErrorHttp } from './errores.js';
 import { FOTO } from './config.js';
 
@@ -14,8 +16,29 @@ export function tipoDeImagen(buffer) {
   return null;
 }
 
+// Almacén en una carpeta fija (lo usan las pruebas, con una carpeta temporal).
+function almacenEnCarpeta(directorio) {
+  return {
+    guardar: async (_carpeta, nombre, buffer) => {
+      await mkdir(directorio, { recursive: true });
+      await writeFile(path.join(directorio, nombre), buffer, { flag: 'wx' });
+    },
+    borrar: (_carpeta, nombre) => unlink(path.join(directorio, nombre)).catch(() => {}),
+    servir: async (res, _carpeta, nombre) => {
+      try {
+        const buffer = await readFile(path.join(directorio, nombre));
+        res.set({ 'Content-Type': TIPOS[nombre.split('.').pop()], 'X-Content-Type-Options': 'nosniff', 'Cross-Origin-Resource-Policy': 'cross-origin' });
+        return res.send(buffer);
+      } catch {
+        return res.status(404).json({ error: 'Foto no encontrada' });
+      }
+    },
+  };
+}
+
 // Las fotos van al almacén compartido: disco en local, Supabase Storage desplegado (shared/almacen.js).
-export function crearAlmacenFotos({ almacen = { guardar, borrar, servir } } = {}) {
+// Con `directorio` se guardan en esa carpeta (pruebas).
+export function crearAlmacenFotos({ directorio, almacen = directorio ? almacenEnCarpeta(directorio) : { guardar, borrar, servir } } = {}) {
   return {
     async guardar(buffer) {
       const tipo = tipoDeImagen(buffer);

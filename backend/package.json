@@ -9,6 +9,8 @@
     "db:crear": "node src/db/crear_db.js",
     "db:esquema": "node src/db/generar_esquema.js",
     "db:poblar": "node src/db/poblar.js",
+    "db:fotos": "node src/db/fotos_demo.js",
+    "db:cuentas": "node src/db/cuentas_demo.js",
     "test": "node --test --test-concurrency=1"
   },
   "keywords": [],

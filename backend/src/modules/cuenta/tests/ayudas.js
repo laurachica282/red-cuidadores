@@ -29,7 +29,8 @@ export function crearPoolDePruebas() {
 
 // Aplica TODAS las migraciones de backend/src/db en orden (las del módulo auth y la de cuenta).
 export async function aplicarEsquema(pool) {
-  const archivos = (await readdir(dirDb)).filter((f) => f.endsWith('.sql')).sort();
+  // Solo los scripts numerados (01_…, 02_…): esquema_completo.sql y datos_prueba.sql no son migraciones.
+  const archivos = (await readdir(dirDb)).filter((f) => /^\d+_.*\.sql$/.test(f)).sort();
   for (const f of archivos) await pool.query(await readFile(path.join(dirDb, f), 'utf8'));
 }
 
