@@ -31,6 +31,10 @@ export default function PerfilCuidadorPage() {
 
   useEffect(() => {
     let vivo = true;
+    // Al cambiar de cuidador no se deja ver el anterior mientras carga el nuevo.
+    setC(null);
+    setError('');
+    setFotoActiva(0);
     obtenerPerfilCuidador(id, { desde, hasta }).then((d) => vivo && setC(d)).catch((e) => vivo && setError(e.message));
     return () => { vivo = false; };
   }, [id, desde, hasta]);

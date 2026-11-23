@@ -40,7 +40,7 @@ export default function BotonMicrosoft({ onIdToken, onError, deshabilitado = fal
   if (!CLIENT_ID) {
     return (
       <span className="login-red" title="Inicio con Microsoft no configurado">
-        <button type="button" className="btn-secundario login-microsoft" disabled><LogoMicrosoft /> Microsoft</button>
+        <button type="button" className="login-social" disabled><LogoMicrosoft /> Microsoft</button>
       </span>
     );
   }
@@ -65,7 +65,7 @@ export default function BotonMicrosoft({ onIdToken, onError, deshabilitado = fal
 
   return (
     <span className="login-red">
-      <button type="button" className="btn-secundario login-microsoft" onClick={entrar} disabled={deshabilitado || abriendo}>
+      <button type="button" className="login-social" onClick={entrar} disabled={deshabilitado || abriendo}>
         <LogoMicrosoft /> {abriendo ? 'Conectando…' : 'Iniciar sesión con Microsoft'}
       </button>
     </span>

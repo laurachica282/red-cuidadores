@@ -1,10 +1,8 @@
 import { pool } from '../../db.js';
 import { avisar, correoSoporte } from './avisos.js';
-
-// Fecha de "hoy" para el servicio: la de la región (los servidores suelen estar en UTC y en
-// Colombia, a las 7 p. m., UTC ya es mañana).
-const ZONA = process.env.ZONA_HORARIA ?? 'America/Bogota';
-const HOY = `(NOW() AT TIME ZONE '${ZONA.replaceAll("'", '')}')::date`;
+import { filtrarMensaje } from '../mascotas/index.js';
+import { actualizarEstados } from '../reservas/index.js';
+import { HOY_SQL as HOY, ZONA } from '../../shared/fecha.js';
 const DIAS_CHAT_DESPUES = 7;
 const MAX_MENSAJES = 200;
 const TELEFONO = /^[+\d][\d\s()-]{6,24}$/;
@@ -18,16 +16,16 @@ export class ErrorSeguimiento extends Error {
   }
 }
 
-// Fase de la reserva para el seguimiento. "en_curso" se deduce de las fechas mientras no
-// exista la entrega con código (HU-27), que es la que debería marcar el inicio real.
-//   pendiente · inactiva (rechazada, vencida, cancelada) · proxima · en_curso · terminada
+// Fase de la reserva para el seguimiento. Sale del estado, que pone al día el ciclo de reservas
+// (reservas/ciclo.js): solo una reserva pagada pasa a "en_curso" al llegar su fecha de inicio.
+//   pendiente · inactiva (rechazada, vencida, cancelada) · proxima (confirmada) · en_curso · terminada
 const FASE = `
   CASE
     WHEN r.estado = 'pendiente' THEN 'pendiente'
     WHEN r.estado IN ('rechazada', 'vencida', 'cancelada') THEN 'inactiva'
-    WHEN r.estado = 'completada' OR ${HOY} > r.fecha_fin THEN 'terminada'
-    WHEN ${HOY} < r.fecha_inicio THEN 'proxima'
-    ELSE 'en_curso'
+    WHEN r.estado = 'completada' THEN 'terminada'
+    WHEN r.estado = 'en_curso' THEN 'en_curso'
+    ELSE 'proxima'
   END`;
 
 // El chat existe desde la solicitud y se cierra 7 días después del servicio (HU-31).
@@ -81,6 +79,7 @@ function aReserva(r, usuarioId) {
 
 // Reserva de la que la persona es viajero o cuidador; si no, 404 (no se revela que existe).
 async function reservaDe(usuarioId, id) {
+  await actualizarEstados();
   const r = await pool.query(`${SELECCION} WHERE r.id = $1 AND (r.viajero_id = $2 OR r.cuidador_id = $2)`, [id, usuarioId]);
   if (!r.rows[0]) throw new ErrorSeguimiento(404, 'Reserva no encontrada');
   return r.rows[0];
@@ -92,6 +91,7 @@ const ORDEN_FASE = { en_curso: 0, proxima: 1, pendiente: 2, terminada: 3, inacti
 
 // Todas las reservas de la persona (como viajero o como cuidador) con su resumen de seguimiento.
 export async function historial(usuarioId) {
+  await actualizarEstados();
   const r = await pool.query(
     `SELECT b.*,
             (SELECT COUNT(*)::int FROM reportes_servicio WHERE reserva_id = b.id) AS n_reportes,
@@ -120,7 +120,7 @@ export async function detalle(usuarioId, id) {
   const [reportes, alertas, veterinario, contacto, sinLeer] = await Promise.all([
     pool.query(
       `SELECT r.id, r.titulo, r.nota, r.foto_url, r.creado_en,
-              (r.creado_en AT TIME ZONE '${ZONA.replaceAll("'", '')}')::date::text AS dia
+              (r.creado_en AT TIME ZONE '${ZONA}')::date::text AS dia
          FROM reportes_servicio r WHERE r.reserva_id = $1 ORDER BY r.creado_en DESC`,
       [id]
     ),
@@ -233,6 +233,13 @@ export async function enviarMensaje(usuarioId, id, texto) {
   }
   const t = String(texto ?? '').trim().slice(0, 1000);
   if (!t) throw new ErrorSeguimiento(400, 'Escribe un mensaje');
+  // HU-29: antes de pagar no se comparten teléfonos, correos, enlaces ni otras apps (filtro del módulo mascotas).
+  const pago = await pool.query(
+    `SELECT 1 FROM pagos WHERE reserva_id = $1 AND estado IN ('retenido', 'liberado') LIMIT 1`,
+    [id]
+  );
+  const filtro = filtrarMensaje(t, { reservaPagada: pago.rows.length > 0 });
+  if (!filtro.permitido) throw new ErrorSeguimiento(422, filtro.mensaje);
   const r = await pool.query(
     'INSERT INTO mensajes_reserva (reserva_id, autor_id, texto) VALUES ($1, $2, $3) RETURNING id, texto, creado_en',
     [id, usuarioId, t]
@@ -348,6 +355,7 @@ const MAX_NOTIFICACIONES = 60;
 // `nueva`: llegó después de la última vez que se abrió la bandeja (cuenta en la campana).
 // `leida`: ya se tocó, o se marcaron todas como leídas después de que llegó (deja de verse resaltada).
 export async function notificaciones(usuarioId) {
+  await actualizarEstados();
   const r = await pool.query(
     `WITH mias AS (
        SELECT r.*, m.nombre AS mascota, uv.nombre AS viajero, uc.nombre AS cuidador
@@ -398,7 +406,7 @@ export async function notificaciones(usuarioId) {
         WHERE mi.cuidador_id = $1
        UNION ALL
        -- Recordatorio: el servicio termina mañana
-       SELECT 'reservas', 'rec-' || mi.id, ${HOY}::timestamp AT TIME ZONE '${ZONA.replaceAll("'", '')}', mi.id,
+       SELECT 'reservas', 'rec-' || mi.id, ${HOY}::timestamp AT TIME ZONE '${ZONA}', mi.id,
               CASE WHEN mi.viajero_id = $1 THEN 'Mañana recoges a ' ELSE 'Mañana entregas a ' END || mi.mascota,
               'El servicio con ' || split_part(CASE WHEN mi.viajero_id = $1 THEN mi.cuidador ELSE mi.viajero END, ' ', 1) ||
                 ' termina el ' || to_char(mi.fecha_fin, 'DD/MM') || '.',
