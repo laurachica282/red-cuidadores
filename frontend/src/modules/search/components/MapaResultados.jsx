@@ -3,6 +3,7 @@ import L from 'leaflet';
 import { CircleMarker, MapContainer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
 import CapaMapa from './CapaMapa.jsx';
+import { porUnidadCorta, precioPin, unidadDelMapa } from '../utils.js';
 
 const escapar = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -31,9 +32,10 @@ function Encuadrar({ puntos, version, onVista }) {
   return null;
 }
 
-// Mockup 1: mapa con el precio de cada cuidador. Tocar un pin abre su perfil.
+// Mockup 1: mapa con el precio de cada cuidador y su unidad ("$15.000/h"). Tocar un pin abre su perfil.
+// Con un servicio elegido es el precio de ese servicio; con todos, el más bajo en una misma unidad para todos los pines.
 // onVista(bounds | null): zona del mapa que la persona está mirando, para filtrar la lista.
-export default function MapaResultados({ cuidadores, punto, precio, enlacePerfil, resaltado, version, onVista }) {
+export default function MapaResultados({ cuidadores, punto, precio, servicio, enlacePerfil, resaltado, version, onVista }) {
   const navigate = useNavigate();
   const conUbicacion = cuidadores.filter((c) => c.ubicacion);
 
@@ -42,6 +44,12 @@ export default function MapaResultados({ cuidadores, punto, precio, enlacePerfil
     .map((p) => p.join(','))
     .join('|');
   const puntos = useMemo(() => (clave ? clave.split('|').map((p) => p.split(',').map(Number)) : []), [clave]);
+
+  const unidad = unidadDelMapa(cuidadores);
+  const textoPin = (c) => {
+    const p = servicio ? { tarifa: c.tarifa, unidad: c.unidad } : precioPin(c, unidad);
+    return `${precio(p.tarifa, c.moneda)}${porUnidadCorta(p.unidad)}`;
+  };
 
   if (conUbicacion.length === 0) return null;
 
@@ -62,7 +70,7 @@ export default function MapaResultados({ cuidadores, punto, precio, enlacePerfil
             title={c.nombre}
             icon={L.divIcon({
               className: '',
-              html: `<span class="bs-pin-precio${resaltado === c.id ? ' bs-pin-precio--activo' : ''}">${escapar(precio(c.tarifa, c.moneda))}</span>`,
+              html: `<span class="bs-pin-precio${resaltado === c.id ? ' bs-pin-precio--activo' : ''}">${escapar(textoPin(c))}</span>`,
               iconSize: null,
             })}
             eventHandlers={{ click: () => navigate(enlacePerfil(c), { state: { desdeBusqueda: true } }) }} />

@@ -172,7 +172,8 @@ export async function detalle(usuarioId, id) {
     reporteHoy: conReporte.has(fila.hoy),
     puedeReportar: reserva.soy === 'cuidador' && fila.fase === 'en_curso',
     emergencia: {
-      puedeAlertar: reserva.soy === 'viajero' && fila.fase === 'en_curso',
+      // Los dos pueden activar la emergencia mientras el servicio está en curso; cada uno avisa al otro.
+      puedeAlertar: fila.fase === 'en_curso',
       contacto: contacto?.rows[0] ?? null,
       veterinario: veterinario.rows[0] ?? null,
       alertas: alertas.rows.map((x) => ({ id: x.id, mensaje: x.mensaje, avisadoContacto: x.avisado_contacto, creadoEn: x.creado_en })),
@@ -250,14 +251,18 @@ export async function enviarMensaje(usuarioId, id, texto) {
 
 /* ───────────── HU-28: emergencia ───────────── */
 
+// Lo activa el viajero o el cuidador. Siempre se avisa a soporte y al contacto de emergencia del viajero
+// (dueño de la mascota). Si lo activa el cuidador, además se avisa al viajero por correo;
+// a la otra persona le llega también en la campana de notificaciones (ver notificaciones()).
 export async function alertar(usuarioId, id, mensaje) {
   const fila = await reservaDe(usuarioId, id);
-  if (String(fila.viajero_id) !== String(usuarioId)) throw new ErrorSeguimiento(403, 'Solo el viajero puede activar la emergencia');
   if (fila.fase !== 'en_curso') throw new ErrorSeguimiento(409, 'El botón de emergencia funciona mientras el servicio está en curso');
-  const texto = String(mensaje ?? '').trim().slice(0, 500) || 'El viajero activó el botón de emergencia.';
+  const esCuidador = String(fila.cuidador_id) === String(usuarioId);
+  const texto = String(mensaje ?? '').trim().slice(0, 500)
+    || (esCuidador ? 'El cuidador activó el botón de emergencia.' : 'El viajero activó el botón de emergencia.');
 
   const [contacto, veterinario] = await Promise.all([
-    pool.query('SELECT nombre, parentesco, telefono, correo FROM contactos_emergencia WHERE usuario_id = $1', [usuarioId]),
+    pool.query('SELECT nombre, parentesco, telefono, correo FROM contactos_emergencia WHERE usuario_id = $1', [fila.viajero_id]),
     pool.query('SELECT nombre, clinica, telefono, direccion FROM veterinarios_mascota WHERE mascota_id = $1', [fila.mascota_id]),
   ]);
   const c = contacto.rows[0] ?? null;
@@ -266,6 +271,7 @@ export async function alertar(usuarioId, id, mensaje) {
   const detalleTexto = [
     `Reserva #${fila.id}: ${fila.mascota} con ${fila.cuidador} (${fila.fecha_inicio} a ${fila.fecha_fin}).`,
     `Viajero: ${fila.viajero} · ${fila.viajero_correo}`,
+    `Activó la emergencia: ${esCuidador ? `${fila.cuidador} (cuidador)` : `${fila.viajero} (viajero)`}`,
     `Mensaje: ${texto}`,
     v ? `Veterinario: ${v.nombre}${v.clinica ? ` (${v.clinica})` : ''} · ${v.telefono}` : 'Veterinario: no registrado',
   ].join('\n');
@@ -273,6 +279,10 @@ export async function alertar(usuarioId, id, mensaje) {
   const [avisadoContacto] = await Promise.all([
     c?.correo
       ? avisar(c.correo, `Emergencia con ${fila.mascota}`, `Hola ${c.nombre}, ${fila.viajero} te registró como contacto de emergencia.\n\n${detalleTexto}`)
+      : false,
+    esCuidador
+      ? avisar(fila.viajero_correo, `Emergencia con ${fila.mascota}`,
+        `Hola ${fila.viajero}, ${fila.cuidador} reportó una emergencia con ${fila.mascota}.\n\n${detalleTexto}`)
       : false,
     avisar(correoSoporte() ?? null, `[Emergencia] Reserva #${fila.id}`, detalleTexto)
       .then((ok) => ok || console.warn(`[seguimiento] Emergencia sin correo de soporte (SOPORTE_CORREO):\n${detalleTexto}`)),
@@ -283,7 +293,8 @@ export async function alertar(usuarioId, id, mensaje) {
      VALUES ($1, $2, $3, $4) RETURNING id, mensaje, avisado_contacto AS "avisadoContacto", creado_en AS "creadoEn"`,
     [id, usuarioId, texto, Boolean(avisadoContacto)]
   );
-  return { alerta: r.rows[0], contacto: c, veterinario: v };
+  // El contacto de emergencia del viajero no se le muestra al cuidador.
+  return { alerta: r.rows[0], contacto: esCuidador ? null : c, veterinario: v };
 }
 
 export async function leerContacto(usuarioId) {
@@ -399,11 +410,11 @@ export async function notificaciones(usuarioId) {
          FROM mias mi
         WHERE mi.cuidador_id = $1
        UNION ALL
-       -- Emergencias de las reservas que la persona cuida
+       -- Emergencias que activó la otra persona de la reserva (viajero o cuidador)
        SELECT 'alertas', 'ale-' || a.id, a.creado_en, mi.id,
               'Emergencia con ' || mi.mascota, a.mensaje, '/reservas/' || mi.id || '/seguimiento'
          FROM alertas_emergencia a JOIN mias mi ON mi.id = a.reserva_id
-        WHERE mi.cuidador_id = $1
+        WHERE a.autor_id <> $1
        UNION ALL
        -- Recordatorio: el servicio termina mañana
        SELECT 'reservas', 'rec-' || mi.id, ${HOY}::timestamp AT TIME ZONE '${ZONA}', mi.id,

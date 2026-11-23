@@ -1,0 +1,177 @@
+/* Tablero (inicio) y agenda del cuidador */
+.tb { padding-bottom: 28px; }
+
+/* En pantallas anchas el marco arranca arriba y llega hasta la barra de navegación (como un celular). */
+@media (min-width: 600px) {
+  .cd-fondo:has(.tb), .cd-fondo:has(.ag-calendario) { align-items: flex-start; padding: 16px 32px 0; }
+  .cd.tb, .cd-fondo:has(.ag-calendario) .cd { min-height: calc(100vh - 16px - 104px); }
+}
+.tb-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.tb-cab h1 { margin: 2px 0 0; font-size: 26px; line-height: 1.15; letter-spacing: -0.3px; }
+.tb-fecha { margin: 0; font-size: 13px; font-weight: 600; color: var(--slate); }
+.tb-aviso { text-decoration: none; align-items: center; }
+
+/* Secciones */
+.tb-seccion { margin-top: 24px; }
+.tb-titulo { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.tb-titulo h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 18px; }
+.tb-titulo a { flex: none; font-size: 14px; font-weight: 700; color: var(--teal-text); text-decoration: none; }
+.tb-titulo a:hover { text-decoration: underline; }
+.tb-contador {
+  min-width: 24px; height: 24px; padding: 0 8px; border-radius: 999px; background: var(--tint);
+  color: var(--teal-text); font-family: var(--font); font-size: 13px; font-weight: 700; line-height: 24px; text-align: center;
+}
+.tb-contador--alerta { background: var(--gold); color: var(--navy); }
+.tb-vacio {
+  margin: 0; padding: 16px; border: 1px dashed var(--card-border); border-radius: var(--radius);
+  background: var(--surface); font-size: 14px; color: var(--slate); text-align: center;
+}
+.tb-ayuda { margin: 8px 0 0; font-size: 13px; color: var(--slate); line-height: 1.4; }
+
+/* Tarjeta de solicitud */
+.tb-tarjeta {
+  padding: 14px; border-radius: var(--radius-lg);
+  background: var(--surface); border: 1px solid var(--card-border); box-shadow: var(--shadow-sm);
+}
+.tb-tarjeta-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.tb-tarjeta-cab strong { font-size: 16px; line-height: 1.3; }
+.tb-total { flex: none; font-weight: 700; color: var(--navy); }
+.tb-linea { margin: 4px 0 0; font-size: 14px; color: var(--slate); }
+.tb-tarjeta-pie { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; }
+.tb-tarjeta-pie .tb-linea { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-plazo {
+  flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px;
+  background: var(--tint-gold); color: #8a5a00; font-size: 12px; font-weight: 700;
+}
+.tb-nota { margin: 8px 0 0; font-size: 14px; font-style: italic; color: #32455a; }
+
+.tb-acciones { display: flex; gap: 8px; margin-top: 12px; }
+.tb-boton {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 42px;
+  padding: 0 12px; border-radius: 12px; border: 1.5px solid var(--card-border); background: var(--surface);
+  font: inherit; font-size: 14px; font-weight: 700; color: var(--navy); text-decoration: none; cursor: pointer;
+}
+.tb-boton:hover { border-color: var(--teal); background: var(--tint); }
+.tb-boton--primario { border-color: var(--teal); background: var(--teal); color: #fff; }
+.tb-boton--primario:hover { background: var(--teal-text); }
+.tb-boton:disabled { opacity: 0.6; cursor: default; }
+.tb-insignia {
+  min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--coral);
+  color: #fff; font-size: 12px; line-height: 20px; text-align: center;
+}
+
+/* Servicios de la agenda */
+.tb-servicios {
+  border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-sm); overflow: hidden;
+}
+.tb-servicios:empty { display: none; }
+.tb-servicio { display: flex; align-items: center; }
+.tb-servicio + .tb-servicio { border-top: 1px solid var(--card-border); }
+.tb-servicio--activo { box-shadow: inset 3px 0 0 var(--teal); }
+.tb-servicio--pasado { opacity: 0.65; }
+.tb-servicio-enlace {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px; padding: 12px 14px;
+  color: var(--navy); text-decoration: none;
+}
+.tb-servicio-enlace:hover { background: var(--tint); }
+.tb-servicio-cuando {
+  flex: none; width: 62px; display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 6px 0; border-radius: 12px; background: var(--tint); color: var(--teal-text); text-align: center;
+}
+.tb-servicio-cuando small { font-size: 11px; font-weight: 700; text-transform: capitalize; line-height: 1.2; }
+.tb-servicio-cuando strong { font-size: 15px; line-height: 1.2; }
+.tb-servicio-cuerpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tb-servicio-cuerpo strong { font-size: 15px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-servicio-cuerpo > span { font-size: 13px; color: var(--slate); }
+.tb-servicio-chat {
+  position: relative; flex: none; width: 42px; height: 42px; margin-right: 14px; display: grid; place-items: center;
+  border-radius: 50%; border: 1.5px solid var(--card-border); color: var(--teal-text); background: var(--surface);
+}
+.tb-servicio-chat:hover { border-color: var(--teal); background: var(--tint); }
+.tb-servicio-chat .tb-insignia { position: absolute; top: -4px; right: -4px; }
+
+/* Ganancias */
+.tb-ganancias {
+  border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-sm); overflow: hidden;
+}
+.tb-ganancias-principal { display: flex; flex-direction: column; gap: 4px; padding: 16px; background: var(--tint); }
+.tb-ganancias-principal span { font-size: 13px; font-weight: 700; color: var(--teal-text); }
+.tb-ganancias-principal strong { font-family: var(--font-display); font-size: 30px; line-height: 1.1; color: var(--navy); }
+.tb-ganancias-principal small { font-size: 13px; line-height: 1.4; color: var(--slate); }
+.tb-ganancias-filas { margin: 0; padding: 4px 16px; }
+.tb-ganancias-filas div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 0; }
+.tb-ganancias-filas div + div { border-top: 1px solid var(--card-border); }
+.tb-ganancias-filas dt { font-size: 14px; color: var(--slate); }
+.tb-ganancias-filas dd { margin: 0; font-size: 16px; font-weight: 700; color: var(--navy); white-space: nowrap; }
+
+/* Calendario */
+.ag-calendario {
+  margin-top: 16px; padding: 14px; border-radius: var(--radius-lg); background: var(--surface);
+  border: 1px solid var(--card-border); box-shadow: var(--shadow-sm);
+}
+.ag-mes { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.ag-mes strong { font-family: var(--font-display); font-size: 18px; }
+.ag-flecha {
+  width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%;
+  border: 1.5px solid var(--card-border); background: var(--surface); color: var(--navy); cursor: pointer;
+}
+.ag-flecha:hover { border-color: var(--teal); background: var(--tint); }
+.ag-flecha--atras svg { transform: rotate(180deg); }
+.ag-grilla { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.ag-dia-semana { padding: 4px 0; font-size: 12px; font-weight: 700; color: var(--slate); text-align: center; text-transform: capitalize; }
+.ag-dia {
+  position: relative; aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border: 0; border-radius: 12px; background: none; font: inherit; font-size: 15px; color: var(--navy); cursor: pointer;
+}
+.ag-dia:hover { background: var(--tint); }
+.ag-dia--pasado { color: #8a9bab; }
+.ag-dia--hoy { box-shadow: inset 0 0 0 1.5px var(--teal); font-weight: 700; }
+.ag-dia--elegido { background: var(--navy); color: #fff; }
+.ag-dia--elegido:hover { background: var(--navy); }
+.ag-marca {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--teal);
+  color: #fff; font-size: 11px; font-weight: 700; line-height: 18px;
+}
+.ag-marca--pasada { background: #b8c4cf; }
+.ag-dia--elegido .ag-marca { background: #fff; color: var(--navy); }
+
+/* Días no disponibles: rayados en gris, con una marca pequeña */
+.ag-dia--no-disp {
+  background: repeating-linear-gradient(135deg, #eef1f4 0 5px, #e1e6eb 5px 10px);
+  color: #6f8091;
+}
+.ag-dia--no-disp:hover { background: repeating-linear-gradient(135deg, #e6f4f2 0 5px, #d6ebe7 5px 10px); }
+.ag-dia--no-disp > span:first-child { text-decoration: line-through; text-decoration-color: rgba(111, 128, 145, 0.7); }
+.ag-dia--no-disp.ag-dia--elegido {
+  background: repeating-linear-gradient(135deg, var(--navy) 0 5px, #24395a 5px 10px); color: #fff;
+}
+.ag-marca-no-disp {
+  position: relative; width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid currentColor; opacity: 0.8;
+}
+.ag-marca-no-disp::after {
+  content: ''; position: absolute; left: 50%; top: -1px; bottom: -1px; width: 1.5px; background: currentColor;
+  transform: translateX(-50%) rotate(45deg);
+}
+.ag-leyenda {
+  display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--card-border);
+  font-size: 12px; font-weight: 600; color: var(--slate);
+}
+.ag-leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+.ag-leyenda i { display: inline-block; width: 14px; height: 14px; border-radius: 4px; }
+.ag-leyenda .ag-leyenda-servicios { border-radius: 999px; background: var(--teal); }
+.ag-leyenda-no-disp { background: repeating-linear-gradient(135deg, #eef1f4 0 3px, #cfd7de 3px 6px); }
+.ag-chip-no-disp {
+  flex: none; padding: 4px 10px; border-radius: 999px; background: #eef1f3; color: var(--slate);
+  font-size: 12px; font-weight: 700;
+}
+
+/* Marcar o desmarcar el día elegido */
+.ag-disponible {
+  margin-bottom: 12px; padding: 12px 14px; border-radius: var(--radius); border: 1px dashed var(--card-border);
+  background: var(--surface); display: flex; flex-direction: column; gap: 10px;
+}
+.ag-disponible p { margin: 0; font-size: 13px; line-height: 1.4; color: var(--slate); }
+.ag-disponible--off { border-style: solid; background: repeating-linear-gradient(135deg, #f6f8f9 0 8px, #eff2f4 8px 16px); }
+.ag-disponible .cd-error { margin: 0; }

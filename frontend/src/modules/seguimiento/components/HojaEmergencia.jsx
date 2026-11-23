@@ -23,8 +23,9 @@ function Veterinario({ v }) {
   );
 }
 
-// HU-28: avisa al contacto de emergencia y a soporte, y muestra el veterinario registrado.
-export default function HojaEmergencia({ reservaId, mascota, emergencia, onCerrar, onAlerta }) {
+// HU-28: avisa a soporte y a la otra persona de la reserva, y muestra el veterinario registrado.
+// El viajero avisa además a su contacto de emergencia; el cuidador (soy="cuidador") avisa al dueño (`dueno`).
+export default function HojaEmergencia({ reservaId, mascota, emergencia, onCerrar, onAlerta, soy = 'viajero', dueno = '' }) {
   const { t } = useIdioma();
   const [motivo, setMotivo] = useState('');
   const [detalle, setDetalle] = useState('');
@@ -32,6 +33,7 @@ export default function HojaEmergencia({ reservaId, mascota, emergencia, onCerra
   const [error, setError] = useState('');
   const [resultado, setResultado] = useState(null);
   const { contacto, veterinario } = emergencia;
+  const esCuidador = soy === 'cuidador';
 
   useEffect(() => {
     const tecla = (e) => { if (e.key === 'Escape') onCerrar(); };
@@ -54,9 +56,11 @@ export default function HojaEmergencia({ reservaId, mascota, emergencia, onCerra
     }
   }
 
-  const avisados = resultado?.alerta.avisadoContacto && resultado.contacto
-    ? t('seguimiento.emerg.avisamos_y', { nombre: resultado.contacto.nombre })
-    : t('seguimiento.emerg.avisamos');
+  const avisados = esCuidador
+    ? t('seguimiento.emerg.avisamos_dueno', { nombre: dueno })
+    : resultado?.alerta.avisadoContacto && resultado.contacto
+      ? t('seguimiento.emerg.avisamos_y', { nombre: resultado.contacto.nombre })
+      : t('seguimiento.emerg.avisamos');
 
   return (
     <div className="sg-capa">
@@ -76,9 +80,10 @@ export default function HojaEmergencia({ reservaId, mascota, emergencia, onCerra
           ) : (
             <>
               <p className="sg-aviso-rojo"><IconAlerta width="18" height="18" /> {t('seguimiento.emerg.peligro', { mascota })}</p>
+              {esCuidador && <p className="sg-sub">{t('seguimiento.emerg.aviso_dueno')}</p>}
               <h3>{t('seguimiento.emerg.que_pasa')}</h3>
               <div className="sg-sugerencias">
-                {MOTIVOS.map((m) => (
+                {MOTIVOS[esCuidador ? 'cuidador' : 'viajero'].map((m) => (
                   <button key={m} type="button" className={`sg-chip${motivo === m ? ' sg-chip--activo' : ''}`} onClick={() => setMotivo(m)}>
                     {t(`seguimiento.emerg.motivo.${m}`)}
                   </button>
@@ -89,8 +94,9 @@ export default function HojaEmergencia({ reservaId, mascota, emergencia, onCerra
 
               <h3>{t('seguimiento.emerg.avisaremos')}</h3>
               <ul className="sg-avisados">
+                {esCuidador && <li><IconCheck width="16" height="16" /> {t('seguimiento.emerg.dueno_de', { nombre: dueno, mascota })}</li>}
                 <li><IconCheck width="16" height="16" /> {t('seguimiento.emerg.soporte')}</li>
-                <li>
+                {!esCuidador && <li>
                   {contacto ? (
                     <>
                       <IconCheck width="16" height="16" /> {contacto.nombre}{contacto.parentesco ? ` (${contacto.parentesco})` : ''}
@@ -101,7 +107,7 @@ export default function HojaEmergencia({ reservaId, mascota, emergencia, onCerra
                       {t('seguimiento.emerg.sin_contacto')} <Link to="/emergencia" state={DESDE_APP}>{t('seguimiento.emerg.agregar_uno')}</Link>
                     </span>
                   )}
-                </li>
+                </li>}
               </ul>
             </>
           )}

@@ -126,7 +126,7 @@ export default function SeguimientoPage() {
       {chatExiste && (
         <div className="sg-acciones">
           <Link to={`/reservas/${r.id}/chat`} state={DESDE_APP} className="sg-boton-principal">
-            <IconChat /> {r.chat.abierto ? t('seguimiento.escribir_a', { nombre: primerNombre(otro.nombre) }) : t('seguimiento.ver_chat')}
+            <IconChat /> {r.chat.abierto && r.fase !== 'terminada' ? t('seguimiento.escribir_a', { nombre: primerNombre(otro.nombre) }) : t('seguimiento.ver_chat')}
             {r.chat.sinLeer > 0 && <span className="sg-insignia">{r.chat.sinLeer}</span>}
           </Link>
           {emergencia.puedeAlertar && (
@@ -261,7 +261,7 @@ export default function SeguimientoPage() {
       )}
 
       {verEmergencia && (
-        <HojaEmergencia reservaId={r.id} mascota={m.nombre} emergencia={emergencia}
+        <HojaEmergencia reservaId={r.id} mascota={m.nombre} emergencia={emergencia} soy={r.soy} dueno={r.viajero.nombre}
           onCerrar={cerrarEmergencia} onAlerta={() => cargar()} />
       )}
     </main>

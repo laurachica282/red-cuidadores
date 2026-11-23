@@ -20,3 +20,5 @@ export const IconCasa = (p) => (<svg {...base} width="56" height="56" strokeWidt
 export const IconAlerta = (p) => (<svg {...base} width="20" height="20" {...p}><path d="M12 3 2 20h20L12 3Z" /><path d="M12 10v4" /><path d="M12 17h.01" /></svg>);
 export const IconReloj = (p) => (<svg {...base} width="20" height="20" {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>);
 export const IconPin = (p) => (<svg {...base} width="20" height="20" {...p}><path d="M12 21s7-6.2 7-11a7 7 0 0 0-14 0c0 4.8 7 11 7 11Z" /><circle cx="12" cy="10" r="2.5" /></svg>);
+export const IconChat = (p) => (<svg {...base} width="20" height="20" {...p}><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z" /></svg>);
+export const IconBilletera = (p) => (<svg {...base} width="20" height="20" {...p}><path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a1 1 0 0 1-1-1V7Z" /><path d="M4 7l11-3v3" /><path d="M16 13h.01" /></svg>);

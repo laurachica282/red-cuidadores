@@ -11,6 +11,7 @@
 import bcrypt from 'bcrypt';
 import { pool } from '../db.js';
 import { METODOS } from '../modules/pagos/metodos.js';
+import { insertarCobroDemo } from './cobro_demo.js';
 
 const DOMINIO = 'demo.redcuidadores.co';
 const CLAVE = 'Demo2026';
@@ -213,6 +214,8 @@ async function main() {
     await insertar(db, 'perfiles_cuidador', ['usuario_id', 'descripcion', 'tarifa_noche', 'tipos_mascota', 'direccion', 'barrio', 'latitud', 'longitud'], perfiles, '');
     await insertar(db, 'servicios_cuidador', ['usuario_id', 'servicio', 'tarifa'], servicios, '');
     await insertar(db, 'verificaciones_cuidador', ['usuario_id', 'estado', 'acepta_datos', 'revisado_por', 'revisado_en', 'vence_en', 'creado_en'], verificaciones, '');
+    // Datos de cobro (cuenta bancaria o billetera del país). Usan su propio azar (por id) para no cambiar el resto de la carga.
+    await insertarCobroDemo(db, cuidadores);
 
     /* Viajeros y mascotas */
     const datosViajeros = Array.from({ length: CANT_VIAJEROS }, (_, i) => persona(paisAlAzar(), previos + i, 'viajero'));

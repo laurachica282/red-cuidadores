@@ -38,14 +38,20 @@ export const primerNombre = (nombre = '') => nombre.split(' ')[0];
 /* ───── Textos fijos que llegan del backend en español ───── */
 
 // Motivos de la hoja de emergencia: el mensaje se guarda en el idioma de quien lo envió ("Se perdió. Detalle…").
-export const MOTIVOS = ['no_come', 'herida', 'perdida', 'no_responden', 'otro'];
+// Cada rol tiene sus motivos: el viajero (dueño) y el cuidador.
+export const MOTIVOS = {
+  viajero: ['no_come', 'herida', 'perdida', 'no_responden', 'otro'],
+  cuidador: ['mascota_enferma', 'mascota_perdida', 'sin_dueno', 'casa', 'otro'],
+};
+const TODOS_LOS_MOTIVOS = [...new Set([...MOTIVOS.viajero, ...MOTIVOS.cuidador])];
 
 // Traduce el motivo del inicio del mensaje de una alerta (y el mensaje por defecto); el detalle escrito queda igual.
 export function textoAlerta(mensaje) {
   if (!mensaje) return mensaje;
-  const defecto = 'seguimiento.emerg.mensaje_defecto';
-  if (IDIOMAS_TEXTO.some((i) => traducir(defecto, {}, i) === mensaje)) return traducir(defecto);
-  for (const motivo of MOTIVOS) {
+  for (const defecto of ['seguimiento.emerg.mensaje_defecto', 'seguimiento.emerg.mensaje_defecto_cuidador']) {
+    if (IDIOMAS_TEXTO.some((i) => traducir(defecto, {}, i) === mensaje)) return traducir(defecto);
+  }
+  for (const motivo of TODOS_LOS_MOTIVOS) {
     const clave = `seguimiento.emerg.motivo.${motivo}`;
     for (const idioma of IDIOMAS_TEXTO) {
       const texto = traducir(clave, {}, idioma);

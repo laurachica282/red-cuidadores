@@ -10,6 +10,12 @@ import '../i18n.js';
 import './reservas.css';
 import Desplegable from '@/shared/components/Desplegable.jsx';
 
+// Si el cuidador no marcó especies, se entiende que recibe todas (igual que el servidor).
+const aceptaEspecie = (cuidador, especie) => {
+  const tipos = cuidador?.tiposMascota ?? [];
+  return tipos.length === 0 || tipos.includes(especie);
+};
+
 export default function NuevaReservaPage() {
   const { t } = useIdioma();
   const { cuidadorId } = useParams();
@@ -24,7 +30,7 @@ export default function NuevaReservaPage() {
   const [creada, setCreada] = useState(null);
   const [form, setForm] = useState({
     servicio: params.get('servicio') ?? '',
-    mascota_id: '',
+    mascota_ids: [],
     fecha_inicio: params.get('desde') ?? '',
     fecha_fin: params.get('hasta') ?? '',
     hora_inicio: params.get('horaDesde') ?? '',
@@ -42,7 +48,11 @@ export default function NuevaReservaPage() {
         setForm((f) => ({
           ...f,
           servicio: c.servicios.some((s) => s.servicio === f.servicio) ? f.servicio : (c.servicios[0]?.servicio ?? ''),
-          mascota_id: m[0] ? String(m[0].id) : '',
+          // Se marca la primera mascota que el cuidador recibe; el viajero puede sumar más.
+          mascota_ids: (() => {
+            const primera = m.find((x) => aceptaEspecie(c, x.especie));
+            return primera ? [primera.id] : [];
+          })(),
         }));
       })
       .catch((e) => vivo && setError(e.message))
@@ -53,6 +63,10 @@ export default function NuevaReservaPage() {
   }, [cuidadorId]);
 
   const cambiar = (campo) => (e) => setForm((f) => ({ ...f, [campo]: e.target.value }));
+  const marcarMascota = (id) => (e) => setForm((f) => ({
+    ...f,
+    mascota_ids: e.target.checked ? [...f.mascota_ids, id] : f.mascota_ids.filter((x) => x !== id),
+  }));
 
   const porHora = esPorHora(form.servicio);
   // Si la hora de fin queda antes de la de inicio, se corre a una hora después.
@@ -61,20 +75,25 @@ export default function NuevaReservaPage() {
     setForm((f) => ({ ...f, hora_inicio: v, hora_fin: f.hora_fin > v ? f.hora_fin : (HORAS[HORAS.indexOf(v) + 1] ?? '') }));
   };
 
-  // Vista previa del total, con la misma cuenta que hace el servidor: noches o horas.
+  // Vista previa del total, con la misma cuenta que hace el servidor: tarifa × noches u horas × mascotas.
   const resumen = useMemo(() => {
     const s = cuidador?.servicios.find((x) => x.servicio === form.servicio);
     if (!s || !form.fecha_inicio) return null;
     const unidades = porHora
       ? horasEntre(form.hora_inicio, form.hora_fin)
       : (form.fecha_fin ? dias(form.fecha_inicio, form.fecha_fin) : 0);
-    if (unidades < 1) return null;
-    return { unidades, tarifa: s.tarifa, total: s.tarifa * unidades };
+    const cantidad = form.mascota_ids.length;
+    if (unidades < 1 || cantidad < 1) return null;
+    return { unidades, cantidad, tarifa: s.tarifa, total: s.tarifa * unidades * cantidad };
   }, [cuidador, form, porHora]);
 
   async function enviar(e) {
     e.preventDefault();
     setError('');
+    if (form.mascota_ids.length === 0) {
+      setError(t('reservas.elige_mascota'));
+      return;
+    }
     setEnviando(true);
     try {
       const datos = porHora
@@ -142,14 +161,22 @@ export default function NuevaReservaPage() {
             </Desplegable>
           </div>
 
-          <div>
-            <label className="label" htmlFor="mascota">{t('reservas.mascota_campo')}</label>
-            <Desplegable id="mascota" className="input" value={form.mascota_id} onChange={cambiar('mascota_id')}>
-              {mascotas.map((m) => (
-                <option key={m.id} value={m.id}>{m.nombre} ({textoEspecie(m.especie)})</option>
-              ))}
-            </Desplegable>
-          </div>
+          <fieldset className="rs-mascotas">
+            <legend className="label">{t('reservas.mascotas_campo')}</legend>
+            {mascotas.map((m) => {
+              const acepta = aceptaEspecie(cuidador, m.especie);
+              return (
+                <label key={m.id} className={`rs-mascota${acepta ? '' : ' rs-mascota--no'}`}>
+                  <input type="checkbox" checked={form.mascota_ids.includes(m.id)} disabled={!acepta}
+                    onChange={marcarMascota(m.id)} />
+                  <span>
+                    <strong>{m.nombre}</strong>
+                    <small>{textoEspecie(m.especie)}{acepta ? '' : ` · ${t('reservas.especie_no_aceptada')}`}</small>
+                  </span>
+                </label>
+              );
+            })}
+          </fieldset>
 
           {porHora ? (
             <>
@@ -199,6 +226,7 @@ export default function NuevaReservaPage() {
 
           {resumen && (
             <p className="rs-resumen">
+              {t(resumen.cantidad === 1 ? 'reservas.n_mascota' : 'reservas.n_mascotas', { n: resumen.cantidad })} ×{' '}
               {resumen.unidades} {textoUnidad(unidad, resumen.unidades)} × {precio(resumen.tarifa, cuidador.moneda)} ={' '}
               <strong>{precio(resumen.total, cuidador.moneda)}</strong>
             </p>
@@ -206,7 +234,7 @@ export default function NuevaReservaPage() {
 
           {error && <p className="rs-aviso rs-aviso--error" role="alert">{error}</p>}
 
-          <button type="submit" className="btn-primary" disabled={enviando}>
+          <button type="submit" className="btn-primary" disabled={enviando || form.mascota_ids.length === 0}>
             {enviando ? t('reservas.enviando') : t('reservas.enviar_solicitud')}
           </button>
           <p className="rs-texto">{t('reservas.pago_al_confirmar')}</p>

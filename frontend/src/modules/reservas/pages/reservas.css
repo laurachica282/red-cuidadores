@@ -388,3 +388,63 @@
 .rs-politica li { margin: 2px 0; }
 .rs-politica--aplica { color: var(--ink, inherit); font-weight: 700; }
 .rs-boton-peligro { background: var(--coral, #e07a5f); border-color: var(--coral, #e07a5f); }
+
+/* Varias mascotas por reserva: lista de casillas. */
+.rs-mascotas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.rs-mascota {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--input-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+}
+.rs-mascota:hover { border-color: var(--teal); }
+.rs-mascota:has(input:checked) { border-color: var(--teal); background: var(--tint); }
+.rs-mascota:has(input:focus-visible) { outline: 3px solid var(--teal); outline-offset: 2px; }
+.rs-mascota input { flex-shrink: 0; width: 22px; height: 22px; margin: 0; accent-color: var(--teal-text); }
+.rs-mascota span { display: flex; flex-direction: column; min-width: 0; }
+.rs-mascota strong { font-size: 15px; color: var(--navy); }
+.rs-mascota small { font-size: 13px; color: var(--slate); }
+.rs-mascota--no { opacity: .55; cursor: not-allowed; }
+.rs-mascota--no:hover { border-color: var(--input-border); }
+
+/* Cancelación del cuidador y revisión del administrador. */
+.rs-form-chico { display: flex; flex-direction: column; gap: 12px; margin: 8px 0; }
+.rs-ayuda { display: block; margin-top: 4px; font-size: 13px; color: var(--slate); }
+.rs-acciones--fila { flex-direction: row; flex-wrap: wrap; }
+.rs-acciones--fila > * { flex: 1 1 160px; }
+.rs-aviso--ok { background: var(--tint); border-color: transparent; color: var(--teal-text); font-weight: 700; }
+
+.rs-pagina--ancha { max-width: 680px; }
+.rs-segmentos--dos { grid-template-columns: repeat(2, 1fr); }
+.rs-admin { display: flex; flex-direction: column; gap: 2px; }
+.rs-admin-cab { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+.rs-admin-cab > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.rs-admin-cab small { font-size: 13px; color: var(--slate); overflow: hidden; text-overflow: ellipsis; }
+.rs-avatar {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: #d3ece8;
+  color: var(--teal-text);
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.rs-cita { font-style: italic; overflow-wrap: anywhere; }

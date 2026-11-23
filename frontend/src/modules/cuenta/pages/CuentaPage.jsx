@@ -12,6 +12,13 @@ import { obtenerPerfil } from '../services/cuentaService.js';
 import { ETIQUETA_ROL } from '../utils/textos.js';
 import { RUTAS } from '../rutas.js';
 
+// Billetera: datos de cobro del cuidador.
+const IconCobro = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a1 1 0 0 1-1-1V7Z" /><path d="M4 7l11-3v3" /><path d="M16 13h.01" />
+  </svg>
+);
+
 function Opcion({ a, Icono, titulo }) {
   return (
     <li>
@@ -40,6 +47,7 @@ export default function CuentaPage() {
   const nombre = perfil?.nombre ?? usuario.nombre;
   const rol = perfil?.rol ?? usuario.rol;
   const esAdmin = rol === 'admin';
+  const esCuidador = rol === 'cuidador';
 
   return (
     <Pantalla titulo={t('cuenta.menu.titulo')} atras={null}>
@@ -61,6 +69,18 @@ export default function CuentaPage() {
         <Opcion a={RUTAS.cambiarClave} Icono={IconCandado} titulo={t('cuenta.menu.cambiarClave')} />
         <Opcion a={RUTAS.correo} Icono={IconCorreo} titulo={t('cuenta.menu.cambiarCorreo')} />
       </ul>
+
+      {esCuidador && (
+        <>
+          <p className="cu-seccion">{t('cuenta.menu.seccionCuidador')}</p>
+          <ul className="cu-menu">
+            <Opcion a="/cuidador/perfil" Icono={IconUsuario} titulo={t('cuenta.menu.perfilCuidador')} />
+            <Opcion a="/cuidador/verificacion" Icono={IconCandado} titulo={t('cuenta.menu.antecedentes')} />
+            <Opcion a="/cuidador/vista-previa" Icono={IconEstrella} titulo={t('cuenta.menu.vistaPrevia')} />
+            <Opcion a="/cuidador/cobro" Icono={IconCobro} titulo={t('cuenta.menu.datosCobro')} />
+          </ul>
+        </>
+      )}
 
       <p className="cu-seccion">{t('cuenta.menu.seccionGeneral')}</p>
       <ul className="cu-menu">

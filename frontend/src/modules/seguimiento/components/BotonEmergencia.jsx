@@ -7,6 +7,7 @@ import '../i18n.js';
 import '../seguimiento.css';
 
 // HU-28: botón de emergencia para poner en cada reserva en curso (lo usa la lista de reservas).
+// Sirve al viajero y al cuidador: la hoja muestra los motivos de cada rol.
 // Carga el contacto y el veterinario solo al tocarlo.
 export default function BotonEmergencia({ reservaId, className = '' }) {
   const { t } = useIdioma();
@@ -35,7 +36,7 @@ export default function BotonEmergencia({ reservaId, className = '' }) {
       {error && <p className="sg-error" role="alert">{error}</p>}
       {datos && (
         <HojaEmergencia reservaId={reservaId} mascota={datos.reserva.mascota.nombre} emergencia={datos.emergencia}
-          onCerrar={cerrar} onAlerta={() => {}} />
+          soy={datos.reserva.soy} dueno={datos.reserva.viajero.nombre} onCerrar={cerrar} onAlerta={() => {}} />
       )}
     </>
   );

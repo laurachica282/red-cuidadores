@@ -1,10 +1,12 @@
 import { pool } from '../../db.js';
 import { horaActual, hoyISO } from '../../shared/fecha.js';
 import { HORAS, SERVICIOS, esHora, esPorHora, horasEntre } from '../../shared/servicios.js';
-import { actualizarEstados } from './ciclo.js';
+import { LIMITE_INICIO_SQL, actualizarEstados } from './ciclo.js';
 import { aplicarCancelacion, cotizarCancelacion } from '../pagos/index.js';
+import { diasNoDisponiblesEntre } from '../cuidadores/index.js';
 
 const MAX_DIAS = 60;
+const MAX_MASCOTAS = 10;
 const DIA_MS = 24 * 60 * 60 * 1000;
 
 const esFecha = (t) => typeof t === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t) && !Number.isNaN(Date.parse(t));
@@ -21,9 +23,19 @@ export class ErrorReserva extends Error {
 // Pone al día los estados (vencer, cancelar sin pago, en curso, completar) antes de leer o cambiar.
 export const vencerPendientes = actualizarEstados;
 
+// Ids de las mascotas pedidas: mascota_ids (lista) o, por compatibilidad, mascota_id (una sola).
+function idsMascotas(d) {
+  const lista = Array.isArray(d.mascota_ids) ? d.mascota_ids : (d.mascota_id != null && d.mascota_id !== '' ? [d.mascota_id] : []);
+  if (lista.length === 0) throw new ErrorReserva(400, 'Elige al menos una mascota');
+  if (!lista.every(esId)) throw new ErrorReserva(400, 'Elige una mascota');
+  const ids = [...new Set(lista.map(Number))];
+  if (ids.length > MAX_MASCOTAS) throw new ErrorReserva(400, `Puedes llevar hasta ${MAX_MASCOTAS} mascotas por reserva`);
+  return ids;
+}
+
 export async function crear(viajeroId, d) {
   if (!esId(d.cuidador_id)) throw new ErrorReserva(400, 'Elige un cuidador');
-  if (!esId(d.mascota_id)) throw new ErrorReserva(400, 'Elige una mascota');
+  const mascotaIds = idsMascotas(d);
   if (!SERVICIOS[d.servicio]) throw new ErrorReserva(400, 'Elige un servicio válido');
   if (String(d.cuidador_id) === String(viajeroId)) throw new ErrorReserva(400, 'No puedes reservarte a ti mismo');
   const porHora = esPorHora(d.servicio);
@@ -53,15 +65,16 @@ export async function crear(viajeroId, d) {
     if (unidades > MAX_DIAS) throw new ErrorReserva(400, `La reserva no puede durar más de ${MAX_DIAS} días`);
   }
 
+  // Todas las mascotas deben ser del viajero y estar activas.
   const masc = await pool.query(
-    'SELECT id FROM mascotas WHERE id = $1 AND usuario_id = $2 AND status',
-    [d.mascota_id, viajeroId]
+    'SELECT id, nombre, especie FROM mascotas WHERE id = ANY($1::int[]) AND usuario_id = $2 AND status',
+    [mascotaIds, viajeroId]
   );
-  if (!masc.rows[0]) throw new ErrorReserva(400, 'Esa mascota no es tuya o está desactivada');
+  if (masc.rows.length !== mascotaIds.length) throw new ErrorReserva(400, 'Esa mascota no es tuya o está desactivada');
 
-  // Solo cuidadores verificados (RN-3) que ofrecen el servicio, con su tarifa y su moneda.
+  // Solo cuidadores verificados (RN-3) que ofrecen el servicio, con su tarifa, su moneda y las especies que acepta.
   const cui = await pool.query(
-    `SELECT v.pais, s.tarifa, g.moneda
+    `SELECT v.pais, v.tipos_mascota, s.tarifa, g.moneda
        FROM cuidadores_visibles v
        JOIN servicios_cuidador s ON s.usuario_id = v.usuario_id AND s.servicio = $2 AND s.activo
        JOIN regiones_reglas g ON g.pais = v.pais
@@ -71,43 +84,89 @@ export async function crear(viajeroId, d) {
   const c = cui.rows[0];
   if (!c) throw new ErrorReserva(404, 'Ese cuidador no está disponible para ese servicio');
 
+  // Cada mascota debe ser de una especie que el cuidador recibe (si no marcó ninguna, se entiende que todas).
+  const tipos = c.tipos_mascota ?? [];
+  const noAceptada = tipos.length > 0 && masc.rows.find((m) => !tipos.includes(m.especie));
+  if (noAceptada) throw new ErrorReserva(400, `Este cuidador no recibe la especie de ${noAceptada.nombre}`);
+
   const viajero = await pool.query('SELECT pais FROM usuarios WHERE id = $1', [viajeroId]);
   if (viajero.rows[0]?.pais !== c.pais) throw new ErrorReserva(400, 'Solo puedes reservar cuidadores de tu región');
 
-  await actualizarEstados(); // libera fechas de reservas que se cancelaron sin pago
-  // Se cruzan tramos de tiempo (21_servicios_por_hora.sql): dos paseos el mismo día a horas distintas sí caben.
+  // Días que el cuidador marcó como no disponibles: se revisan todos los días de la reserva (también el de salida).
+  const bloqueados = await diasNoDisponiblesEntre(d.cuidador_id, d.fecha_inicio, fechaFin);
+  if (bloqueados.length) throw new ErrorReserva(400, `El cuidador no está disponible estos días: ${bloqueados.join(', ')}`);
+
+  await actualizarEstados(); // pone al día los estados antes de buscar cruces
+  // El cuidador SÍ puede tener reservas que se cruzan (él decide al aceptar). Lo que no se permite es que
+  // la misma mascota del viajero quede en dos reservas vivas a la misma hora.
   const cruce = await pool.query(
-    `SELECT 1 FROM reservas
-      WHERE cuidador_id = $1 AND estado IN ('confirmada', 'en_curso')
-        AND periodo && tsrange($2::date + COALESCE($4::time, TIME '00:00'),
-                               CASE WHEN $5::time IS NULL THEN ($3::date + 1)::timestamp ELSE $3::date + $5::time END, '[)')
+    `SELECT m.nombre FROM reservas r
+       JOIN reserva_mascotas rm ON rm.reserva_id = r.id
+       JOIN mascotas m ON m.id = rm.mascota_id
+      WHERE r.viajero_id = $1 AND rm.mascota_id = ANY($2::int[])
+        AND r.estado IN ('pendiente', 'confirmada', 'en_curso')
+        AND r.periodo && tsrange($3::date + COALESCE($5::time, TIME '00:00'),
+                                 CASE WHEN $6::time IS NULL THEN ($4::date + 1)::timestamp ELSE $4::date + $6::time END, '[)')
       LIMIT 1`,
-    [d.cuidador_id, d.fecha_inicio, fechaFin, horaInicio, horaFin]
+    [viajeroId, mascotaIds, d.fecha_inicio, fechaFin, horaInicio, horaFin]
   );
-  if (cruce.rows[0]) throw new ErrorReserva(409, porHora ? 'El cuidador ya tiene una reserva confirmada a esa hora' : 'El cuidador ya tiene una reserva confirmada en esas fechas');
+  if (cruce.rows[0]) throw new ErrorReserva(409, `${cruce.rows[0].nombre} ya tiene una reserva que se cruza con esas fechas`);
 
   const nota = typeof d.nota === 'string' ? d.nota.trim().slice(0, 500) || null : null;
-    const r = await pool.query(
-    `INSERT INTO reservas
-       (viajero_id, cuidador_id, mascota_id, servicio, fecha_inicio, fecha_fin, hora_inicio, hora_fin,
-        tarifa, moneda, unidades, total, responder_antes, nota)
-     VALUES ($1, $2, $3, $4, $5::date, $6::date, $11::time, $12::time,
-             $7::numeric, $8, $9::integer, $7::numeric * $9::integer,
-             NOW() + INTERVAL '24 hours', $10)
-     RETURNING *`,
-    [viajeroId, d.cuidador_id, d.mascota_id, d.servicio, d.fecha_inicio, fechaFin, c.tarifa, c.moneda, unidades, nota, horaInicio, horaFin]
-  );
-  return r.rows[0];
+  const db = await pool.connect();
+  try {
+    await db.query('BEGIN');
+    // Precio: total = tarifa × unidades (noches u horas) × número de mascotas.
+    // reservas.mascota_id guarda la primera mascota (la principal); todas quedan en reserva_mascotas.
+    const r = await db.query(
+      `INSERT INTO reservas
+         (viajero_id, cuidador_id, mascota_id, servicio, fecha_inicio, fecha_fin, hora_inicio, hora_fin,
+          tarifa, moneda, unidades, total, responder_antes, nota)
+       VALUES ($1, $2, $3, $4, $5::date, $6::date, $11::time, $12::time,
+               $7::numeric, $8, $9::integer, $7::numeric * $9::integer * $13::integer,
+               NOW() + INTERVAL '24 hours', $10)
+       RETURNING *`,
+      [viajeroId, d.cuidador_id, mascotaIds[0], d.servicio, d.fecha_inicio, fechaFin, c.tarifa, c.moneda, unidades, nota,
+        horaInicio, horaFin, mascotaIds.length]
+    );
+    await db.query(
+      'INSERT INTO reserva_mascotas (reserva_id, mascota_id) SELECT $1, unnest($2::int[])',
+      [r.rows[0].id, mascotaIds]
+    );
+    await db.query('COMMIT');
+    return { ...r.rows[0], mascotas: masc.rows };
+  } catch (e) {
+    await db.query('ROLLBACK').catch(() => {});
+    throw e;
+  } finally {
+    db.release();
+  }
 }
+
+// Mascotas de la reserva: las de reserva_mascotas más la principal (por si una fila no tiene detalle).
+// La principal va primero. Da mascotas: [{ id, nombre, especie }] y mascota: "Kira, Toby" (texto unido).
+export const MASCOTAS_SQL = `
+  LEFT JOIN LATERAL (
+    SELECT json_agg(json_build_object('id', m.id, 'nombre', m.nombre, 'especie', m.especie)
+                    ORDER BY (m.id = r.mascota_id) DESC, m.nombre) AS mascotas,
+           string_agg(m.nombre, ', ' ORDER BY (m.id = r.mascota_id) DESC, m.nombre) AS mascota,
+           COUNT(*)::int AS num_mascotas
+      FROM mascotas m
+     WHERE m.id = r.mascota_id
+        OR m.id IN (SELECT rm.mascota_id FROM reserva_mascotas rm WHERE rm.reserva_id = r.id)
+  ) mm ON TRUE`;
 
 const SELECCION = `
   SELECT r.*, r.fecha_inicio::text AS fecha_inicio, r.fecha_fin::text AS fecha_fin,
          to_char(r.hora_inicio, 'HH24:MI') AS hora_inicio, to_char(r.hora_fin, 'HH24:MI') AS hora_fin,
-         m.nombre AS mascota, uc.nombre AS cuidador, uv.nombre AS viajero
+         mm.mascotas, mm.mascota, mm.num_mascotas, uc.nombre AS cuidador, uv.nombre AS viajero,
+         cc.motivo AS cancelacion_cuidador_motivo, cc.estado AS cancelacion_cuidador_estado,
+         cc.multa AS cancelacion_cuidador_multa
     FROM reservas r
-    JOIN mascotas m  ON m.id = r.mascota_id
+    ${MASCOTAS_SQL}
     JOIN usuarios uc ON uc.id = r.cuidador_id
-    JOIN usuarios uv ON uv.id = r.viajero_id`;
+    JOIN usuarios uv ON uv.id = r.viajero_id
+    LEFT JOIN cancelaciones_cuidador cc ON cc.reserva_id = r.id`;
 
 export async function delViajero(viajeroId) {
   await vencerPendientes();
@@ -144,20 +203,17 @@ async function explicarFallo(id, columnaDueno, usuarioId) {
   throw new ErrorReserva(409, `Esta reserva ya está ${f.estado}`);
 }
 
+// Al confirmar se fija el plazo para pagar: 24 horas o el inicio de la reserva, lo que llegue primero
+// (LIMITE_INICIO_SQL en ciclo.js). El cuidador puede confirmar aunque tenga otras reservas a la misma hora.
 export async function confirmar(cuidadorId, id) {
   await vencerPendientes();
-  try {
-    const r = await pool.query(
-      `UPDATE reservas SET estado = 'confirmada', respondida_en = NOW(), actualizado_en = NOW()
-        WHERE id = $1 AND cuidador_id = $2 AND estado = 'pendiente' RETURNING *`,
-      [id, cuidadorId]
-    );
-    if (r.rows[0]) return r.rows[0];
-  } catch (e) {
-    // 23P01: la restricción que impide cruzar fechas confirmadas.
-    if (e.code === '23P01') throw new ErrorReserva(409, 'Ya tienes una reserva confirmada que se cruza con esas fechas');
-    throw e;
-  }
+  const r = await pool.query(
+    `UPDATE reservas r SET estado = 'confirmada', respondida_en = NOW(), actualizado_en = NOW(),
+            pagar_antes = LEAST(NOW() + INTERVAL '24 hours', ${LIMITE_INICIO_SQL})
+      WHERE r.id = $1 AND r.cuidador_id = $2 AND r.estado = 'pendiente' RETURNING *`,
+    [id, cuidadorId]
+  );
+  if (r.rows[0]) return r.rows[0];
   return explicarFallo(id, 'cuidador_id', cuidadorId);
 }
 

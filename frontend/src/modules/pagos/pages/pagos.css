@@ -162,3 +162,8 @@
     border-color: var(--teal);
     background: var(--tint);
 }
+/* Plazo para pagar la reserva confirmada (si no se paga, se cancela sola). */
+.pg-plazo {
+  color: var(--coral, #e07a5f);
+  font-weight: 700;
+}

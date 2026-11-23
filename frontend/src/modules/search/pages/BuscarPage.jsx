@@ -8,7 +8,9 @@ import MapaResultados from '../components/MapaResultados.jsx';
 import PanelFiltros from '../components/PanelFiltros.jsx';
 import { FILTROS_VACIOS, contarFiltros, fechasParaBuscar, resumirFiltros, textoFechas } from '../filtros.js';
 import { guardarPunto, leerPunto, nombreCorto } from '../ubicacion.js';
-import { SERVICIOS, formatoCalificacion, formatoKm, hoyISO, iniciales, noches, porUnidad, rangoFechas } from '../utils.js';
+import {
+  SERVICIOS, formatoCalificacion, formatoKm, hoyISO, iniciales, noches, porUnidad, porUnidadCorta, rangoFechas,
+} from '../utils.js';
 import '../busqueda.css';
 import '../i18n.js';
 
@@ -28,6 +30,29 @@ function ServiciosCuidador({ servicios, activo }) {
         </span>
       ))}
       {resto > 0 && <span className="bs-servicio-chip" title={lista.slice(MAX_SERVICIOS).map((s) => s.texto).join(', ')}>+{resto}</span>}
+    </span>
+  );
+}
+
+// Con "todos los servicios": el precio de cada servicio con su unidad, uno por línea (máximo 2 y "+N más").
+// Nunca un solo "desde": un precio por noche no se compara con uno por hora.
+function PreciosCuidador({ precios, moneda }) {
+  const { precio, t } = useIdioma();
+  const lista = precios.map((p) => ({ ...p, def: SERVICIOS.find((s) => s.valor === p.servicio) })).filter((p) => p.def);
+  const resto = lista.length - MAX_SERVICIOS;
+  return (
+    <span className="bs-precios-servicios">
+      {lista.slice(0, MAX_SERVICIOS).map((p) => (
+        <span key={p.servicio} className="bs-precio-servicio">
+          <span className="bs-precio-servicio-nombre">{p.def.corto}</span>
+          <span className="bs-precio">{precio(p.tarifa, moneda)}<small>{porUnidadCorta(p.unidad)}</small></span>
+        </span>
+      ))}
+      {resto > 0 && (
+        <small className="bs-precio-mas" title={lista.slice(MAX_SERVICIOS).map((p) => `${p.def.texto} ${precio(p.tarifa, moneda)}${porUnidadCorta(p.unidad)}`).join(' · ')}>
+          {t('busqueda.masServicios', { n: resto })}
+        </small>
+      )}
     </span>
   );
 }
@@ -139,7 +164,7 @@ export default function BuscarPage() {
         {activos > 0 && <span className="bs-contador" aria-label={t(activos === 1 ? 'busqueda.filtrosActivos.uno' : 'busqueda.filtrosActivos.otros', { n: activos })}>{activos}</span>}
       </button>
 
-      <MapaResultados cuidadores={resultados} punto={punto} precio={precio} enlacePerfil={enlacePerfil} resaltado={resaltado}
+      <MapaResultados cuidadores={resultados} punto={punto} precio={precio} servicio={filtros.servicio} enlacePerfil={enlacePerfil} resaltado={resaltado}
         version={versionMapa} onVista={setVista} />
 
       <div className="bs-encabezado">
@@ -188,7 +213,9 @@ export default function BuscarPage() {
                 <small className="bs-sub">
                   {[c.barrio ?? c.ciudad, c.distanciaKm === null ? null : formatoKm(c.distanciaKm)].filter(Boolean).join(' · ')}
                 </small>
-                <ServiciosCuidador servicios={c.servicios} activo={filtros.servicio} />
+                {filtros.servicio
+                  ? <ServiciosCuidador servicios={c.servicios} activo={filtros.servicio} />
+                  : <PreciosCuidador precios={c.precios ?? []} moneda={c.moneda} />}
                 <span className="bs-card-fila bs-card-pie">
                   {c.calificacion === null ? (
                     <small className="bs-nuevo">{t('busqueda.nuevo')}</small>
@@ -198,10 +225,12 @@ export default function BuscarPage() {
                       <strong>{formatoCalificacion(c.calificacion)}</strong> <small>({c.totalResenas})</small>
                     </span>
                   )}
-                  <span className="bs-precio">
-                    {!filtros.servicio && <small>{t('busqueda.desde')} </small>}
-                    {precio(c.tarifa, c.moneda)}<small>{porUnidad(c.unidad)}</small>
-                  </span>
+                  {/* Con un servicio elegido: el precio de ese servicio y su unidad. */}
+                  {filtros.servicio && (
+                    <span className="bs-precio">
+                      {precio(c.tarifa, c.moneda)}<small>{porUnidad(c.unidad)}</small>
+                    </span>
+                  )}
                 </span>
               </span>
             </Link>

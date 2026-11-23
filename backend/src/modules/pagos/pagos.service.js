@@ -3,6 +3,8 @@ import { simularCobro } from './simulador.js';
 import { METODOS } from './metodos.js';
 import { horaActual, hoyISO } from '../../shared/fecha.js';
 
+const redondear = (n) => Math.round(n * 100) / 100;
+
 export class ErrorPago extends Error {
   constructor(estado, mensaje) {
     super(mensaje);
@@ -11,25 +13,66 @@ export class ErrorPago extends Error {
 }
 
 const COLUMNAS = `id, reserva_id, viajero_id, cuidador_id, pasarela, moneda, monto, comision_pct,
-  comision, neto_cuidador, estado, metodo, detalle, tarjeta_ultimos4, referencia, creado_en, liberado_en, monto_reembolsado`;
+  comision, neto_cuidador, estado, metodo, detalle, tarjeta_ultimos4, referencia, creado_en, liberado_en, monto_reembolsado,
+  multa_descontada`;
 
 // HU-22: el dinero retenido pasa al cuidador cuando la reserva queda completada
 // (el ciclo de reservas la completa al pasar la fecha de fin, ver reservas/ciclo.js).
+// Si el cuidador tiene multas pendientes (cancelaciones_cuidador con_multa, misma moneda), se descuentan
+// de su parte: multas completas que quepan en lo que recibe (nunca queda en negativo); las que no caben
+// esperan al siguiente pago. neto_cuidador queda con lo que de verdad recibe y pagos.multa_descontada
+// guarda lo descontado. movimientos_pago no tiene un tipo para multas (su CHECK solo admite cobro,
+// reembolso y liberacion): la liberación registra el neto ya descontado y lo dice en el detalle.
 export async function liberarCompletadas() {
-  // Se libera y se deja el movimiento con el detalle de la comisión en la misma sentencia.
-  await pool.query(
-    `WITH liberados AS (
-       UPDATE pagos p SET estado = 'liberado', liberado_en = NOW()
+  const db = await pool.connect();
+  try {
+    await db.query('BEGIN');
+    const { rows: liberados } = await db.query(
+      `UPDATE pagos p SET estado = 'liberado', liberado_en = NOW()
          FROM reservas r
         WHERE p.reserva_id = r.id AND p.estado = 'retenido' AND r.estado = 'completada'
-        RETURNING p.*
-     )
-     INSERT INTO movimientos_pago (pago_id, reserva_id, tipo, beneficiario_id, moneda, monto, porcentaje, comision, detalle)
-     SELECT id, reserva_id, 'liberacion', cuidador_id, moneda, neto_cuidador, 100 - comision_pct, comision,
-            'Pago del servicio terminado'
-       FROM liberados
-     ON CONFLICT DO NOTHING`
-  );
+        RETURNING p.*`
+    );
+    for (const pago of liberados) {
+      let neto = Number(pago.neto_cuidador);
+      let multa = 0;
+      const { rows: multas } = await db.query(
+        `SELECT id, multa FROM cancelaciones_cuidador
+          WHERE cuidador_id = $1 AND estado = 'con_multa' AND descontada_en IS NULL AND moneda = $2
+          ORDER BY revisado_en, id FOR UPDATE`,
+        [pago.cuidador_id, pago.moneda]
+      );
+      for (const m of multas) {
+        const valor = Number(m.multa);
+        if (valor <= 0 || valor > neto) continue; // no cabe completa: queda para el siguiente pago
+        neto = redondear(neto - valor);
+        multa = redondear(multa + valor);
+        await db.query(
+          `UPDATE cancelaciones_cuidador SET descontada_en = NOW(), descontada_pago = $2 WHERE id = $1`,
+          [m.id, pago.id]
+        );
+      }
+      if (multa > 0) {
+        await db.query(
+          `UPDATE pagos SET neto_cuidador = $2, multa_descontada = $3 WHERE id = $1`,
+          [pago.id, neto, multa]
+        );
+      }
+      await db.query(
+        `INSERT INTO movimientos_pago (pago_id, reserva_id, tipo, beneficiario_id, moneda, monto, porcentaje, comision, detalle)
+         VALUES ($1, $2, 'liberacion', $3, $4, $5, $6, $7, $8)
+         ON CONFLICT DO NOTHING`,
+        [pago.id, pago.reserva_id, pago.cuidador_id, pago.moneda, neto, 100 - Number(pago.comision_pct), pago.comision,
+          multa > 0 ? `Pago del servicio terminado · se descontó una multa de ${multa.toFixed(2)}` : 'Pago del servicio terminado']
+      );
+    }
+    await db.query('COMMIT');
+  } catch (e) {
+    await db.query('ROLLBACK').catch(() => {});
+    throw e;
+  } finally {
+    db.release();
+  }
 }
 
 // Valida el formato de la tarjeta. Solo se guardan los últimos 4 dígitos, nunca el número completo.
@@ -61,7 +104,6 @@ function validarMetodo(metodo, d) {
   return { valor, detalle: m.detalle(valor), ultimos4: null };
 }
 
-const redondear = (n) => Math.round(n * 100) / 100;
 
 // HU-18: el viajero paga una reserva confirmada. El dinero queda retenido hasta que termine el servicio.
 export async function pagar(viajeroId, reservaId, datos = {}) {
@@ -70,7 +112,8 @@ export async function pagar(viajeroId, reservaId, datos = {}) {
   const t = validarMetodo(metodo, datos);
 
   const rs = await pool.query(
-    `SELECT r.id, r.cuidador_id, r.estado, r.total, r.moneda, r.fecha_inicio::text AS fecha_inicio, to_char(r.hora_inicio, 'HH24') AS hora_inicio, u.pais
+    `SELECT r.id, r.cuidador_id, r.estado, r.total, r.moneda, r.fecha_inicio::text AS fecha_inicio, to_char(r.hora_inicio, 'HH24') AS hora_inicio, u.pais,
+            r.pagar_antes IS NOT NULL AND NOW() > r.pagar_antes AS plazo_vencido
        FROM reservas r JOIN usuarios u ON u.id = r.viajero_id
       WHERE r.id = $1 AND r.viajero_id = $2`,
     [reservaId, viajeroId]
@@ -78,7 +121,9 @@ export async function pagar(viajeroId, reservaId, datos = {}) {
   const r = rs.rows[0];
   if (!r) throw new ErrorPago(404, 'Reserva no encontrada');
   if (r.estado !== 'confirmada') throw new ErrorPago(409, 'Solo puedes pagar una reserva que el cuidador ya confirmó');
-  // Se paga hasta el mismo día de inicio; después la reserva se cancela sola (reservas/ciclo.js).
+  // Plazo para pagar: se fija cuando el cuidador confirma (24 h o el inicio, lo que llegue primero).
+  if (r.plazo_vencido) throw new ErrorPago(409, 'Se venció el plazo para pagar esta reserva');
+  // Respaldo para reservas sin plazo guardado: se paga hasta el mismo día de inicio; después la reserva se cancela sola (reservas/ciclo.js).
   // Por horas: se paga antes de la hora de inicio.
   const tarde = r.fecha_inicio < hoyISO()
     || (r.hora_inicio !== null && r.fecha_inicio === hoyISO() && Number(r.hora_inicio) <= horaActual());

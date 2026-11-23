@@ -26,6 +26,28 @@ export const SERVICIOS = [
 ];
 // "/noche" o "/hora" a partir del código de unidad que manda el backend.
 export const porUnidad = (unidad) => traducir(`busqueda.porUnidad.${unidad}`);
+// Versión corta para tarjetas y pines: "/noche" o "/h".
+export const porUnidadCorta = (unidad) => traducir(`busqueda.porUnidadCorta.${unidad}`);
+
+// Unidad que usan los pines del mapa con "todos los servicios": la que ofrecen más cuidadores de la lista,
+// así los precios del mapa se comparan siempre en la misma unidad (noches con noches, horas con horas).
+export function unidadDelMapa(cuidadores) {
+  const cuenta = { noche: 0, hora: 0 };
+  for (const c of cuidadores) {
+    const unidades = new Set((c.precios ?? []).map((p) => p.unidad));
+    unidades.forEach((u) => { cuenta[u] += 1; });
+  }
+  return cuenta.hora > cuenta.noche ? 'hora' : 'noche';
+}
+
+// Precio del pin: el más bajo en la unidad del mapa; si el cuidador no tiene esa unidad, el más bajo de la otra.
+// Siempre va con su unidad.
+export function precioPin(c, unidad) {
+  const lista = c.precios?.length ? c.precios : [{ tarifa: c.tarifa, unidad: c.unidad }];
+  const mismos = lista.filter((p) => p.unidad === unidad);
+  const elegidos = mismos.length ? mismos : lista;
+  return elegidos.reduce((min, p) => (p.tarifa < min.tarifa ? p : min));
+}
 export const esPorHora = (valor) => Boolean(SERVICIOS.find((s) => s.valor === valor)?.porHora);
 
 // Horas en punto que se pueden elegir (07:00 a 22:00) y cuántas hay entre dos.

@@ -196,3 +196,7 @@
 .cd-servicio .input:disabled { opacity: 0.5; }
 .cd-servicio .cd-moneda-codigo { height: 48px; white-space: nowrap; font-size: 13px; }
 @media (max-width: 420px) { .cd-servicio { grid-template-columns: 1fr; } }
+
+/* Datos de cobro: agência y conta (Brasil) o routing y cuenta (EE. UU.) lado a lado */
+.cd-cobro-partes { display: grid; grid-template-columns: 2fr 3fr; gap: 10px; }
+.cd-cobro-partes .cd-ayuda { grid-column: 1 / -1; margin: 0; }

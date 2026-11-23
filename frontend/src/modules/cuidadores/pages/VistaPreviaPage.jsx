@@ -29,7 +29,7 @@ export default function VistaPreviaPage() {
     <div className="cd-fondo">
       <main className="cd">
         <header className="cd-cab">
-          <Link className="cd-atras" to="/cuidador" aria-label={t('comun.volver')}><IconFlecha /></Link>
+          <Link className="cd-atras" to="/configuracion" aria-label={t('comun.volver')}><IconFlecha /></Link>
           <h1>{t('prev.titulo')}</h1>
         </header>
         <p className="cd-sub">{t('prev.nota')}</p>

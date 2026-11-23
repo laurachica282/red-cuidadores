@@ -1,5 +1,7 @@
 import SoloRol from './components/SoloRol.jsx';
 import AdminCuidadoresPage from './pages/AdminCuidadoresPage.jsx';
+import AgendaCuidadorPage from './pages/AgendaCuidadorPage.jsx';
+import CobroPage from './pages/CobroPage.jsx';
 import PanelCuidadorPage from './pages/PanelCuidadorPage.jsx';
 import PerfilCuidadorPage from './pages/PerfilCuidadorPage.jsx';
 import VerificacionPage from './pages/VerificacionPage.jsx';
@@ -7,6 +9,8 @@ import VistaPreviaPage from './pages/VistaPreviaPage.jsx';
 
 export const privateRoutes = [
   { path: '/cuidador', element: <SoloRol rol="cuidador"><PanelCuidadorPage /></SoloRol> },
+  { path: '/cuidador/agenda', element: <SoloRol rol="cuidador"><AgendaCuidadorPage /></SoloRol> },
+  { path: '/cuidador/cobro', element: <SoloRol rol="cuidador"><CobroPage /></SoloRol> },
   { path: '/cuidador/perfil', element: <SoloRol rol="cuidador"><PerfilCuidadorPage /></SoloRol> },
   { path: '/cuidador/verificacion', element: <SoloRol rol="cuidador"><VerificacionPage /></SoloRol> },
   { path: '/cuidador/vista-previa', element: <SoloRol rol="cuidador"><VistaPreviaPage /></SoloRol> },
