@@ -1,11 +1,8 @@
 import { randomBytes } from 'node:crypto';
-import { mkdir, unlink, writeFile } from 'node:fs/promises';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { borrar, guardar, servir } from '../../shared/almacen.js';
 import { ErrorHttp } from './errores.js';
 import { FOTO } from './config.js';
 
-const aqui = path.dirname(fileURLToPath(import.meta.url));
 export const NOMBRE_VALIDO = /^[a-f0-9]{32}\.(jpg|png|webp)$/;
 
 // Se mira el contenido del archivo, no el nombre ni el tipo que declara el navegador:
@@ -17,22 +14,22 @@ export function tipoDeImagen(buffer) {
   return null;
 }
 
-export function crearAlmacenFotos({ directorio = process.env.UPLOADS_DIR ?? path.join(aqui, '../../../uploads/fotos') } = {}) {
+// Las fotos van al almacén compartido: disco en local, Supabase Storage desplegado (shared/almacen.js).
+export function crearAlmacenFotos({ almacen = { guardar, borrar, servir } } = {}) {
   return {
-    directorio,
-
     async guardar(buffer) {
       const tipo = tipoDeImagen(buffer);
       if (!tipo) throw new ErrorHttp(400, 'La foto debe ser JPG, PNG o WEBP');
       const nombre = `${randomBytes(16).toString('hex')}.${FOTO.extensiones[tipo]}`;
-      await mkdir(directorio, { recursive: true });
-      await writeFile(path.join(directorio, nombre), buffer, { flag: 'wx' });
+      await almacen.guardar('fotos', nombre, buffer);
       return nombre;
     },
 
     async borrar(nombre) {
       if (!nombre || !NOMBRE_VALIDO.test(nombre)) return;
-      await unlink(path.join(directorio, nombre)).catch(() => {});
+      await almacen.borrar('fotos', nombre);
     },
+
+    servir: (res, nombre) => almacen.servir(res, 'fotos', nombre),
   };
 }

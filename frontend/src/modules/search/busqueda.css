@@ -207,3 +207,7 @@
 }
 .bs-reservar p { font-family: var(--font-display); font-size: 22px; }
 .bs-perfil { padding-bottom: calc(var(--barra-espacio) + 100px); }
+
+/* Atajo "Cerca de mí" junto a las ciudades. */
+.bs-chip--ubicacion { display: inline-flex; align-items: center; gap: 6px; }
+.bs-chip--ubicacion:disabled { opacity: 0.6; cursor: progress; }

@@ -5,13 +5,11 @@ import { useIdioma } from '@/modules/region';
 import { obtenerPerfilCuidador, urlApi, urlFotoCuidador } from '../services/busquedaService.js';
 import { IconAtras, IconCasa, IconEstrella } from '../components/Iconos.jsx';
 import InsigniaVerificado from '../components/InsigniaVerificado.jsx';
-import { TIPOS_MASCOTA, formatoCalificacion, iniciales, noches, rangoFechas, servicio, tiempoEnLaRed } from '../utils.js';
+import { TIPOS_MASCOTA, esPorHora, formatoCalificacion, horasEntre, iniciales, noches, rangoFechas, servicio, tiempoEnLaRed } from '../utils.js';
 import '../busqueda.css';
 
 const nombreTipo = (v) => TIPOS_MASCOTA.find((t) => t.valor === v)?.texto ?? v;
 
-// Unidades a cobrar, con la misma cuenta del módulo reservas: alojamiento por noche, lo demás por día.
-const unidades = (servicioElegido, n) => (servicioElegido === 'alojamiento' ? n : n + 1);
 
 // HU-16 · mockup 2: fotos, reseñas, insignia de antecedentes y tarifa.
 export default function PerfilCuidadorPage() {
@@ -23,6 +21,9 @@ export default function PerfilCuidadorPage() {
   const { usuario } = useAuth();
   const desde = params.get('desde');
   const hasta = params.get('hasta');
+  const horaDesde = params.get('horaDesde');
+  const horaHasta = params.get('horaHasta');
+  const servicioBuscado = params.get('servicio');
   const [c, setC] = useState(null);
   // Servicio que se va a reservar; por defecto el que venía de la búsqueda.
   const [elegido, setElegido] = useState(params.get('servicio'));
@@ -35,9 +36,9 @@ export default function PerfilCuidadorPage() {
     setC(null);
     setError('');
     setFotoActiva(0);
-    obtenerPerfilCuidador(id, { desde, hasta }).then((d) => vivo && setC(d)).catch((e) => vivo && setError(e.message));
+    obtenerPerfilCuidador(id, { servicio: servicioBuscado, desde, hasta, horaDesde, horaHasta }).then((d) => vivo && setC(d)).catch((e) => vivo && setError(e.message));
     return () => { vivo = false; };
-  }, [id, desde, hasta]);
+  }, [id, servicioBuscado, desde, hasta, horaDesde, horaHasta]);
 
   // Se retrocede solo si se llegó desde la búsqueda; si no (enlace directo, desde la reserva...) se va a la búsqueda.
   const volver = () => (location.state?.desdeBusqueda ? navigate(-1) : navigate('/inicio'));
@@ -53,16 +54,27 @@ export default function PerfilCuidadorPage() {
   }
   if (!c) return <main className="page bs-page"><p className="bs-sub">Cargando perfil…</p></main>;
 
-  const n = noches(desde, hasta);
   const km = params.get('km');
   const s = c.servicios.find((x) => x.servicio === elegido) ?? c.servicios[0];
-  const cantidad = n > 0 && s ? unidades(s.servicio, n) : 0;
+  // Lo que se cobra: alojamiento por noches; por hora, las horas elegidas en la búsqueda.
+  const porHora = s && esPorHora(s.servicio);
+  const horas = porHora && desde ? horasEntre(horaDesde, horaHasta) : 0;
+  const n = !porHora ? noches(desde, hasta) : 0;
+  const cantidad = porHora ? horas : n;
   const ocupado = c.disponible === false;
   const puedeReservar = usuario?.rol === 'viajero' && s && !ocupado;
-  const qs = new URLSearchParams({ ...(s && { servicio: s.servicio }), ...(n > 0 && { desde, hasta }) }).toString();
+  const qs = new URLSearchParams({
+    ...(s && { servicio: s.servicio }),
+    ...(desde && (porHora ? { desde } : n > 0 && { desde, hasta })),
+    ...(horas > 0 && { horaDesde, horaHasta }),
+  }).toString();
   let leyenda = s ? `${servicio(s.servicio).texto} desde` : 'Sin servicios';
-  if (cantidad > 0) leyenda = `${rangoFechas(desde, hasta)} · ${cantidad} × ${s.unidad}`;
-  if (ocupado) leyenda = 'No está disponible en esas fechas';
+  if (cantidad > 0) {
+    leyenda = porHora
+      ? `${rangoFechas(desde, desde)} · ${horaDesde}–${horaHasta} · ${horas} h`
+      : `${rangoFechas(desde, hasta)} · ${n} ${n === 1 ? 'noche' : 'noches'}`;
+  }
+  if (ocupado) leyenda = porHora ? 'No está disponible a esa hora' : 'No está disponible en esas fechas';
 
   return (
     <main className="bs-perfil">

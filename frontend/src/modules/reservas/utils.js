@@ -1,9 +1,19 @@
+// Alojamiento por noche; los demás por hora, en un solo día (backend/src/shared/servicios.js).
 export const SERVICIOS = {
-  alojamiento: { texto: 'Alojamiento', unidad: 'noche' },
-  domicilio: { texto: 'Cuidado a domicilio', unidad: 'visita' },
-  paseo: { texto: 'Paseos', unidad: 'paseo' },
-  guarderia: { texto: 'Guardería de día', unidad: 'día' },
+  alojamiento: { texto: 'Alojamiento', unidad: 'noche', porHora: false },
+  domicilio: { texto: 'Cuidado a domicilio', unidad: 'hora', porHora: true },
+  paseo: { texto: 'Paseos', unidad: 'hora', porHora: true },
+  guarderia: { texto: 'Guardería de día', unidad: 'hora', porHora: true },
 };
+export const esPorHora = (servicio) => Boolean(SERVICIOS[servicio]?.porHora);
+// Horas en punto que se pueden reservar (07:00 a 22:00).
+export const HORAS = Array.from({ length: 16 }, (_, i) => `${String(i + 7).padStart(2, '0')}:00`);
+export const horasEntre = (desde, hasta) => (desde && hasta ? Number(hasta.slice(0, 2)) - Number(desde.slice(0, 2)) : 0);
+
+// "27 nov · 09:00–11:00" o "12 nov – 15 nov", según la reserva sea por horas o por días.
+export const cuandoReserva = (r) => (r.hora_inicio
+  ? `${fechaCorta(r.fecha_inicio)} · ${r.hora_inicio.slice(0, 5)}–${r.hora_fin.slice(0, 5)}`
+  : `${fechaCorta(r.fecha_inicio)} – ${fechaCorta(r.fecha_fin)}`);
 
 export const ESTADOS = {
   pendiente: 'Pendiente',

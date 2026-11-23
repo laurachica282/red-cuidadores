@@ -43,12 +43,7 @@ export function crearRouter({ servicios, autenticacion, fotos, limites = LIMITES
   // HU-09: las fotos de perfil son públicas (las ve cualquier viajero), con nombre imposible de adivinar.
   router.get('/fotos/:archivo', (req, res, next) => {
     if (!NOMBRE_VALIDO.test(req.params.archivo)) return next(new ErrorHttp(404, 'Foto no encontrada'));
-    res.sendFile(req.params.archivo, {
-      root: fotos.directorio,
-      maxAge: '7d',
-      immutable: true,
-      headers: { 'X-Content-Type-Options': 'nosniff', 'Cross-Origin-Resource-Policy': 'cross-origin' },
-    }, (err) => { if (err) next(new ErrorHttp(404, 'Foto no encontrada')); });
+    fotos.servir(res, req.params.archivo).catch(() => next(new ErrorHttp(404, 'Foto no encontrada')));
   });
 
   // HU-40: el usuario desactivado no puede iniciar sesión, así que estas dos van sin token.

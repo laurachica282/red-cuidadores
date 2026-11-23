@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { pool } from '../../db.js';
+import { ORDEN_SERVICIOS, SERVICIOS } from '../../shared/servicios.js';
 import { verificarToken } from '../auth/verificarToken.js';
 import { cifrar, descifrar } from './archivos.service.js';
 import { notificar } from './notificar.js';
@@ -49,15 +50,21 @@ const ultimaVerificacion = async (usuarioId) => {
 
 router.get('/mi-perfil', esCuidador, async (req, res) => {
   const id = req.usuario.id;
-  const [perfil, fotos, ultima, visible] = await Promise.all([
+  const [perfil, fotos, ultima, visible, servicios] = await Promise.all([
     pool.query('SELECT descripcion, tarifa_noche, tipos_mascota FROM perfiles_cuidador WHERE usuario_id = $1', [id]),
     pool.query(`SELECT id FROM archivos_cuidador WHERE usuario_id = $1 AND tipo = 'foto_espacio' AND activo ORDER BY id`, [id]),
     ultimaVerificacion(id),
     pool.query('SELECT 1 FROM cuidadores_visibles WHERE usuario_id = $1', [id]),
+    pool.query('SELECT servicio, tarifa FROM servicios_cuidador WHERE usuario_id = $1 AND activo', [id]),
   ]);
   const p = perfil.rows[0];
+  const ofrecidos = Object.fromEntries(servicios.rows.map((x) => [x.servicio, Number(x.tarifa)]));
   res.json({
     perfil: p ? { descripcion: p.descripcion ?? '', tarifaNoche: Number(p.tarifa_noche), tiposMascota: p.tipos_mascota } : null,
+    // Cada servicio con su unidad (noche u hora) y, si lo ofrece, su tarifa.
+    servicios: ORDEN_SERVICIOS.map((s) => ({
+      servicio: s, unidad: SERVICIOS[s].unidad, ofrece: s in ofrecidos, tarifa: ofrecidos[s] ?? null,
+    })),
     fotos: fotos.rows.map((f) => ({ id: f.id })),
     verificacion: ultima
       ? { estado: estadoVisible(ultima), motivoRechazo: ultima.motivo_rechazo, venceEn: ultima.vence_en, enviadaEn: ultima.creado_en }
@@ -66,10 +73,31 @@ router.get('/mi-perfil', esCuidador, async (req, res) => {
   });
 });
 
+// Los servicios que ofrece y su tarifa (alojamiento por noche; los demás por hora).
+// Compatibilidad: si solo llega tarifaNoche, se toma como el precio de alojamiento.
+function leerServicios(body) {
+  const lista = Array.isArray(body.servicios)
+    ? body.servicios
+    : [{ servicio: 'alojamiento', tarifa: body.tarifaNoche }];
+  const vistos = new Map();
+  for (const x of lista) {
+    if (!SERVICIOS[x?.servicio]) return { error: 'Servicio no válido' };
+    const tarifa = Number(x.tarifa);
+    if (!Number.isFinite(tarifa) || tarifa <= 0) {
+      return { error: `Escribe un precio por ${SERVICIOS[x.servicio].unidad} mayor a 0 para ${SERVICIOS[x.servicio].nombre.toLowerCase()}` };
+    }
+    vistos.set(x.servicio, tarifa);
+  }
+  if (vistos.size === 0) return { error: 'Elige al menos un servicio con su precio' };
+  return { servicios: vistos };
+}
+
 router.put('/mi-perfil', esCuidador, async (req, res) => {
-  const { descripcion = '', tarifaNoche, tiposMascota } = req.body;
-  const tarifa = Number(tarifaNoche);
-  if (!Number.isFinite(tarifa) || tarifa <= 0) return res.status(400).json({ error: 'Escribe una tarifa por noche mayor a 0' });
+  const { descripcion = '', tiposMascota } = req.body;
+  const { servicios, error } = leerServicios(req.body);
+  if (error) return res.status(400).json({ error });
+  // tarifa_noche se mantiene (la usan vistas y pantallas viejas): alojamiento, o el precio más bajo.
+  const tarifa = servicios.get('alojamiento') ?? Math.min(...servicios.values());
   if (!Array.isArray(tiposMascota) || tiposMascota.length === 0 || !tiposMascota.every((t) => TIPOS_MASCOTA.includes(t))) {
     return res.status(400).json({ error: 'Elige al menos un tipo de mascota' });
   }
@@ -82,6 +110,21 @@ router.put('/mi-perfil', esCuidador, async (req, res) => {
        SET descripcion = $2, tarifa_noche = $3, tipos_mascota = $4, actualizado_en = NOW()`,
     [req.usuario.id, String(descripcion).trim(), tarifa, tiposMascota]
   );
+  // RN-5: dejar de ofrecer un servicio es activo = false, no borrar.
+  for (const s of ORDEN_SERVICIOS) {
+    if (servicios.has(s)) {
+      await pool.query(
+        `INSERT INTO servicios_cuidador (usuario_id, servicio, tarifa) VALUES ($1, $2, $3)
+         ON CONFLICT (usuario_id, servicio) DO UPDATE SET tarifa = $3, activo = TRUE, actualizado_en = NOW()`,
+        [req.usuario.id, s, servicios.get(s)]
+      );
+    } else {
+      await pool.query(
+        'UPDATE servicios_cuidador SET activo = FALSE, actualizado_en = NOW() WHERE usuario_id = $1 AND servicio = $2',
+        [req.usuario.id, s]
+      );
+    }
+  }
   res.json({ ok: true });
 });
 

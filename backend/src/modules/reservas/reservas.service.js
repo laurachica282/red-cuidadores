@@ -1,9 +1,9 @@
 import { pool } from '../../db.js';
-import { hoyISO } from '../../shared/fecha.js';
+import { horaActual, hoyISO } from '../../shared/fecha.js';
+import { HORAS, SERVICIOS, esHora, esPorHora, horasEntre } from '../../shared/servicios.js';
 import { actualizarEstados } from './ciclo.js';
 import { aplicarCancelacion, cotizarCancelacion } from '../pagos/index.js';
 
-const SERVICIOS = ['alojamiento', 'domicilio', 'paseo', 'guarderia'];
 const MAX_DIAS = 60;
 const DIA_MS = 24 * 60 * 60 * 1000;
 
@@ -24,17 +24,34 @@ export const vencerPendientes = actualizarEstados;
 export async function crear(viajeroId, d) {
   if (!esId(d.cuidador_id)) throw new ErrorReserva(400, 'Elige un cuidador');
   if (!esId(d.mascota_id)) throw new ErrorReserva(400, 'Elige una mascota');
-  if (!SERVICIOS.includes(d.servicio)) throw new ErrorReserva(400, 'Elige un servicio válido');
-  if (!esFecha(d.fecha_inicio) || !esFecha(d.fecha_fin)) throw new ErrorReserva(400, 'Las fechas no son válidas');
+  if (!SERVICIOS[d.servicio]) throw new ErrorReserva(400, 'Elige un servicio válido');
   if (String(d.cuidador_id) === String(viajeroId)) throw new ErrorReserva(400, 'No puedes reservarte a ti mismo');
-
-  const noches = diasEntre(d.fecha_inicio, d.fecha_fin);
-  if (noches < 0) throw new ErrorReserva(400, 'La fecha de salida no puede ser anterior a la de entrada');
-  if (d.servicio === 'alojamiento' && noches < 1) throw new ErrorReserva(400, 'El alojamiento necesita al menos una noche');
-  if (noches > MAX_DIAS) throw new ErrorReserva(400, `La reserva no puede durar más de ${MAX_DIAS} días`);
-  const unidades = d.servicio === 'alojamiento' ? noches : noches + 1;
-
+  const porHora = esPorHora(d.servicio);
+  // Por horas es un solo día: la fecha de fin es la de inicio.
+  const fechaFin = porHora ? d.fecha_inicio : d.fecha_fin;
+  if (!esFecha(d.fecha_inicio) || !esFecha(fechaFin)) throw new ErrorReserva(400, 'Las fechas no son válidas');
   if (d.fecha_inicio < hoyISO()) throw new ErrorReserva(400, 'La fecha de entrada ya pasó');
+
+  let unidades;
+  let horaInicio = null;
+  let horaFin = null;
+  if (porHora) {
+    if (!esHora(d.hora_inicio) || !esHora(d.hora_fin)) throw new ErrorReserva(400, 'Elige la hora de inicio y de fin (horas en punto)');
+    unidades = horasEntre(d.hora_inicio, d.hora_fin);
+    if (unidades <= 0) throw new ErrorReserva(400, 'La hora de fin debe ser posterior a la de inicio');
+    if (unidades < HORAS.min || unidades > HORAS.max) {
+      throw new ErrorReserva(400, `El servicio debe durar entre ${HORAS.min} y ${HORAS.max} horas`);
+    }
+    if (d.fecha_inicio === hoyISO() && Number(d.hora_inicio.slice(0, 2)) <= horaActual()) {
+      throw new ErrorReserva(400, 'Esa hora ya pasó: elige una hora más tarde');
+    }
+    horaInicio = d.hora_inicio;
+    horaFin = d.hora_fin;
+  } else {
+    unidades = diasEntre(d.fecha_inicio, fechaFin);
+    if (unidades < 1) throw new ErrorReserva(400, 'El alojamiento necesita al menos una noche');
+    if (unidades > MAX_DIAS) throw new ErrorReserva(400, `La reserva no puede durar más de ${MAX_DIAS} días`);
+  }
 
   const masc = await pool.query(
     'SELECT id FROM mascotas WHERE id = $1 AND usuario_id = $2 AND status',
@@ -58,31 +75,34 @@ export async function crear(viajeroId, d) {
   if (viajero.rows[0]?.pais !== c.pais) throw new ErrorReserva(400, 'Solo puedes reservar cuidadores de tu región');
 
   await actualizarEstados(); // libera fechas de reservas que se cancelaron sin pago
+  // Se cruzan tramos de tiempo (21_servicios_por_hora.sql): dos paseos el mismo día a horas distintas sí caben.
   const cruce = await pool.query(
     `SELECT 1 FROM reservas
       WHERE cuidador_id = $1 AND estado IN ('confirmada', 'en_curso')
-        AND daterange(fecha_inicio, fecha_fin, '[]') && daterange($2::date, $3::date, '[]')
+        AND periodo && tsrange($2::date + COALESCE($4::time, TIME '00:00'),
+                               CASE WHEN $5::time IS NULL THEN ($3::date + 1)::timestamp ELSE $3::date + $5::time END, '[)')
       LIMIT 1`,
-    [d.cuidador_id, d.fecha_inicio, d.fecha_fin]
+    [d.cuidador_id, d.fecha_inicio, fechaFin, horaInicio, horaFin]
   );
-  if (cruce.rows[0]) throw new ErrorReserva(409, 'El cuidador ya tiene una reserva confirmada en esas fechas');
+  if (cruce.rows[0]) throw new ErrorReserva(409, porHora ? 'El cuidador ya tiene una reserva confirmada a esa hora' : 'El cuidador ya tiene una reserva confirmada en esas fechas');
 
   const nota = typeof d.nota === 'string' ? d.nota.trim().slice(0, 500) || null : null;
     const r = await pool.query(
     `INSERT INTO reservas
-       (viajero_id, cuidador_id, mascota_id, servicio, fecha_inicio, fecha_fin,
+       (viajero_id, cuidador_id, mascota_id, servicio, fecha_inicio, fecha_fin, hora_inicio, hora_fin,
         tarifa, moneda, unidades, total, responder_antes, nota)
-     VALUES ($1, $2, $3, $4, $5::date, $6::date,
+     VALUES ($1, $2, $3, $4, $5::date, $6::date, $11::time, $12::time,
              $7::numeric, $8, $9::integer, $7::numeric * $9::integer,
              NOW() + INTERVAL '24 hours', $10)
      RETURNING *`,
-    [viajeroId, d.cuidador_id, d.mascota_id, d.servicio, d.fecha_inicio, d.fecha_fin, c.tarifa, c.moneda, unidades, nota]
+    [viajeroId, d.cuidador_id, d.mascota_id, d.servicio, d.fecha_inicio, fechaFin, c.tarifa, c.moneda, unidades, nota, horaInicio, horaFin]
   );
   return r.rows[0];
 }
 
 const SELECCION = `
   SELECT r.*, r.fecha_inicio::text AS fecha_inicio, r.fecha_fin::text AS fecha_fin,
+         to_char(r.hora_inicio, 'HH24:MI') AS hora_inicio, to_char(r.hora_fin, 'HH24:MI') AS hora_fin,
          m.nombre AS mascota, uc.nombre AS cuidador, uv.nombre AS viajero
     FROM reservas r
     JOIN mascotas m  ON m.id = r.mascota_id

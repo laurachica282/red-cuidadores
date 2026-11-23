@@ -2,13 +2,15 @@ import { Router } from 'express';
 import { pool } from '../../db.js';
 import { verificarToken } from '../auth/verificarToken.js';
 import { buscarDirecciones, direccionDe } from './geocodificacion.js';
+import { hoyISO } from '../../shared/fecha.js';
+import { ORDEN_SERVICIOS, SERVICIOS as DEF_SERVICIOS, esHora, esPorHora } from '../../shared/servicios.js';
 
 const router = Router();
 router.use(verificarToken);
 
 const TIPOS_MASCOTA = new Set(['perro', 'gato', 'ave', 'conejo', 'otro']);
-// Servicios de 12_servicios_cuidador.sql, en el orden del mockup, con la unidad de su tarifa.
-const SERVICIOS = { alojamiento: 'noche', domicilio: 'visita', paseo: 'paseo', guarderia: 'día' };
+// Servicios (shared/servicios.js) con la unidad de su tarifa: alojamiento por noche, los demás por hora.
+const SERVICIOS = Object.fromEntries(ORDEN_SERVICIOS.map((k) => [k, DEF_SERVICIOS[k].unidad]));
 const ORDENES = {
   calificacion: 'calificacion_promedio DESC NULLS LAST, d.distancia_km ASC NULLS LAST, s.tarifa ASC',
   distancia: 'd.distancia_km ASC NULLS LAST, calificacion_promedio DESC NULLS LAST',
@@ -26,13 +28,30 @@ const numeroOpcional = (t) => (t === undefined || t === '' ? null : Number(t));
 const esLatitud = (n) => Number.isFinite(n) && n >= -90 && n <= 90;
 const esLongitud = (n) => Number.isFinite(n) && n >= -180 && n <= 180;
 
-function errorFechas(desde, hasta) {
-  if (!desde && !hasta) return null;
-  if (!esFecha(desde) || !esFecha(hasta)) return 'Elige fecha de inicio y de fin';
-  if (desde >= hasta) return 'La fecha de fin debe ser posterior a la de inicio';
-  if (desde < new Date().toISOString().slice(0, 10)) return 'La fecha de inicio ya pasó';
-  return null;
+// Fechas y horas de la búsqueda. Alojamiento: entrada < salida. Por horas: un día (hasta = desde)
+// y, si se eligen, hora de inicio y de fin. Sin servicio: un día o un rango.
+// Devuelve { error } o { desde, hasta, horaDesde, horaHasta } listos para el tramo de tiempo.
+function leerFechas(q, servicio) {
+  const porHora = esPorHora(servicio);
+  const desde = String(q.desde ?? '');
+  const hasta = porHora ? desde : String(q.hasta ?? '') || desde;
+  const horaDesde = q.horaDesde ? String(q.horaDesde) : null;
+  const horaHasta = q.horaHasta ? String(q.horaHasta) : null;
+  const vacio = { desde: '', hasta: '', horaDesde: null, horaHasta: null };
+  if (!desde) return vacio;
+  if (!esFecha(desde) || !esFecha(hasta)) return { error: 'Elige la fecha' };
+  if (desde < hoyISO()) return { error: 'La fecha de inicio ya pasó' };
+  if (servicio === 'alojamiento' && desde >= hasta) return { error: 'La fecha de salida debe ser posterior a la de entrada' };
+  if (desde > hasta) return { error: 'La fecha de fin no puede ser anterior a la de inicio' };
+  if (!porHora || (!horaDesde && !horaHasta)) return { desde, hasta, horaDesde: null, horaHasta: null };
+  if (!esHora(horaDesde) || !esHora(horaHasta) || horaHasta <= horaDesde) return { error: 'La hora de fin debe ser posterior a la de inicio' };
+  return { desde, hasta, horaDesde, horaHasta };
 }
+
+// Tramo de tiempo buscado (mismo cálculo que reservas.periodo, 21_servicios_por_hora.sql).
+// $a desde, $b hasta, $c hora desde, $d hora hasta.
+const tramo = (a, b, c, d) => `tsrange(${a}::date + COALESCE(${c}::time, TIME '00:00'),
+  CASE WHEN ${d}::time IS NULL THEN (${b}::date + 1)::timestamp ELSE ${b}::date + ${d}::time END, '[)')`;
 
 function errorUbicacion(lat, lng, radioKm) {
   if ((lat === null) !== (lng === null)) return 'La ubicación está incompleta';
@@ -54,8 +73,6 @@ function leerFiltros(q) {
   const lat = numeroOpcional(q.lat);
   const lng = numeroOpcional(q.lng);
   const radioKm = numeroOpcional(q.radioKm) ?? RADIO_KM.defecto;
-  const desde = String(q.desde ?? '');
-  const hasta = String(q.hasta ?? '');
   const orden = ORDENES[q.orden] ? q.orden : 'calificacion';
 
   if (tipo && !TIPOS_MASCOTA.has(tipo)) return { error: 'Tipo de mascota no válido' };
@@ -66,9 +83,11 @@ function leerFiltros(q) {
   if (precioMin !== null && precioMax !== null && precioMin > precioMax) {
     return { error: 'El precio mínimo no puede ser mayor que el máximo' };
   }
-  const error = errorUbicacion(lat, lng, radioKm) ?? errorFechas(desde, hasta);
+  const error = errorUbicacion(lat, lng, radioKm);
   if (error) return { error };
-  return { texto, ciudad, tipo, servicio, precioMin, precioMax, lat, lng, radioKm, desde, hasta, orden };
+  const fechas = leerFechas(q, servicio);
+  if (fechas.error) return { error: fechas.error };
+  return { texto, ciudad, tipo, servicio, precioMin, precioMax, lat, lng, radioKm, ...fechas, orden };
 }
 
 /* ───────────── HU-15: buscar cuidadores ───────────── */
@@ -145,10 +164,10 @@ router.get('/cuidadores', async (req, res) => {
           AND ($12::date IS NULL OR NOT EXISTS (
             SELECT 1 FROM reservas x
              WHERE x.cuidador_id = v.usuario_id AND x.estado IN ('confirmada', 'en_curso')
-               AND daterange(x.fecha_inicio, x.fecha_fin, '[]') && daterange($12::date, $13::date, '[]')
+               AND x.periodo && ${tramo('$12', '$13', '$14', '$15')}
           ))
         ORDER BY ${ORDENES[f.orden]}, v.nombre`,
-      [req.usuario.id, f.texto, f.tipo, f.precioMin, f.precioMax, filtroCiudad, f.lat, f.lng, f.radioKm, f.servicio, Object.keys(SERVICIOS), f.desde || null, f.hasta || null]
+      [req.usuario.id, f.texto, f.tipo, f.precioMin, f.precioMax, filtroCiudad, f.lat, f.lng, f.radioKm, f.servicio, Object.keys(SERVICIOS), f.desde || null, f.hasta || null, f.horaDesde, f.horaHasta]
     );
 
     res.json({
@@ -221,10 +240,10 @@ router.get('/direcciones/inversa', async (req, res) => {
 
 router.get('/cuidadores/:id', async (req, res) => {
   if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: 'Este cuidador no está disponible' });
-  const desde = String(req.query.desde ?? '');
-  const hasta = String(req.query.hasta ?? '');
-  const conFechas = Boolean(desde || hasta);
-  if (conFechas && errorFechas(desde, hasta)) return res.status(400).json({ error: errorFechas(desde, hasta) });
+  const servicio = SERVICIOS[req.query.servicio] ? String(req.query.servicio) : '';
+  const fechas = leerFechas(req.query, servicio);
+  if (fechas.error) return res.status(400).json({ error: fechas.error });
+  const conFechas = Boolean(fechas.desde);
 
   try {
     const r = await pool.query(
@@ -269,9 +288,9 @@ router.get('/cuidadores/:id', async (req, res) => {
         ? pool.query(
           `SELECT 1 FROM reservas
             WHERE cuidador_id = $1 AND estado IN ('confirmada', 'en_curso')
-              AND daterange(fecha_inicio, fecha_fin, '[]') && daterange($2::date, $3::date, '[]')
+              AND periodo && ${tramo('$2', '$3', '$4', '$5')}
             LIMIT 1`,
-          [c.usuario_id, desde, hasta]
+          [c.usuario_id, fechas.desde, fechas.hasta, fechas.horaDesde, fechas.horaHasta]
         )
         : null,
     ]);

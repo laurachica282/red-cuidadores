@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { IconCerrar, IconLupa } from './Iconos.jsx';
+import { IconCerrar, IconLupa, IconUbicacion } from './Iconos.jsx';
+import { direccionDe } from '../services/busquedaService.js';
+import { obtenerMiUbicacion } from '../ubicacion.js';
 import MapaDireccion from './MapaDireccion.jsx';
-import { SERVICIOS, TIPOS_MASCOTA, hoyISO, servicio } from '../utils.js';
+import { HORAS, SERVICIOS, TIPOS_MASCOTA, esPorHora, hoyISO, servicio } from '../utils.js';
 import { FILTROS_VACIOS, ORDENES, RADIOS_KM, errorFechas } from '../filtros.js';
 
 // Fila de botones donde se elige una sola opción.
@@ -47,12 +49,46 @@ export default function PanelFiltros({ inicial, zonaInicial, ciudades, pais, mon
     if (f.orden === 'distancia') cambiar('orden', FILTROS_VACIOS.orden);
   };
   const elegirLugar = (punto) => setZona({ punto, ciudad: undefined });
+  // Atajo "Cerca de mí" junto a las ciudades: ubica a la persona y busca alrededor.
+  const [buscandoMiUbicacion, setBuscandoMiUbicacion] = useState(false);
+  const [errorUbicacion, setErrorUbicacion] = useState('');
+  const cercaDeMi = async () => {
+    setBuscandoMiUbicacion(true);
+    setErrorUbicacion('');
+    try {
+      const { lat, lng } = await obtenerMiUbicacion();
+      const { direccion } = await direccionDe(lat, lng).catch(() => ({}));
+      const punto = direccion ?? { etiqueta: 'Mi ubicación', barrio: null, ciudad: null, lat, lng };
+      setZona({ punto: { ...punto, miUbicacion: true }, ciudad: undefined });
+      setVersionMapa((v) => v + 1);
+    } catch (e) {
+      setErrorUbicacion(e.message);
+    } finally {
+      setBuscandoMiUbicacion(false);
+    }
+  };
   const ubicando = zona.punto?.etiqueta === 'Ubicando…';
   const opcionesZona = [
     ...ciudades.map((c) => ({ valor: c.nombre, texto: `${c.nombre} (${c.cantidad})` })),
     { valor: 'todas', texto: `Todo ${pais ?? 'el país'}` },
   ];
-  const cambiarEntrada = (valor) => setF((a) => ({ ...a, desde: valor, hasta: a.hasta && valor >= a.hasta ? '' : a.hasta }));
+  const cambiarEntrada = (valor) => setF((a) => ({
+    ...a, desde: valor,
+    hasta: a.hasta && (valor > a.hasta || (a.servicio === 'alojamiento' && valor === a.hasta)) ? '' : a.hasta,
+  }));
+  // Al cambiar de servicio se acomodan las fechas: por hora es un solo día; alojamiento no usa horas.
+  const elegirServicio = (valor) => setF((a) => {
+    const n = { ...a, servicio: valor };
+    if (esPorHora(valor)) n.hasta = '';
+    else { n.horaDesde = ''; n.horaHasta = ''; }
+    return n;
+  });
+  const cambiarHoraDesde = (valor) => setF((a) => {
+    // Si la de fin queda antes, se corre a una hora después.
+    const fin = a.horaHasta && a.horaHasta > valor ? a.horaHasta : HORAS[HORAS.indexOf(valor) + 1] ?? '';
+    return { ...a, horaDesde: valor, horaHasta: valor ? fin : a.horaHasta };
+  });
+  const porHora = esPorHora(f.servicio);
 
   return (
     <div className="bs-capa">
@@ -78,27 +114,62 @@ export default function PanelFiltros({ inicial, zonaInicial, ciudades, pais, mon
                   </button>
                 );
               })}
+              <button type="button" aria-pressed={Boolean(zona.punto?.miUbicacion)} disabled={buscandoMiUbicacion}
+                className={`bs-chip bs-chip--ubicacion${zona.punto?.miUbicacion ? ' bs-chip--activo' : ''}`} onClick={cercaDeMi}>
+                <IconUbicacion width="16" height="16" /> {buscandoMiUbicacion ? 'Ubicando…' : 'Cerca de mí'}
+              </button>
             </div>
+            {errorUbicacion && <p className="bs-error" role="alert">{errorUbicacion}</p>}
           </fieldset>
 
           <fieldset className="bs-grupo">
             <legend>Tipo de servicio</legend>
             <Opciones opciones={[{ valor: '', texto: 'Todos' }, ...SERVICIOS.map((s) => ({ valor: s.valor, texto: s.corto ?? s.texto }))]}
-              valor={f.servicio} onElegir={(v) => cambiar('servicio', v)} />
+              valor={f.servicio} onElegir={elegirServicio} />
+            {f.servicio && (
+              <p className="bs-ayuda">
+                {porHora ? 'Se cobra por hora, en un solo día.' : 'Se cobra por noche: la mascota duerme en casa del cuidador.'}
+              </p>
+            )}
           </fieldset>
 
           <fieldset className="bs-grupo">
-            <legend>Fechas</legend>
-            <div className="bs-precios">
-              <label>
-                <span className="label">Entrada</span>
-                <input className="input" type="date" min={hoy} value={f.desde} onChange={(e) => cambiarEntrada(e.target.value)} />
-              </label>
-              <label>
-                <span className="label">Salida</span>
-                <input className="input" type="date" min={f.desde || hoy} value={f.hasta} onChange={(e) => cambiar('hasta', e.target.value)} />
-              </label>
-            </div>
+            <legend>{porHora ? 'Día y horario' : 'Fechas'}</legend>
+            {porHora ? (
+              <>
+                <label className="bs-campo-dia">
+                  <span className="label">Día</span>
+                  <input className="input" type="date" min={hoy} value={f.desde} onChange={(e) => cambiar('desde', e.target.value)} />
+                </label>
+                <div className="bs-precios">
+                  <label>
+                    <span className="label">Desde</span>
+                    <select className="input" value={f.horaDesde} onChange={(e) => cambiarHoraDesde(e.target.value)}>
+                      <option value="">Cualquier hora</option>
+                      {HORAS.slice(0, -1).map((h) => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <span className="label">Hasta</span>
+                    <select className="input" value={f.horaHasta} disabled={!f.horaDesde} onChange={(e) => cambiar('horaHasta', e.target.value)}>
+                      <option value="">—</option>
+                      {HORAS.filter((h) => h > f.horaDesde).map((h) => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </label>
+                </div>
+              </>
+            ) : (
+              <div className="bs-precios">
+                <label>
+                  <span className="label">{f.servicio === 'alojamiento' ? 'Entrada' : 'Desde'}</span>
+                  <input className="input" type="date" min={hoy} value={f.desde} onChange={(e) => cambiarEntrada(e.target.value)} />
+                </label>
+                <label>
+                  <span className="label">{f.servicio === 'alojamiento' ? 'Salida' : 'Hasta (opcional)'}</span>
+                  <input className="input" type="date" min={f.desde || hoy} value={f.hasta} onChange={(e) => cambiar('hasta', e.target.value)} />
+                </label>
+              </div>
+            )}
             {errorFecha && <p className="bs-error" role="alert">{errorFecha}</p>}
           </fieldset>
 
@@ -108,7 +179,7 @@ export default function PanelFiltros({ inicial, zonaInicial, ciudades, pais, mon
           </fieldset>
 
           <fieldset className="bs-grupo">
-            <legend>{f.servicio ? `Precio por ${servicio(f.servicio).unidad}` : 'Precio del servicio'} ({moneda})</legend>
+            <legend>{f.servicio ? `Precio por ${servicio(f.servicio).unidad}` : 'Precio (por noche o por hora)'} ({moneda})</legend>
             <div className="bs-precios">
               <label>
                 <span className="label">Mínimo</span>

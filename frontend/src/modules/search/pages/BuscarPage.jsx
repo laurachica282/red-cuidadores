@@ -6,9 +6,9 @@ import { buscarCuidadores, urlApi } from '../services/busquedaService.js';
 import { IconEscudo, IconEstrella, IconLupa, IconUbicacion } from '../components/Iconos.jsx';
 import MapaResultados from '../components/MapaResultados.jsx';
 import PanelFiltros from '../components/PanelFiltros.jsx';
-import { FILTROS_VACIOS, contarFiltros, resumirFiltros } from '../filtros.js';
+import { FILTROS_VACIOS, contarFiltros, fechasParaBuscar, resumirFiltros, textoFechas } from '../filtros.js';
 import { guardarPunto, leerPunto, nombreCorto } from '../ubicacion.js';
-import { SERVICIOS, formatoCalificacion, iniciales, noches, rangoFechas } from '../utils.js';
+import { SERVICIOS, formatoCalificacion, hoyISO, iniciales, noches, rangoFechas } from '../utils.js';
 import '../busqueda.css';
 
 const MAX_SERVICIOS = 2;
@@ -49,13 +49,16 @@ export default function BuscarPage() {
   const [error, setError] = useState('');
   const [respondida, setRespondida] = useState('');
 
-  const { desde, hasta, radioKm, ...resto } = { ...FILTROS_VACIOS, ...filtros };
-  const fechasListas = Boolean(desde && hasta);
+  const completos = { ...FILTROS_VACIOS, ...filtros };
+  const { desde, hasta, horaDesde, horaHasta, radioKm, ...resto } = completos;
+  // Las fechas y horas que se envían dependen del servicio (alojamiento: rango; por hora: día y horas).
+  const fechas = fechasParaBuscar(completos, hoyISO());
+  const fechasListas = Boolean(fechas.desde);
   const clave = JSON.stringify({
     ...resto,
     q: resto.q.trim(),
     ...(punto ? { lat: punto.lat, lng: punto.lng, radioKm } : { ciudad }),
-    ...(fechasListas && { desde, hasta }),
+    ...fechas,
   });
   // Se está cargando mientras la última respuesta no corresponda a los filtros actuales.
   const cargando = respondida !== clave;
@@ -94,12 +97,11 @@ export default function BuscarPage() {
   const lista = vista ? resultados.filter((c) => c.ubicacion && vista.contains([c.ubicacion.lat, c.ubicacion.lng])) : resultados;
   const verTodos = () => { setVista(null); setVersionMapa((v) => v + 1); };
   const moneda = ubicacion?.moneda ?? 'COP';
-  const n = noches(desde, hasta);
   const activos = contarFiltros({ ...FILTROS_VACIOS, ...filtros });
   const resumen = resumirFiltros({ ...FILTROS_VACIOS, ...filtros }, precio, moneda);
   const enlacePerfil = (c) => {
     const params = new URLSearchParams();
-    if (fechasListas) { params.set('desde', desde); params.set('hasta', hasta); }
+    Object.entries(fechas).forEach(([k, v]) => params.set(k, v));
     if (filtros.servicio) params.set('servicio', filtros.servicio);
     if (c.distanciaKm !== null) params.set('km', c.distanciaKm);
     const qs = params.toString();
@@ -114,7 +116,7 @@ export default function BuscarPage() {
   if (ciudadElegida === 'todas') zonaTexto = `Todo ${ubicacion?.paisNombre ?? 'el país'}`;
   if (punto) zonaTexto = nombreCorto(punto);
   if (!datos && !punto) zonaTexto = 'Buscar cuidador';
-  const etiquetas = fechasListas ? [`${rangoFechas(desde, hasta)} · ${n} ${n === 1 ? 'noche' : 'noches'}`, ...resumen] : resumen;
+  const etiquetas = fechasListas ? [textoFechas(completos, rangoFechas, noches), ...resumen] : resumen;
 
   return (
     <main className="page bs-page">
