@@ -136,6 +136,15 @@ agregarTextos({
     'seguimiento.emerg.listo': 'Listo',
     'seguimiento.emerg.enviando': 'Enviando…',
     'seguimiento.emerg.enviar': 'Enviar aviso de emergencia',
+    // Emergencia activada por el cuidador
+    'seguimiento.emerg.motivo.mascota_enferma': 'La mascota está enferma o herida',
+    'seguimiento.emerg.motivo.mascota_perdida': 'La mascota se perdió',
+    'seguimiento.emerg.motivo.sin_dueno': 'No puedo comunicarme con el dueño',
+    'seguimiento.emerg.motivo.casa': 'Accidente o daño en la casa',
+    'seguimiento.emerg.mensaje_defecto_cuidador': 'El cuidador activó el botón de emergencia.',
+    'seguimiento.emerg.aviso_dueno': 'Avisaremos al dueño de inmediato.',
+    'seguimiento.emerg.dueno_de': '{nombre}, dueño de {mascota}',
+    'seguimiento.emerg.avisamos_dueno': 'Avisamos a {nombre} y a soporte.',
 
     // Pantalla de contactos de emergencia
     'seguimiento.contactos.titulo': 'Emergencias',
@@ -167,6 +176,7 @@ agregarTextos({
     'seguimiento.chat.escribir': 'Escribe un mensaje',
     'seguimiento.chat.mensaje': 'Mensaje',
     'seguimiento.chat.enviar': 'Enviar',
+    'seguimiento.chat.terminado': 'Este servicio ya terminó. Puedes leer la conversación, pero ya no se pueden enviar mensajes.',
     'seguimiento.chat.cerrado': 'El chat se cerró el {fecha}, 7 días después del servicio. El historial queda como evidencia.',
 
     // Campana y notificaciones
@@ -334,6 +344,14 @@ agregarTextos({
     'seguimiento.emerg.listo': 'Done',
     'seguimiento.emerg.enviando': 'Sending…',
     'seguimiento.emerg.enviar': 'Send emergency alert',
+    'seguimiento.emerg.motivo.mascota_enferma': 'The pet is sick or hurt',
+    'seguimiento.emerg.motivo.mascota_perdida': 'The pet got lost',
+    'seguimiento.emerg.motivo.sin_dueno': 'I can’t reach the owner',
+    'seguimiento.emerg.motivo.casa': 'Accident or damage at the house',
+    'seguimiento.emerg.mensaje_defecto_cuidador': 'The caregiver pressed the emergency button.',
+    'seguimiento.emerg.aviso_dueno': 'We’ll notify the owner right away.',
+    'seguimiento.emerg.dueno_de': '{nombre}, {mascota}’s owner',
+    'seguimiento.emerg.avisamos_dueno': 'We notified {nombre} and support.',
 
     'seguimiento.contactos.titulo': 'Emergencies',
     'seguimiento.contactos.sub': 'If something happens during a service, we’ll notify this person and show you your pet’s vet.',
@@ -363,6 +381,7 @@ agregarTextos({
     'seguimiento.chat.escribir': 'Write a message',
     'seguimiento.chat.mensaje': 'Message',
     'seguimiento.chat.enviar': 'Send',
+    'seguimiento.chat.terminado': 'This service has ended. You can read the conversation, but no more messages can be sent.',
     'seguimiento.chat.cerrado': 'The chat closed on {fecha}, 7 days after the service. The history is kept as evidence.',
 
     'seguimiento.notif.titulo': 'Notifications',
@@ -529,6 +548,14 @@ agregarTextos({
     'seguimiento.emerg.listo': 'Pronto',
     'seguimiento.emerg.enviando': 'Enviando…',
     'seguimiento.emerg.enviar': 'Enviar alerta de emergência',
+    'seguimiento.emerg.motivo.mascota_enferma': 'O pet está doente ou ferido',
+    'seguimiento.emerg.motivo.mascota_perdida': 'O pet se perdeu',
+    'seguimiento.emerg.motivo.sin_dueno': 'Não consigo falar com o dono',
+    'seguimiento.emerg.motivo.casa': 'Acidente ou dano na casa',
+    'seguimiento.emerg.mensaje_defecto_cuidador': 'O cuidador acionou o botão de emergência.',
+    'seguimiento.emerg.aviso_dueno': 'Avisaremos o dono imediatamente.',
+    'seguimiento.emerg.dueno_de': '{nombre}, dono de {mascota}',
+    'seguimiento.emerg.avisamos_dueno': 'Avisamos {nombre} e o suporte.',
 
     'seguimiento.contactos.titulo': 'Emergências',
     'seguimiento.contactos.sub': 'Se algo acontecer durante um serviço, avisaremos esta pessoa e mostraremos o veterinário do seu pet.',
@@ -558,6 +585,7 @@ agregarTextos({
     'seguimiento.chat.escribir': 'Escreva uma mensagem',
     'seguimiento.chat.mensaje': 'Mensagem',
     'seguimiento.chat.enviar': 'Enviar',
+    'seguimiento.chat.terminado': 'Este serviço já terminou. Você pode ler a conversa, mas não é possível enviar mais mensagens.',
     'seguimiento.chat.cerrado': 'O chat foi encerrado em {fecha}, 7 dias após o serviço. O histórico fica como evidência.',
 
     'seguimiento.notif.titulo': 'Notificações',

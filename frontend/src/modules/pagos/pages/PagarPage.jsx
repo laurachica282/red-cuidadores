@@ -141,6 +141,14 @@ export default function PagarPage() {
           </p>
           <p className="pg-texto">{fecha(reserva.fecha_inicio)} → {fecha(reserva.fecha_fin)}</p>
           <p className="pg-valor">{precio(reserva.total, moneda)}</p>
+          {/* Plazo para pagar: lo fija el servidor cuando el cuidador confirma. */}
+          {pagable && reserva.pagar_antes && (
+            <p className="pg-texto pg-plazo">
+              {t('pagos.paga_antes', {
+                fecha: new Date(reserva.pagar_antes).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' }),
+              })}
+            </p>
+          )}
         </div>
       )}
 

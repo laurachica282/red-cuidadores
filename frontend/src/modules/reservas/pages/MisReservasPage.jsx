@@ -3,10 +3,14 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/modules/auth';
 import { useIdioma } from '@/modules/region';
 import { BotonEmergencia, Campana, resumenReservas } from '@/modules/seguimiento';
-import { cancelarReserva, confirmarReserva, cotizarCancelacion, rechazarReserva, reservasMias, reservasRecibidas, misPagos } from '../services/reservasService.js';
 import {
-  cuandoReserva, fechaCorta, fechaHora, nombreServicio, precio, textoDetallePago, textoEstado, textoMotivo, textoPolitica,
+  cancelarComoCuidador, cancelarReserva, confirmarReserva, cotizarCancelacion, rechazarReserva, reservasMias, reservasRecibidas, misPagos,
+} from '../services/reservasService.js';
+import {
+  MOTIVOS_CUIDADOR, cuandoReserva, fechaCorta, fechaHora, nombreServicio, nombresMascotas, precio, textoDetallePago, textoEstado,
+  textoMotivo, textoMotivoCuidador, textoPolitica,
 } from '../utils.js';
+import Desplegable from '@/shared/components/Desplegable.jsx';
 import '../i18n.js';
 import './reservas.css';
 
@@ -38,12 +42,70 @@ function textoPago(t, pago, esCuidador, moneda) {
       : t('reservas.pago.retenido_viajero', { detalle: textoDetallePago(pago.detalle) });
   }
   if (pago.estado === 'liberado') {
-    if (esCuidador) return t('reservas.pago.liberado_cuidador', { neto: $(pago.neto_cuidador), comision });
+    if (esCuidador) {
+      // Si se descontó una multa por una cancelación anterior, se muestra aparte (neto ya viene descontado).
+      const multa = Number(pago.multa_descontada ?? 0);
+      const texto = t('reservas.pago.liberado_cuidador', { neto: $(pago.neto_cuidador), comision });
+      return multa > 0 ? `${texto} ${t('reservas.pago.menos_multa', { multa: $(multa) })}` : texto;
+    }
     return devuelto > 0 ? t('reservas.pago.liberado_parcial', { monto: $(devuelto) }) : t('reservas.pago.liberado_viajero');
   }
   return esCuidador
     ? t('reservas.pago.reembolsado_cuidador')
     : t('reservas.pago.reembolsado_viajero', { monto: $(devuelto || pago.monto) });
+}
+
+// El cuidador cancela una reserva que ya aceptó: motivo, detalle obligatorio y aviso de lo que pasa.
+const MIN_DETALLE = 10;
+function CancelarComoCuidador({ reserva, onListo, onVolver }) {
+  const { t } = useIdioma();
+  const [motivo, setMotivo] = useState(MOTIVOS_CUIDADOR[0]);
+  const [detalle, setDetalle] = useState('');
+  const [error, setError] = useState('');
+  const [enviando, setEnviando] = useState(false);
+
+  async function confirmar() {
+    if (detalle.trim().length < MIN_DETALLE) {
+      setError(t('reservas.cancelar_cuidador.detalle_corto', { min: MIN_DETALLE }));
+      return;
+    }
+    setError('');
+    setEnviando(true);
+    try {
+      await cancelarComoCuidador(reserva.id, motivo, detalle.trim());
+      onListo();
+    } catch (e) {
+      setError(e.message);
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="rs-cancelar" role="alertdialog" aria-labelledby={`cancelar-cuidador-${reserva.id}`}>
+      <p id={`cancelar-cuidador-${reserva.id}`} className="rs-cancelar-titulo"><strong>{t('reservas.cancelar_cuidador.titulo')}</strong></p>
+      <p className="rs-texto">{t('reservas.cancelar_cuidador.aviso')}</p>
+      <div className="rs-form-chico">
+        <div>
+          <label className="label" htmlFor={`motivo-cuidador-${reserva.id}`}>{t('reservas.cancelar_cuidador.motivo')}</label>
+          <Desplegable id={`motivo-cuidador-${reserva.id}`} className="input" value={motivo} onChange={(e) => setMotivo(e.target.value)}>
+            {MOTIVOS_CUIDADOR.map((m) => <option key={m} value={m}>{textoMotivoCuidador(m)}</option>)}
+          </Desplegable>
+        </div>
+        <div>
+          <label className="label" htmlFor={`detalle-cuidador-${reserva.id}`}>{t('reservas.cancelar_cuidador.detalle')}</label>
+          <textarea id={`detalle-cuidador-${reserva.id}`} className="input rs-nota" maxLength={500} required value={detalle}
+            placeholder={t('reservas.cancelar_cuidador.detalle_ph')} onChange={(e) => setDetalle(e.target.value)} />
+        </div>
+      </div>
+      {error && <p className="rs-aviso rs-aviso--error" role="alert">{error}</p>}
+      <div className="rs-acciones">
+        <button type="button" className="btn-primary rs-boton-peligro" disabled={enviando} onClick={confirmar}>
+          {enviando ? t('reservas.enviando') : t('reservas.cancelar_cuidador.confirmar')}
+        </button>
+        <button type="button" className="rs-boton-claro" onClick={onVolver}>{t('reservas.volver')}</button>
+      </div>
+    </div>
+  );
 }
 
 export default function MisReservasPage() {
@@ -61,6 +123,8 @@ export default function MisReservasPage() {
   const [pagos, setPagos] = useState({});
   // HU-21: reserva que se está por cancelar, con lo que se devolvería.
   const [cancelando, setCancelando] = useState(null);
+  // Reserva aceptada que el cuidador está por cancelar.
+  const [cancelandoCuidador, setCancelandoCuidador] = useState(null);
 
   const cargar = useCallback(async () => {
     if (rol === 'admin') {
@@ -162,7 +226,7 @@ export default function MisReservasPage() {
                 </div>
                 <p className="rs-texto">
                   {esCuidador ? t('reservas.viajero', { nombre: r.viajero }) : t('reservas.cuidador', { nombre: r.cuidador })}
-                  {' · '}{t('reservas.mascota', { nombre: r.mascota })}
+                  {' · '}{t((r.mascotas?.length ?? 1) > 1 ? 'reservas.mascotas' : 'reservas.mascota', { nombre: nombresMascotas(r) })}
                 </p>
                 <p className="rs-texto">
                   {cuandoReserva(r)} · <strong>{precio(r.total, r.moneda.trim())}</strong>
@@ -174,11 +238,22 @@ export default function MisReservasPage() {
                 {['rechazada', 'cancelada'].includes(r.estado) && r.motivo_rechazo && (
                   <p className="rs-texto">{t('reservas.motivo', { motivo: textoMotivo(r.motivo_rechazo) })}</p>
                 )}
+                {r.estado === 'cancelada' && r.cancelacion_cuidador_motivo && (
+                  <p className="rs-texto rs-texto--aviso">
+                    {esCuidador
+                      ? t(`reservas.cancelaste.${r.cancelacion_cuidador_estado}`, {
+                        motivo: textoMotivoCuidador(r.cancelacion_cuidador_motivo),
+                        multa: precio(r.cancelacion_cuidador_multa ?? 0, r.moneda.trim()),
+                      })
+                      : t('reservas.cancelo_cuidador', { motivo: textoMotivoCuidador(r.cancelacion_cuidador_motivo) })}
+                  </p>
+                )}
                 {r.estado === 'confirmada' && !pago && (
                   <p className="rs-texto rs-texto--aviso">
                     {(() => {
-                      // Alojamiento: se paga hasta el día de inicio; por horas, antes de la hora de inicio.
-                      const plazo = r.hora_inicio
+                      // El plazo lo fija el servidor al confirmar (24 h o el inicio, lo que llegue primero).
+                      // Reservas sin plazo guardado: alojamiento hasta el día de inicio; por horas, antes de la hora de inicio.
+                      const plazo = r.pagar_antes ? t('reservas.plazo_fecha', { fecha: fechaHora(r.pagar_antes) }) : r.hora_inicio
                         ? t('reservas.plazo_hora', { hora: r.hora_inicio.slice(0, 5), fecha: fechaCorta(r.fecha_inicio) })
                         : t('reservas.plazo_dia', { fecha: fechaCorta(r.fecha_inicio) });
                       return esCuidador ? t('reservas.esperando_pago', { plazo }) : t('reservas.paga_plazo', { plazo });
@@ -188,8 +263,9 @@ export default function MisReservasPage() {
                 <span className="rs-ver">{t('reservas.ver_reserva')}</span>
               </Link>
 
-              {/* Reportes, chat y emergencia de la reserva (módulo seguimiento, HU-30/31/28). */}
-              {CON_SEGUIMIENTO.includes(r.estado) && (
+              {/* Reportes, chat y emergencia de la reserva (módulo seguimiento, HU-30/31/28).
+                  Si ya terminó, solo se consulta desde "Ver reserva": no hay nada más que escribir ni subir. */}
+              {CON_SEGUIMIENTO.includes(r.estado) && fase(r) !== 'terminada' && (
                 <div className="rs-seguimiento">
                   <Link className="rs-boton-seguimiento" to={`/reservas/${r.id}/seguimiento`} state={{ desde: 'reservas' }}>
                     {t('reservas.seguimiento')}{s?.resumen.reportes ? <span className="rs-cuenta">{s.resumen.reportes}</span> : ''}
@@ -197,7 +273,7 @@ export default function MisReservasPage() {
                   <Link className="rs-boton-seguimiento" to={`/reservas/${r.id}/chat`} state={{ desde: 'reservas' }}>
                     {t('reservas.chat')}{s?.resumen.sinLeer ? <span className="rs-sin-leer">{s.resumen.sinLeer}</span> : ''}
                   </Link>
-                  {enCurso && !esCuidador && <BotonEmergencia reservaId={r.id} className="rs-emergencia" />}
+                  {enCurso && <BotonEmergencia reservaId={r.id} className="rs-emergencia" />}
                 </div>
               )}
               {pago && <p className="rs-texto">{textoPago(t, pago, esCuidador, r.moneda.trim())}</p>}
@@ -212,6 +288,18 @@ export default function MisReservasPage() {
                     {t('reservas.cancelar_reserva')}
                   </button>
                 </div>
+              )}
+              {esCuidador && ['confirmada', 'en_curso'].includes(r.estado) && fase(r) !== 'terminada' && (
+                cancelandoCuidador === r.id ? (
+                  <CancelarComoCuidador reserva={r} onVolver={() => setCancelandoCuidador(null)}
+                    onListo={() => { setCancelandoCuidador(null); cargar(); }} />
+                ) : (
+                  <div className="rs-acciones">
+                    <button type="button" className="rs-boton-claro" onClick={() => { setError(''); setCancelandoCuidador(r.id); }}>
+                      {t('reservas.cancelar_reserva')}
+                    </button>
+                  </div>
+                )
               )}
               {cancelando?.id === r.id && (
                 <div className="rs-cancelar" role="alertdialog" aria-labelledby={`cancelar-${r.id}`}>

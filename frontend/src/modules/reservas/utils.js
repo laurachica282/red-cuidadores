@@ -36,15 +36,33 @@ export const textoEspecie = (especie) => {
   return texto === clave ? especie : texto;
 };
 
-// Motivos fijos que escribe el servidor (reservas/ciclo.js y reservas.service.js); los que escribe una persona quedan igual.
-const MOTIVO_SIN_PAGO = 'Se canceló automáticamente: no se pagó antes de la fecha de inicio';
+// Motivos fijos que escribe el servidor (reservas/ciclo.js, reservas.service.js y cancelaciones.js);
+// los que escribe una persona quedan igual.
+const MOTIVOS_FIJOS = {
+  'Se canceló automáticamente: no se pagó antes de la fecha de inicio': 'reservas.motivo.sin_pago',
+  'Se canceló automáticamente: no se pagó dentro del plazo': 'reservas.motivo.plazo_pago',
+  'Cancelada por el viajero': 'reservas.motivo.cancelada_viajero',
+  'Cancelada por el cuidador': 'reservas.motivo.cancelada_cuidador',
+  'Cancelada por el cuidador · reembolso del 100 %': 'reservas.motivo.cancelada_cuidador_reembolso',
+};
 export function textoMotivo(motivo) {
-  if (motivo === MOTIVO_SIN_PAGO) return traducir('reservas.motivo.sin_pago');
-  if (motivo === 'Cancelada por el viajero') return traducir('reservas.motivo.cancelada_viajero');
+  if (MOTIVOS_FIJOS[motivo]) return traducir(MOTIVOS_FIJOS[motivo]);
   const m = /^Cancelada por el viajero · reembolso del (\d+(?:\.\d+)?) %$/.exec(motivo ?? '');
   if (m) return traducir('reservas.motivo.cancelada_viajero_reembolso', { pct: m[1] });
   return motivo;
 }
+
+// Motivos con que el cuidador cancela una reserva aceptada (backend: reservas/cancelaciones.js).
+export const MOTIVOS_CUIDADOR = ['enfermedad', 'emergencia_familiar', 'emergencia_mascota', 'fuerza_mayor', 'otro'];
+export const textoMotivoCuidador = (motivo) => {
+  const clave = `reservas.motivo_cuidador.${motivo}`;
+  const texto = traducir(clave);
+  return texto === clave ? motivo : texto;
+};
+
+// Nombres de las mascotas de la reserva: "Kira, Toby" (el servidor manda mascotas: [{ id, nombre, especie }]).
+export const nombresMascotas = (r) =>
+  (Array.isArray(r.mascotas) && r.mascotas.length ? r.mascotas.map((m) => m.nombre).join(', ') : r.mascota);
 
 // Política de reembolso (pagos/reembolsos.js del servidor): se traduce por el texto exacto.
 const POLITICA = {

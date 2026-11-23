@@ -211,3 +211,10 @@
 /* Atajo "Cerca de mí" junto a las ciudades. */
 .bs-chip--ubicacion { display: inline-flex; align-items: center; gap: 6px; }
 .bs-chip--ubicacion:disabled { opacity: 0.6; cursor: progress; }
+
+/* Precio de cada servicio con su unidad (búsqueda con "todos los servicios") */
+.bs-precios-servicios { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bs-precio-servicio { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; font-size: 14px; }
+.bs-precio-servicio-nombre { min-width: 0; overflow: hidden; color: var(--slate); text-overflow: ellipsis; white-space: nowrap; }
+.bs-precio-servicio .bs-precio { font-size: 14px; }
+.bs-precio-mas { align-self: flex-start; color: var(--teal-text); font-size: 12px; font-weight: 700; }

@@ -11,3 +11,10 @@ export const cancelarReserva = (id) => api(`/reservas/${id}/cancelar`, { metodo:
 export const misPagos = () => api('/pagos/mios');
 // HU-21: cuánto se devolvería si se cancela hoy.
 export const cotizarCancelacion = (id) => api(`/reservas/${id}/cancelacion`);
+// El cuidador cancela una reserva que ya aceptó (el viajero recibe el 100 %).
+export const cancelarComoCuidador = (id, motivo, detalle) =>
+  api(`/reservas/${id}/cancelar-cuidador`, { metodo: 'POST', cuerpo: { motivo, detalle } });
+// Administración: cancelaciones de cuidadores (en_revision | revisadas).
+export const cancelacionesAdmin = (estado) => api(`/reservas/admin/cancelaciones?estado=${estado}`);
+export const revisarCancelacion = (id, datos) =>
+  api(`/reservas/admin/cancelaciones/${id}/revisar`, { metodo: 'POST', cuerpo: datos });

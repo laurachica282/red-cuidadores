@@ -73,3 +73,18 @@ export async function abrirArchivo(id) {
     throw e;
   }
 }
+
+// Tablero del cuidador (inicio): lo que le piden, lo que tiene en curso, sus avisos y sus pagos.
+export const reservasRecibidas = () => api('/reservas/recibidas');
+export const seguimientoReservas = () => api('/seguimiento/reservas');
+export const misPagos = () => api('/pagos/mios');
+export const aceptarReserva = (id) => api(`/reservas/${id}/confirmar`, { metodo: 'POST' });
+
+// Días no disponibles del cuidador (agenda).
+export const diasNoDisponibles = (desde, hasta) => api(`/cuidadores/no-disponibles?desde=${desde}&hasta=${hasta}`);
+export const marcarNoDisponible = (dia) => api(`/cuidadores/no-disponibles/${dia}`, { metodo: 'PUT' });
+export const quitarNoDisponible = (dia) => api(`/cuidadores/no-disponibles/${dia}`, { metodo: 'DELETE' });
+
+// Datos de cobro: a dónde se le paga al cuidador.
+export const obtenerDatosCobro = () => api('/cuidadores/datos-cobro');
+export const guardarDatosCobro = (cuerpo) => api('/cuidadores/datos-cobro', { metodo: 'PUT', cuerpo });

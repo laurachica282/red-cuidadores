@@ -3,6 +3,7 @@ import { pool } from '../../db.js';
 import { verificarToken } from '../auth/verificarToken.js';
 import { buscarDirecciones, direccionDe } from './geocodificacion.js';
 import { hoyISO } from '../../shared/fecha.js';
+import { diasNoDisponiblesEntre } from '../cuidadores/index.js';
 import { ORDEN_SERVICIOS, SERVICIOS as DEF_SERVICIOS, esHora, esPorHora } from '../../shared/servicios.js';
 
 const router = Router();
@@ -19,6 +20,13 @@ const ORDENES = {
 };
 const RADIO_KM = { defecto: 10, max: 50 };
 const MAX_RESENAS = 20;
+// Días hacia adelante en que el perfil avisa si el cuidador no está disponible.
+const DIAS_AVISO = 90;
+const sumarDias = (iso, n) => {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
 
 // La foto de perfil la sirve el módulo cuenta en /api/cuenta/fotos/:archivo (HU-09).
 const urlFotoPerfil = (archivo) => (archivo ? `/cuenta/fotos/${archivo}` : null);
@@ -130,7 +138,15 @@ router.get('/cuidadores', async (req, res) => {
               c.calificacion_promedio, c.total_resenas,
               (SELECT foto_url FROM usuarios WHERE id = v.usuario_id) AS foto_perfil,
               (SELECT array_agg(x.servicio ORDER BY array_position($11::text[], x.servicio::text))
-                 FROM servicios_cuidador x WHERE x.usuario_id = v.usuario_id AND x.activo) AS servicios
+                 FROM servicios_cuidador x WHERE x.usuario_id = v.usuario_id AND x.activo) AS servicios,
+              -- Cada servicio con su tarifa (dentro del rango de precio): la tarjeta nunca mezcla noches con horas.
+              (SELECT json_agg(json_build_object('servicio', x.servicio, 'tarifa', x.tarifa)
+                               ORDER BY array_position($11::text[], x.servicio::text))
+                 FROM servicios_cuidador x
+                WHERE x.usuario_id = v.usuario_id AND x.activo
+                  AND ($10 = '' OR x.servicio = $10)
+                  AND ($4::numeric IS NULL OR x.tarifa >= $4)
+                  AND ($5::numeric IS NULL OR x.tarifa <= $5)) AS precios
          FROM cuidadores_visibles v
          JOIN perfiles_cuidador p ON p.usuario_id = v.usuario_id
          -- Precio que se muestra: el del servicio buscado o, con "todos", el más barato dentro del rango.
@@ -166,6 +182,11 @@ router.get('/cuidadores', async (req, res) => {
              WHERE x.cuidador_id = v.usuario_id AND x.estado IN ('confirmada', 'en_curso')
                AND x.periodo && ${tramo('$12', '$13', '$14', '$15')}
           ))
+          -- Tampoco salen los que marcaron como no disponible algún día del rango buscado.
+          AND ($12::date IS NULL OR NOT EXISTS (
+            SELECT 1 FROM dias_no_disponibles n
+             WHERE n.cuidador_id = v.usuario_id AND n.dia BETWEEN $12::date AND $13::date
+          ))
         ORDER BY ${ORDENES[f.orden]}, v.nombre`,
       [req.usuario.id, f.texto, f.tipo, f.precioMin, f.precioMax, filtroCiudad, f.lat, f.lng, f.radioKm, f.servicio, Object.keys(SERVICIOS), f.desde || null, f.hasta || null, f.horaDesde, f.horaHasta]
     );
@@ -190,6 +211,8 @@ router.get('/cuidadores', async (req, res) => {
         tarifa: Number(c.tarifa),
         unidad: SERVICIOS[c.servicio],
         servicios: c.servicios ?? [],
+        // Precio de cada servicio ofrecido (o solo el buscado), con su unidad.
+        precios: (c.precios ?? []).map((x) => ({ servicio: x.servicio, tarifa: Number(x.tarifa), unidad: SERVICIOS[x.servicio] })),
         moneda: c.moneda.trim(),
         tiposMascota: c.tipos_mascota,
         calificacion: c.calificacion_promedio === null ? null : Number(c.calificacion_promedio),
@@ -258,7 +281,7 @@ router.get('/cuidadores/:id', async (req, res) => {
     const c = r.rows[0];
     if (!c) return res.status(404).json({ error: 'Este cuidador no está disponible' });
 
-    const [fotos, resumen, resenas, servicios, cruce] = await Promise.all([
+    const [fotos, resumen, resenas, servicios, cruce, noDisponibles] = await Promise.all([
       pool.query(
         `SELECT id FROM archivos_cuidador WHERE usuario_id = $1 AND tipo = 'foto_espacio' AND activo ORDER BY id`,
         [c.usuario_id]
@@ -293,7 +316,10 @@ router.get('/cuidadores/:id', async (req, res) => {
           [c.usuario_id, fechas.desde, fechas.hasta, fechas.horaDesde, fechas.horaHasta]
         )
         : null,
+      // Días que el cuidador marcó como no disponibles (próximos 90 días): el formulario avisa.
+      diasNoDisponiblesEntre(c.usuario_id, hoyISO(), sumarDias(hoyISO(), DIAS_AVISO)),
     ]);
+    const chocaNoDisponible = conFechas && noDisponibles.some((d) => d >= fechas.desde && d <= fechas.hasta);
 
     const s = resumen.rows[0];
     res.json({
@@ -309,7 +335,8 @@ router.get('/cuidadores/:id', async (req, res) => {
       tiposMascota: c.tipos_mascota,
       antecedentesVerificados: true,
       // null sin fechas; false si ya está ocupado en esas fechas.
-      disponible: cruce ? cruce.rows.length === 0 : null,
+      disponible: cruce ? cruce.rows.length === 0 && !chocaNoDisponible : null,
+      diasNoDisponibles: noDisponibles,
       antecedentesVencenEn: c.antecedentes_vencen_en,
       enLaRedDesde: c.en_la_red_desde,
       fotos: fotos.rows.map((f) => f.id),

@@ -1,23 +1,47 @@
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '@/modules/auth';
 import { useIdioma } from '@/modules/region';
 import './BarraNavegacion.css';
 
-// Para sumar un botón, agrega una línea a esta lista. `texto` es la clave del diccionario (region/i18n).
-const ITEMS = [
+// Para sumar un botón, agrega una línea a la lista del rol. `texto` es la clave del diccionario (region/i18n).
+const VIAJERO = [
   { ruta: '/inicio', texto: 'nav.inicio', icono: 'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z' },
   { ruta: '/mascotas', texto: 'nav.mascotas', icono: 'M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10z' },
   { ruta: '/reservas', texto: 'nav.reservas', icono: 'M7 3v4M17 3v4M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z' },
   { ruta: '/configuracion', texto: 'nav.cuenta', icono: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-8 9a8 8 0 0 1 16 0' },
 ];
 
+// El cuidador no busca ni registra mascotas: su inicio es su tablero y en Reservas ve las que le piden.
+const ICONO_RESERVAS = VIAJERO[2].icono;
+const ICONO_CUENTA = VIAJERO[3].icono;
+const CUIDADOR = [
+  { ruta: '/cuidador', texto: 'nav.inicio', icono: VIAJERO[0].icono },
+  { ruta: '/reservas', texto: 'nav.reservas', icono: ICONO_RESERVAS },
+  { ruta: '/configuracion', texto: 'nav.cuenta', icono: ICONO_CUENTA },
+];
+
+// El administrador revisa verificaciones, cancelaciones y cuentas desactivadas.
+// `fin`: solo se marca activo en esa ruta exacta (Cuenta no se marca dentro de /configuracion/admin/...).
+const ADMIN = [
+  { ruta: '/admin/cuidadores', texto: 'nav.verificaciones', icono: 'M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6zM9 12l2 2 4-4' },
+  { ruta: '/admin/cancelaciones', texto: 'nav.cancelaciones', icono: `${ICONO_RESERVAS}M10 13l4 4M14 13l-4 4` },
+  { ruta: '/configuracion/admin/desactivadas', texto: 'nav.cuentas', icono: 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2 20a7 7 0 0 1 14 0M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14a6 6 0 0 1 4 6' },
+  { ruta: '/configuracion', texto: 'nav.cuenta', icono: ICONO_CUENTA, fin: true },
+];
+
+const POR_ROL = { cuidador: CUIDADOR, admin: ADMIN };
+
 export default function BarraNavegacion() {
   const { t } = useIdioma();
+  const { usuario } = useAuth();
+  const ITEMS = POR_ROL[usuario?.rol] ?? VIAJERO;
   return (
     <nav className="barra-nav" aria-label={t('nav.menu')}>
       {ITEMS.map((item) => (
         <NavLink
           key={item.ruta}
           to={item.ruta}
+          end={item.fin}
           className={({ isActive }) => `barra-nav__item${isActive ? ' barra-nav__item--activo' : ''}`}
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"

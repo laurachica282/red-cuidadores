@@ -88,3 +88,26 @@ export async function movimientosDe(usuarioId) {
   );
   return rows;
 }
+
+// El cuidador cancela una reserva aceptada: al viajero se le devuelve el 100 % de lo pagado.
+// Debe llamarse dentro de la transacción del módulo reservas. Devuelve lo devuelto (0 si no estaba pagada).
+export async function reembolsarTodo(db, reserva, detalle) {
+  const { rows } = await db.query(
+    `SELECT * FROM pagos WHERE reserva_id = $1 AND estado = 'retenido' FOR UPDATE`,
+    [reserva.id]
+  );
+  const pago = rows[0];
+  if (!pago) return { pagada: false, reembolso: 0, moneda: reserva.moneda.trim() };
+  const monto = Number(pago.monto);
+  await db.query(
+    `UPDATE pagos SET estado = 'reembolsado', monto_reembolsado = $2, comision = 0, neto_cuidador = 0, liberado_en = NULL
+      WHERE id = $1`,
+    [pago.id, monto]
+  );
+  await db.query(
+    `INSERT INTO movimientos_pago (pago_id, reserva_id, tipo, beneficiario_id, moneda, monto, porcentaje, detalle)
+     VALUES ($1, $2, 'reembolso', $3, $4, $5, 100, $6)`,
+    [pago.id, reserva.id, pago.viajero_id, pago.moneda, monto, detalle]
+  );
+  return { pagada: true, reembolso: monto, moneda: pago.moneda.trim() };
+}

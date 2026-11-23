@@ -5,6 +5,8 @@ import { ORDEN_SERVICIOS, SERVICIOS } from '../../shared/servicios.js';
 import { verificarToken } from '../auth/verificarToken.js';
 import { cifrar, descifrar } from './archivos.service.js';
 import { notificar } from './notificar.js';
+import { enmascarar, leerDatosCobro, opcionesCobro } from './cobro.js';
+import { hoyISO } from '../../shared/fecha.js';
 
 const router = Router();
 
@@ -167,6 +169,100 @@ router.get('/publico/:id', async (req, res) => {
     antecedentesVerificados: true, antecedentesVencenEn: c.antecedentes_vencen_en,
     fotos: fotos.rows.map((f) => f.id),
   });
+});
+
+/* ───────────── Días no disponibles del cuidador ───────────── */
+
+const esFecha = (t) => /^\d{4}-\d{2}-\d{2}$/.test(t) && !Number.isNaN(Date.parse(t));
+const sumarDias = (iso, n) => {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
+// Días marcados entre desde y hasta (por defecto, de hoy a 90 días). Máximo un año por consulta.
+router.get('/no-disponibles', esCuidador, async (req, res) => {
+  const desde = req.query.desde ? String(req.query.desde) : hoyISO();
+  const hasta = req.query.hasta ? String(req.query.hasta) : sumarDias(desde, 90);
+  if (!esFecha(desde) || !esFecha(hasta) || desde > hasta) return res.status(400).json({ error: 'Las fechas no son válidas' });
+  if (hasta > sumarDias(desde, 366)) return res.status(400).json({ error: 'Consulta máximo un año a la vez' });
+  const r = await pool.query(
+    `SELECT to_char(dia, 'YYYY-MM-DD') AS dia FROM dias_no_disponibles
+      WHERE cuidador_id = $1 AND dia BETWEEN $2::date AND $3::date ORDER BY dia`,
+    [req.usuario.id, desde, hasta]
+  );
+  res.json({ dias: r.rows.map((x) => x.dia) });
+});
+
+// Solo se marcan o desmarcan días de hoy en adelante.
+const diaEditable = (req, res, next) => {
+  const dia = String(req.params.dia);
+  if (!esFecha(dia)) return res.status(400).json({ error: 'La fecha no es válida' });
+  if (dia < hoyISO()) return res.status(400).json({ error: 'Solo puedes cambiar días de hoy en adelante' });
+  next();
+};
+
+router.put('/no-disponibles/:dia', esCuidador, diaEditable, async (req, res) => {
+  const dia = req.params.dia;
+  // Con una reserva confirmada o en curso ese día no puede marcarse: primero hay que resolver la reserva.
+  const ocupado = await pool.query(
+    `SELECT 1 FROM reservas
+      WHERE cuidador_id = $1 AND estado IN ('confirmada', 'en_curso')
+        AND periodo && tsrange($2::date, $2::date + 1, '[)')
+      LIMIT 1`,
+    [req.usuario.id, dia]
+  );
+  if (ocupado.rowCount > 0) {
+    return res.status(409).json({ error: 'Ese día tienes una reserva confirmada o en curso. No puedes marcarlo como no disponible.' });
+  }
+  await pool.query(
+    'INSERT INTO dias_no_disponibles (cuidador_id, dia) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+    [req.usuario.id, dia]
+  );
+  res.json({ ok: true, dia, disponible: false });
+});
+
+router.delete('/no-disponibles/:dia', esCuidador, diaEditable, async (req, res) => {
+  await pool.query('DELETE FROM dias_no_disponibles WHERE cuidador_id = $1 AND dia = $2', [req.usuario.id, req.params.dia]);
+  res.json({ ok: true, dia: req.params.dia, disponible: true });
+});
+
+/* ───────────── Datos de cobro (a dónde se le paga al cuidador) ───────────── */
+
+const paisDe = async (id) => (await pool.query('SELECT pais FROM usuarios WHERE id = $1', [id])).rows[0]?.pais?.trim();
+
+router.get('/datos-cobro', esCuidador, async (req, res) => {
+  const [pais, r] = await Promise.all([
+    paisDe(req.usuario.id),
+    pool.query('SELECT tipo, titular, documento, entidad, tipo_cuenta, numero, actualizado_en FROM datos_cobro WHERE usuario_id = $1', [req.usuario.id]),
+  ]);
+  const d = r.rows[0];
+  res.json({
+    pais,
+    opciones: opcionesCobro(pais),
+    // El número nunca sale completo: solo los últimos 4.
+    datos: d
+      ? {
+        tipo: d.tipo, titular: d.titular, documento: d.documento, entidad: d.entidad,
+        tipoCuenta: d.tipo_cuenta, numero: enmascarar(d.numero), actualizadoEn: d.actualizado_en,
+      }
+      : null,
+  });
+});
+
+router.put('/datos-cobro', esCuidador, async (req, res) => {
+  const pais = await paisDe(req.usuario.id);
+  const anterior = (await pool.query('SELECT tipo, entidad, numero FROM datos_cobro WHERE usuario_id = $1', [req.usuario.id])).rows[0];
+  const { datos: d, error } = leerDatosCobro(req.body ?? {}, pais, anterior);
+  if (error) return res.status(400).json({ error });
+  await pool.query(
+    `INSERT INTO datos_cobro (usuario_id, tipo, titular, documento, entidad, tipo_cuenta, numero)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (usuario_id) DO UPDATE
+       SET tipo = $2, titular = $3, documento = $4, entidad = $5, tipo_cuenta = $6, numero = $7, actualizado_en = NOW()`,
+    [req.usuario.id, d.tipo, d.titular, d.documento, d.entidad, d.tipoCuenta, d.numero]
+  );
+  res.json({ ok: true, numero: enmascarar(d.numero) });
 });
 
 /* ───────────── HU-11: documentos y antecedentes ───────────── */

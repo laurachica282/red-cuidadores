@@ -303,6 +303,47 @@ const EXACTOS = {
   'El correo no es válido': { en: 'The email is not valid', pt: 'O e-mail não é válido' },
   'Escribe el nombre del veterinario': { en: 'Enter the veterinarian’s name', pt: 'Digite o nome do veterinário' },
   'Aviso no válido': { en: 'Invalid notice', pt: 'Aviso inválido' },
+
+  // ---------- Reservas: varias mascotas, plazo de pago y cancelación del cuidador ----------
+  'Elige al menos una mascota': { en: 'Choose at least one pet', pt: 'Escolha pelo menos um pet' },
+  'Se venció el plazo para pagar esta reserva': { en: 'The deadline to pay for this booking has passed', pt: 'O prazo para pagar esta reserva venceu' },
+  'Se canceló automáticamente: no se pagó dentro del plazo': { en: 'Cancelled automatically: it wasn’t paid within the deadline', pt: 'Cancelada automaticamente: não foi paga dentro do prazo' },
+  'Cancelada por el cuidador': { en: 'Cancelled by the caregiver', pt: 'Cancelada pelo cuidador' },
+  'Cancelada por el cuidador · reembolso del 100 %': { en: 'Cancelled by the caregiver · 100% refund', pt: 'Cancelada pelo cuidador · reembolso de 100%' },
+  'Cancelada por el cuidador · se devuelve el 100 %': { en: 'Cancelled by the caregiver · 100% is refunded', pt: 'Cancelada pelo cuidador · devolvemos 100%' },
+  'Elige el motivo de la cancelación': { en: 'Choose the reason for the cancellation', pt: 'Escolha o motivo do cancelamento' },
+  'Solo puedes cancelar una reserva aceptada que todavía no termina': { en: 'You can only cancel an accepted booking that hasn’t ended yet', pt: 'Você só pode cancelar uma reserva aceita que ainda não terminou' },
+  'Esta reserva ya se canceló': { en: 'This booking was already cancelled', pt: 'Esta reserva já foi cancelada' },
+  'Filtro no válido': { en: 'Invalid filter', pt: 'Filtro inválido' },
+  'Elige si hay multa o no': { en: 'Choose whether there is a fine', pt: 'Escolha se há multa ou não' },
+  'Cancelación no encontrada': { en: 'Cancellation not found', pt: 'Cancelamento não encontrado' },
+  'Esta cancelación ya fue revisada': { en: 'This cancellation has already been reviewed', pt: 'Este cancelamento já foi analisado' },
+  'La multa debe ser mayor que 0': { en: 'The fine must be greater than 0', pt: 'A multa deve ser maior que 0' },
+  'La multa no puede ser mayor que el total de la reserva': { en: 'The fine can’t be greater than the booking total', pt: 'A multa não pode ser maior que o total da reserva' },
+  'Pago del servicio terminado': { en: 'Payment for the completed service', pt: 'Pagamento do serviço concluído' },
+
+  // Disponibilidad y datos de cobro del cuidador (cuidadores/cuidadores.routes.js, cuidadores/cobro.js)
+  'Consulta máximo un año a la vez': { en: 'Query at most one year at a time', pt: 'Consulte no máximo um ano por vez' },
+  'El IBAN debe empezar por ES y tener 22 dígitos después': { en: 'The IBAN must start with ES followed by 22 digits', pt: 'O IBAN deve começar com ES seguido de 22 dígitos' },
+  'El número de cuenta debe tener entre 9 y 16 dígitos': { en: 'The account number must have 9 to 16 digits', pt: 'O número da conta deve ter entre 9 e 16 dígitos' },
+  'Elige si la cuenta es de ahorros o corriente': { en: 'Choose whether it is a savings or checking account', pt: 'Escolha se a conta é poupança ou corrente' },
+  'Elige si te pagamos a una cuenta bancaria o a una billetera': { en: 'Choose whether we pay you to a bank account or a wallet', pt: 'Escolha se pagamos em uma conta bancária ou em uma carteira digital' },
+  'Elige tu banco de la lista': { en: 'Choose your bank from the list', pt: 'Escolha seu banco na lista' },
+  'Elige tu billetera de la lista': { en: 'Choose your wallet from the list', pt: 'Escolha sua carteira na lista' },
+  'Escribe agência y conta así: 1234/12345-6': { en: 'Enter agência and conta like this: 1234/12345-6', pt: 'Digite agência e conta assim: 1234/12345-6' },
+  'Escribe el celular (10 dígitos), el correo o la CLABE (18 dígitos) de tu cuenta de Mercado Pago': { en: 'Enter the phone (10 digits), email or CLABE (18 digits) of your Mercado Pago account', pt: 'Digite o celular (10 dígitos), o e-mail ou a CLABE (18 dígitos) da sua conta Mercado Pago' },
+  'Escribe el celular de Daviplata: 10 dígitos que empiezan por 3': { en: 'Enter your Daviplata phone: 10 digits starting with 3', pt: 'Digite o celular do Daviplata: 10 dígitos começando com 3' },
+  'Escribe el celular de Nequi: 10 dígitos que empiezan por 3': { en: 'Enter your Nequi phone: 10 digits starting with 3', pt: 'Digite o celular do Nequi: 10 dígitos começando com 3' },
+  'Escribe el correo de tu cuenta de PayPal': { en: 'Enter your PayPal account email', pt: 'Digite o e-mail da sua conta PayPal' },
+  'Escribe el móvil de Bizum: 9 dígitos que empiezan por 6 o 7': { en: 'Enter your Bizum mobile: 9 digits starting with 6 or 7', pt: 'Digite o celular do Bizum: 9 dígitos começando com 6 ou 7' },
+  'Escribe el nombre completo del titular': { en: 'Enter the account holder\'s full name', pt: 'Digite o nome completo do titular' },
+  'Escribe el número de documento del titular (solo letras, números y guiones)': { en: 'Enter the holder\'s ID number (letters, numbers and hyphens only)', pt: 'Digite o número do documento do titular (apenas letras, números e hífens)' },
+  'Escribe el routing (9 dígitos) y el número de cuenta (4 a 17 dígitos)': { en: 'Enter the routing number (9 digits) and the account number (4 to 17 digits)', pt: 'Digite o routing (9 dígitos) e o número da conta (4 a 17 dígitos)' },
+  'Ese día tienes una reserva confirmada o en curso. No puedes marcarlo como no disponible.': { en: 'You have a confirmed or ongoing booking that day. You cannot mark it as unavailable.', pt: 'Você tem uma reserva confirmada ou em andamento nesse dia. Não pode marcá-lo como indisponível.' },
+  'La clave Pix debe ser un CPF (11 dígitos), CNPJ (14), celular (+55…), correo o clave aleatoria': { en: 'The Pix key must be a CPF (11 digits), CNPJ (14), phone (+55…), email or random key', pt: 'A chave Pix deve ser um CPF (11 dígitos), CNPJ (14), celular (+55…), e-mail ou chave aleatória' },
+  'La fecha no es válida': { en: 'The date is not valid', pt: 'A data não é válida' },
+  'Solo puedes cambiar días de hoy en adelante': { en: 'You can only change days from today onwards', pt: 'Você só pode alterar dias de hoje em diante' },
+  'Todavía no recibimos pagos en tu país': { en: 'We don\'t support payouts in your country yet', pt: 'Ainda não fazemos pagamentos no seu país' },
 };
 
 // Partes variables que también se traducen.
@@ -396,6 +437,19 @@ const PATRONES = [
   { es: /^Cancelación (-?\d+) día\(s\) antes del inicio · (.+)$/,
     en: (n, regla) => `Cancellation ${n} ${plural(n, 'day', 'days')} before the start · ${traducirMensajeServidor(regla, 'en')}`,
     pt: (n, regla) => `Cancelamento ${n} ${plural(n, 'dia', 'dias')} antes do início · ${traducirMensajeServidor(regla, 'pt')}` },
+  // Reservas: varias mascotas, días no disponibles y multas del cuidador
+  { es: /^Puedes llevar hasta (\d+) mascotas por reserva$/,
+    en: 'You can bring up to $1 pets per booking', pt: 'Você pode levar até $1 pets por reserva' },
+  { es: /^Este cuidador no recibe la especie de (.+)$/,
+    en: 'This caregiver doesn’t accept $1’s species', pt: 'Este cuidador não recebe a espécie de $1' },
+  { es: /^El cuidador no está disponible estos días: (.+)$/,
+    en: 'The caregiver isn’t available on these days: $1', pt: 'O cuidador não está disponível nestes dias: $1' },
+  { es: /^(.+) ya tiene una reserva que se cruza con esas fechas$/,
+    en: '$1 already has a booking that overlaps those dates', pt: '$1 já tem uma reserva que coincide com essas datas' },
+  { es: /^Cuenta qué pasó \(mínimo (\d+) caracteres\)$/,
+    en: 'Tell us what happened (at least $1 characters)', pt: 'Conte o que aconteceu (mínimo de $1 caracteres)' },
+  { es: /^Pago del servicio terminado · se descontó una multa de ([\d.]+)$/,
+    en: 'Payment for the completed service · a $1 fine was deducted', pt: 'Pagamento do serviço concluído · foi descontada uma multa de $1' },
 ];
 
 const idiomaDocumento = () => (typeof document !== 'undefined' && document.documentElement.lang) || 'es';

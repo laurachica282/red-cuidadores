@@ -6,10 +6,17 @@ import pt from './pt.js';
 export const IDIOMAS = ['es', 'en', 'pt'];
 const DICCIONARIOS = { es: { ...es }, en: { ...en }, pt: { ...pt } };
 
+// Textos que registran los módulos. Se guardan aparte para volver a aplicarlos si este archivo se recarga
+// (recarga en caliente de Vite en desarrollo); en producción solo se cargan una vez.
+const REGISTRADOS = (globalThis.__textosModulos ??= []);
+const aplicar = (textos) => { for (const idioma of IDIOMAS) Object.assign(DICCIONARIOS[idioma], textos[idioma] ?? {}); };
+REGISTRADOS.forEach(aplicar);
+
 // Cada módulo registra sus propios textos con agregarTextos({ es: {...}, en: {...}, pt: {...} }),
 // en un archivo i18n.js del módulo que importan sus pantallas. Así nadie edita el diccionario de otro.
 export function agregarTextos(textos) {
-  for (const idioma of IDIOMAS) Object.assign(DICCIONARIOS[idioma], textos[idioma] ?? {});
+  REGISTRADOS.push(textos);
+  aplicar(textos);
 }
 
 // El idioma de quien inició sesión manda; si no hay sesión, el último elegido.

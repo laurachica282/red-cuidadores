@@ -70,7 +70,7 @@ export default function VerificacionPage() {
   const puedeEnviar = verificacion && ['sin_enviar', 'rechazado', 'vencido'].includes(verificacion.estado) && !enviado;
 
   return (
-    <Pantalla titulo={t('verif.titulo')} sub={t('verif.sub')} atras="/cuidador" pie={puedeEnviar && (
+    <Pantalla titulo={t('verif.titulo')} sub={t('verif.sub')} atras="/configuracion" pie={puedeEnviar && (
       <button type="submit" form="verif-form" className="btn-primary" disabled={enviando}>
         {enviando ? t('comun.enviando') : t('verif.enviar')}
       </button>

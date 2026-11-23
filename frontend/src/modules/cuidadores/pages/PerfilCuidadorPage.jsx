@@ -120,7 +120,7 @@ export default function PerfilCuidadorPage() {
   };
 
   return (
-    <Pantalla titulo={t('perfil.titulo')} sub={t('perfil.sub')} atras="/cuidador" pie={
+    <Pantalla titulo={t('perfil.titulo')} sub={t('perfil.sub')} atras="/configuracion" pie={
       <button type="submit" form="perfil-form" className="btn-primary" disabled={guardando || cargando}>
         {guardando ? t('comun.guardando') : t('perfil.guardar')}
       </button>

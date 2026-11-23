@@ -67,6 +67,8 @@ export default function ChatPage() {
     }
   }
 
+  // Terminado el servicio el chat queda solo para leer (historial de lo que se habló).
+  const terminado = reserva?.fase === 'terminada';
   const otro = reserva ? (reserva.soy === 'viajero' ? reserva.cuidador.nombre : reserva.viajero.nombre) : '';
 
   return (
@@ -100,7 +102,7 @@ export default function ChatPage() {
       </div>
 
       {error && <p className="sg-error sg-chat-error" role="alert">{error}</p>}
-      {chat.abierto ? (
+      {chat.abierto && !terminado ? (
         <form className="sg-escribir" onSubmit={enviar}>
           <input className="input" placeholder={t('seguimiento.chat.escribir')} maxLength={1000} value={texto}
             onChange={(e) => setTexto(e.target.value)} aria-label={t('seguimiento.chat.mensaje')} />
@@ -108,7 +110,9 @@ export default function ChatPage() {
         </form>
       ) : (
         <p className="sg-chat-cerrado">
-          {t('seguimiento.chat.cerrado', { fecha: chat.cierraEl ? diaCorto(chat.cierraEl) : '' })}
+          {terminado
+            ? t('seguimiento.chat.terminado')
+            : t('seguimiento.chat.cerrado', { fecha: chat.cierraEl ? diaCorto(chat.cierraEl) : '' })}
         </p>
       )}
     </main>
