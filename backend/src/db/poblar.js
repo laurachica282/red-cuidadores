@@ -10,6 +10,7 @@
 // Todas las cuentas: correo @demo.redcuidadores.co y contraseña Demo2026.
 import bcrypt from 'bcrypt';
 import { pool } from '../db.js';
+import { METODOS } from '../modules/pagos/metodos.js';
 
 const DOMINIO = 'demo.redcuidadores.co';
 const CLAVE = 'Demo2026';
@@ -69,6 +70,11 @@ const PAISES = {
   } },
   BR: { peso: 8, idioma: 'pt', moneda: 'BRL', tel: '+55 11', factor: 0.0013, redondeo: 5, ciudades: {
     'São Paulo': [['Pinheiros', -23.567, -46.692], ['Vila Mariana', -23.589, -46.634], ['Moema', -23.601, -46.665]],
+  } },
+  ES: { peso: 8, idioma: 'es', moneda: 'EUR', tel: '+34 6', factor: 0.00022, redondeo: 1, ciudades: {
+    'Madrid': [['Malasaña', 40.426, -3.704], ['Chamberí', 40.434, -3.704], ['Retiro', 40.411, -3.676], ['Salamanca', 40.43, -3.677]],
+    'Barcelona': [['Gràcia', 41.403, 2.157], ['Eixample', 41.39, 2.162], ['Sant Martí', 41.405, 2.199]],
+    'Valencia': [['Ruzafa', 39.462, -0.375], ['El Carmen', 39.479, -0.38]],
   } },
   US: { peso: 7, idioma: 'en', moneda: 'USD', tel: '+1 305', factor: 0.00025, redondeo: 1, ciudades: {
     'Miami': [['Brickell', 25.76, -80.193], ['Coral Gables', 25.721, -80.268], ['Wynwood', 25.801, -80.199]],
@@ -246,7 +252,8 @@ async function main() {
         const unidades = servicio === 'alojamiento' ? fin - inicio : fin - inicio + 1;
         let estado;
         if (fin < 0) estado = pesado([['completada', 75], ['cancelada', 10], ['rechazada', 10], ['vencida', 5]]);
-        else if (inicio <= 0) estado = 'confirmada';
+        // Lo que ya empezó está pagado y en curso (reservas/ciclo.js no deja empezar una reserva sin pago).
+        else if (inicio <= 0) estado = 'en_curso';
         else estado = pesado([['confirmada', 55], ['pendiente', 30], ['rechazada', 10], ['cancelada', 5]]);
         const creado = estado === 'pendiente' ? new Date(Date.now() - entre(1, 20) * 3600000) : momento(Math.min(inicio - entre(2, 20), 0));
         reservas.push({
@@ -270,7 +277,7 @@ async function main() {
     const reportes = [];
     const mensajes = [];
     for (const r of reservas) {
-      const servicioHecho = r.estado === 'completada' || (r.estado === 'confirmada' && r._ini <= 0);
+      const servicioHecho = r.estado === 'completada' || r.estado === 'en_curso';
       if (r.estado === 'completada' && prob(0.7)) {
         const calificacion = pesado([[5, 55], [4, 30], [3, 10], [2, 4], [1, 1]]);
         resenas.push({ reserva_id: r.id, autor_id: r.viajero_id, cuidador_id: r.cuidador_id, calificacion,
@@ -295,15 +302,61 @@ async function main() {
     await insertar(db, 'reportes_servicio', ['reserva_id', 'autor_id', 'titulo', 'nota', 'creado_en'], reportes, '');
     await insertar(db, 'mensajes_reserva', ['reserva_id', 'autor_id', 'texto', 'leido_en', 'creado_en'], mensajes, '');
 
+    /* Pagos (HU-18/22): completadas → liberado; en curso → retenido; confirmadas futuras → 70 % ya pagadas. */
+    const pasarelas = Object.fromEntries((await db.query(
+      'SELECT pais, pasarela, comision_pct, metodos FROM pasarelas_pais WHERE activa'
+    )).rows.map((p) => [p.pais, p]));
+    const pagos = [];
+    for (const r of reservas) {
+      const pagada = r.estado === 'completada' || r.estado === 'en_curso' || (r.estado === 'confirmada' && prob(0.7));
+      const p = pasarelas[r._cuidador.pais];
+      if (!pagada || !p) continue;
+      const metodo = uno(p.metodos);
+      const ultimos4 = String(entre(1000, 9999));
+      const dato = { paypal: `${r._viajero.correo}`, pse: uno(['bancolombia', 'davivienda', 'bbva', 'bogota']), nequi: `3${entre(100000000, 999999999)}`,
+        spei: `${entre(100000000, 999999999)}${entre(100000000, 999999999)}`, oxxo: r._viajero.nombre, pix: `${entre(10000000000, 99999999999)}`,
+        bizum: `6${entre(10000000, 99999999)}` }[metodo];
+      const comision = Math.round(r.total * Number(p.comision_pct)) / 100;
+      const pagadoDia = Math.min(r._ini - entre(1, 3), 0);
+      pagos.push({
+        reserva_id: r.id, viajero_id: r.viajero_id, cuidador_id: r.cuidador_id, pasarela: p.pasarela, moneda: r.moneda,
+        monto: r.total, comision_pct: p.comision_pct, comision, neto_cuidador: Math.round((r.total - comision) * 100) / 100,
+        estado: r.estado === 'completada' ? 'liberado' : 'retenido',
+        tarjeta_ultimos4: metodo === 'tarjeta' ? ultimos4 : null,
+        referencia: `${p.pasarela.split('_')[0].toUpperCase()}-${Math.floor(azar() * 0xffffffffff).toString(16).toUpperCase().padStart(10, '0')}`,
+        metodo, detalle: metodo === 'tarjeta' ? `Tarjeta ••••${ultimos4}` : METODOS[metodo].detalle(dato),
+        creado_en: momento(pagadoDia), liberado_en: r.estado === 'completada' ? momento(r._fin + 1, 9) : null,
+      });
+    }
+    await insertar(db, 'pagos', ['reserva_id', 'viajero_id', 'cuidador_id', 'pasarela', 'moneda', 'monto', 'comision_pct', 'comision',
+      'neto_cuidador', 'estado', 'tarjeta_ultimos4', 'referencia', 'metodo', 'detalle', 'creado_en', 'liberado_en'], pagos, '');
+    // Movimientos de esos pagos (19_movimientos_pago.sql): el cobro y, en los completados, la liberación al cuidador.
+    await db.query(
+      `INSERT INTO movimientos_pago (pago_id, reserva_id, tipo, beneficiario_id, moneda, monto, porcentaje, comision, detalle, creado_en)
+       SELECT p.id, p.reserva_id, 'cobro', p.cuidador_id, p.moneda, p.monto, 100, 0, p.detalle, p.creado_en
+         FROM pagos p JOIN usuarios u ON u.id = p.viajero_id
+        WHERE u.correo LIKE $1 AND NOT EXISTS (SELECT 1 FROM movimientos_pago m WHERE m.pago_id = p.id AND m.tipo = 'cobro')`,
+      [`%@${DOMINIO}`]
+    );
+    await db.query(
+      `INSERT INTO movimientos_pago (pago_id, reserva_id, tipo, beneficiario_id, moneda, monto, porcentaje, comision, detalle, creado_en)
+       SELECT p.id, p.reserva_id, 'liberacion', p.cuidador_id, p.moneda, p.neto_cuidador, 100 - p.comision_pct, p.comision,
+              'Pago del servicio terminado', p.liberado_en
+         FROM pagos p JOIN usuarios u ON u.id = p.viajero_id
+        WHERE p.estado = 'liberado' AND u.correo LIKE $1
+          AND NOT EXISTS (SELECT 1 FROM movimientos_pago m WHERE m.pago_id = p.id AND m.tipo = 'liberacion')`,
+      [`%@${DOMINIO}`]
+    );
+
     await db.query('COMMIT');
 
     const porEstado = reservas.reduce((a, r) => ({ ...a, [r.estado]: (a[r.estado] ?? 0) + 1 }), {});
-    const enCurso = reservas.find((r) => r.estado === 'confirmada' && r._ini <= 0 && r._fin >= 0);
+    const enCurso = reservas.find((r) => r.estado === 'en_curso');
     console.log(`\nListo (semilla ${SEMILLA}):`);
     console.log(`  ${cuidadores.length} cuidadores (${cuidadores.filter((c) => c.estado === 'vigente').length} visibles en la búsqueda)`);
     console.log(`  ${viajeros.length} viajeros con ${mascotas.length} mascotas`);
     console.log(`  ${reservas.length} reservas: ${Object.entries(porEstado).map(([k, v]) => `${v} ${k}`).join(', ')}`);
-    console.log(`  ${resenas.length} reseñas, ${reportes.length} reportes, ${mensajes.length} mensajes`);
+    console.log(`  ${resenas.length} reseñas, ${reportes.length} reportes, ${mensajes.length} mensajes, ${pagos.length} pagos`);
     console.log(`\nContraseña de todas las cuentas: ${CLAVE}`);
     console.log(`  Admin:    admin@${DOMINIO}`);
     console.log(`  Cuidador: ${cuidadores.find((c) => c.estado === 'vigente')?.correo}`);

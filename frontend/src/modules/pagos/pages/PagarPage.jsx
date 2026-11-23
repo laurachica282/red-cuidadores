@@ -53,6 +53,13 @@ const METODOS = {
     placeholder: 'Como aparece en tu identificación',
     ayuda: 'Pago en efectivo simulado: siempre se aprueba.',
   },
+  bizum: {
+    nombre: 'Bizum',
+    etiqueta: 'Móvil de Bizum',
+    placeholder: '612345678',
+    digitos: 9,
+    ayuda: 'Para simular un rechazo, usa un móvil que termine en 0002.',
+  },
   pix: {
     nombre: 'Pix',
     etiqueta: 'CPF (11 dígitos)',

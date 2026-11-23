@@ -373,37 +373,62 @@
     width: 100%;
 }
 
-/* Botón de Microsoft: misma altura que el de Google, con el logo de cuatro cuadros */
-.login-microsoft {
+/* Botones de Google y Microsoft: el mismo diseño de la app (tipografía, borde, radio y hover). */
+.login-social {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
-    height: 44px;
-    border-color: #dadce0;
-    border-width: 1px;
-    border-radius: 4px;
-    color: #3c4043;
-    font-size: 14px;
-    font-weight: 500;
+    width: 100%;
+    height: 52px;
+    padding: 0 16px;
+    border: 1.5px solid var(--input-border);
+    border-radius: 14px;
+    background: #fff;
+    color: var(--navy);
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm, none);
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
 
-.login-microsoft:hover:not(:disabled) {
-    border-color: #dadce0;
-    background: #f8faff;
+.login-social svg {
+    flex: none;
 }
 
-/* Celda del botón oficial de Google: lo centra sin recortarlo */
+.login-social:hover:not(:disabled),
+.login-google:hover .login-social {
+    border-color: var(--teal);
+    background: var(--tint);
+}
+
+.login-social:active:not(:disabled),
+.login-google:active .login-social {
+    transform: scale(0.99);
+}
+
+.login-social:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* Google: el botón oficial (iframe) queda encima, transparente, y es el que recibe el clic. */
 .login-google {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 44px;
+    position: relative;
 }
 
 .login-google-boton {
+    position: absolute;
+    inset: 0;
     display: flex;
+    align-items: center;
     justify-content: center;
+    overflow: hidden;
+    opacity: 0.001;
+    /* el oficial mide 40 px de alto: se estira para cubrir los 52 px del nuestro */
+    transform: scaleY(1.35);
 }
 
 .login-google-ocupado {

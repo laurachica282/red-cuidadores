@@ -1,5 +1,5 @@
 -- Red de Cuidadores · estructura completa de la base de datos.
--- GENERADO por src/db/generar_esquema.js a partir de: 01_usuarios.sql, 02_codigos_verificacion.sql, 03_bloqueo_login.sql, 04_clave_cambiada.sql, 05_cuidadores.sql, 06_regiones.sql, 07_sesiones.sql, 08_dispositivos_confiables.sql, 09_mascotas.sql, 10_cuenta.sql, 11_login_social.sql, 11_ubicacion_cuidadores.sql, 12_servicios_cuidador.sql, 13_pasarelas_pais.sql, 14_pasarelas_br_us.sql, 15_reservas.sql, 16_seguimiento.sql, 17_pagos.sql.
+-- GENERADO por src/db/generar_esquema.js a partir de: 01_usuarios.sql, 02_codigos_verificacion.sql, 03_bloqueo_login.sql, 04_clave_cambiada.sql, 05_cuidadores.sql, 06_regiones.sql, 07_sesiones.sql, 08_dispositivos_confiables.sql, 09_mascotas.sql, 10_cuenta.sql, 11_login_social.sql, 11_ubicacion_cuidadores.sql, 12_servicios_cuidador.sql, 13_pasarelas_pais.sql, 14_pasarelas_br_us.sql, 15_reservas.sql, 16_seguimiento.sql, 17_pagos.sql, 18_metodos_pago.sql, 19_movimientos_pago.sql, 20_espana.sql.
 -- No lo edites a mano: cambia el script numerado y vuelve a correr "npm run db:esquema".
 -- Ejecútalo una sola vez sobre una base vacía (en Supabase: SQL Editor → pegar → Run).
 
@@ -575,3 +575,78 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_pago_vigente_por_reserva
   ON pagos (reserva_id) WHERE estado IN ('retenido', 'liberado');
 CREATE INDEX IF NOT EXISTS idx_pagos_viajero ON pagos (viajero_id, creado_en DESC);
 CREATE INDEX IF NOT EXISTS idx_pagos_cuidador ON pagos (cuidador_id, estado);
+
+-- ═════════════════════════════ 18_metodos_pago.sql ═════════════════════════════
+-- Métodos de pago por país (todos simulados).
+-- Ejecutar después de 17_pagos.sql.
+ALTER TABLE pasarelas_pais ADD COLUMN IF NOT EXISTS metodos TEXT[] NOT NULL DEFAULT ARRAY['tarjeta'];
+
+UPDATE pasarelas_pais SET metodos = ARRAY['tarjeta', 'pse', 'nequi']   WHERE pais = 'CO';
+UPDATE pasarelas_pais SET metodos = ARRAY['tarjeta', 'spei', 'oxxo']   WHERE pais = 'MX';
+UPDATE pasarelas_pais SET metodos = ARRAY['tarjeta', 'pix']            WHERE pais = 'BR';
+UPDATE pasarelas_pais SET metodos = ARRAY['tarjeta', 'paypal']         WHERE pais = 'US';
+
+-- Con qué método se hizo cada pago y una descripción segura para mostrarla (nunca el dato completo).
+ALTER TABLE pagos ADD COLUMN IF NOT EXISTS metodo VARCHAR(20) NOT NULL DEFAULT 'tarjeta'
+  CHECK (metodo IN ('tarjeta', 'paypal', 'pse', 'nequi', 'spei', 'oxxo', 'pix'));
+ALTER TABLE pagos ADD COLUMN IF NOT EXISTS detalle VARCHAR(80);
+UPDATE pagos SET detalle = 'Tarjeta ••••' || tarjeta_ultimos4 WHERE detalle IS NULL AND tarjeta_ultimos4 IS NOT NULL;
+
+-- ═════════════════════════════ 19_movimientos_pago.sql ═════════════════════════════
+-- HU-21 / HU-22: registro de cada movimiento de dinero de un pago.
+--   cobro      el viajero paga (el dinero queda retenido)
+--   reembolso  el viajero cancela y se le devuelve un porcentaje según la anticipación (HU-21)
+--   liberacion el cuidador recibe su parte, ya descontada la comisión (HU-22)
+-- RN-5: no se borran filas; es la evidencia de lo que pasó con el dinero.
+CREATE TABLE IF NOT EXISTS movimientos_pago (
+  id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  pago_id         BIGINT        NOT NULL REFERENCES pagos(id),
+  reserva_id      BIGINT        NOT NULL REFERENCES reservas(id),
+  tipo            VARCHAR(20)   NOT NULL CHECK (tipo IN ('cobro', 'reembolso', 'liberacion')),
+  beneficiario_id BIGINT        NOT NULL REFERENCES usuarios(id),
+  moneda          CHAR(3)       NOT NULL,
+  monto           NUMERIC(12,2) NOT NULL CHECK (monto >= 0),
+  porcentaje      NUMERIC(5,2),
+  comision        NUMERIC(12,2) NOT NULL DEFAULT 0,
+  detalle         TEXT,
+  creado_en       TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_movimientos_pago ON movimientos_pago (pago_id, creado_en);
+CREATE INDEX IF NOT EXISTS idx_movimientos_beneficiario ON movimientos_pago (beneficiario_id, creado_en DESC);
+-- Un pago se libera o se reembolsa una sola vez.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_movimiento_unico
+  ON movimientos_pago (pago_id, tipo) WHERE tipo IN ('reembolso', 'liberacion');
+
+-- Lo que se le devolvió al viajero (0 si no hubo reembolso).
+ALTER TABLE pagos ADD COLUMN IF NOT EXISTS monto_reembolsado NUMERIC(12,2) NOT NULL DEFAULT 0;
+
+-- Pagos que ya existían: se registran su cobro y, si ya se liberaron, su liberación.
+INSERT INTO movimientos_pago (pago_id, reserva_id, tipo, beneficiario_id, moneda, monto, porcentaje, comision, detalle, creado_en)
+SELECT p.id, p.reserva_id, 'cobro', p.cuidador_id, p.moneda, p.monto, 100, 0, p.detalle, p.creado_en
+  FROM pagos p
+ WHERE p.estado IN ('retenido', 'liberado', 'reembolsado')
+   AND NOT EXISTS (SELECT 1 FROM movimientos_pago m WHERE m.pago_id = p.id AND m.tipo = 'cobro');
+
+INSERT INTO movimientos_pago (pago_id, reserva_id, tipo, beneficiario_id, moneda, monto, porcentaje, comision, detalle, creado_en)
+SELECT p.id, p.reserva_id, 'liberacion', p.cuidador_id, p.moneda, p.neto_cuidador, 100 - p.comision_pct, p.comision,
+       'Pago del servicio terminado', COALESCE(p.liberado_en, NOW())
+  FROM pagos p
+ WHERE p.estado = 'liberado'
+   AND NOT EXISTS (SELECT 1 FROM movimientos_pago m WHERE m.pago_id = p.id AND m.tipo = 'liberacion');
+
+-- ═════════════════════════════ 20_espana.sql ═════════════════════════════
+-- España como país de la red: reglas y términos (RN-6, HU-36), pasarela y métodos de pago (RN-1, HU-19).
+INSERT INTO regiones_reglas (pais, nombre, idioma, moneda, terminos_titulo, terminos) VALUES
+('ES', 'España', 'es', 'EUR', 'Términos y protección de datos (España)',
+ 'Tus datos personales se tratan conforme al Reglamento General de Protección de Datos (RGPD) y a la Ley Orgánica 3/2018 (LOPDGDD). Puedes ejercer tus derechos de acceso, rectificación, supresión, oposición, limitación y portabilidad. Los documentos de verificación se conservan cifrados. Las reservas y pagos se rigen por la ley española. (Texto de ejemplo.)')
+ON CONFLICT (pais) DO NOTHING;
+
+-- Bizum: pago con el número de móvil, muy usado en España (simulado como los demás).
+ALTER TABLE pagos DROP CONSTRAINT IF EXISTS pagos_metodo_check;
+ALTER TABLE pagos ADD CONSTRAINT pagos_metodo_check
+  CHECK (metodo IN ('tarjeta', 'paypal', 'pse', 'nequi', 'spei', 'oxxo', 'pix', 'bizum'));
+
+INSERT INTO pasarelas_pais (pais, nombre_pais, pasarela, moneda, metodos) VALUES
+  ('ES', 'España', 'redsys_simulada', 'EUR', ARRAY['tarjeta', 'bizum', 'paypal'])
+ON CONFLICT (pais) DO NOTHING;

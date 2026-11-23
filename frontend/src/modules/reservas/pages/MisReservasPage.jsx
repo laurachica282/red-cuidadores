@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/modules/auth';
 import { BotonEmergencia, Campana, resumenReservas } from '@/modules/seguimiento';
-import { cancelarReserva, confirmarReserva, rechazarReserva, reservasMias, reservasRecibidas, misPagos } from '../services/reservasService.js';
+import { cancelarReserva, confirmarReserva, cotizarCancelacion, rechazarReserva, reservasMias, reservasRecibidas, misPagos } from '../services/reservasService.js';
 import { ESTADOS, SERVICIOS, fechaCorta, fechaHora, precio } from '../utils.js';
 import './reservas.css';
 
@@ -21,13 +21,22 @@ const ORDEN = { en_curso: 0, pendiente: 1, proxima: 2, terminada: 3, inactiva: 4
 // El seguimiento (reportes, chat, emergencia) existe desde la solicitud hasta después del servicio.
 const CON_SEGUIMIENTO = ['pendiente', 'confirmada', 'en_curso', 'completada'];
 
+// HU-22: el cuidador ve el detalle de la comisión; HU-21: el viajero ve lo que se le devolvió.
 function textoPago(pago, esCuidador, moneda) {
-  const neto = precio(pago.neto_cuidador, moneda);
+  const $ = (v) => precio(v, moneda);
+  const devuelto = Number(pago.monto_reembolsado ?? 0);
+  const base = Number(pago.monto) - devuelto;
+  const comision = `${$(base)} − comisión ${Number(pago.comision_pct)} % (${$(pago.comision)})`;
   if (pago.estado === 'retenido') {
-    return esCuidador ? `Pago retenido · recibirás ${neto} al terminar el servicio` : `Pago recibido (${pago.detalle}) · queda retenido hasta que termine el servicio`;
+    return esCuidador
+      ? `Pago retenido · al terminar recibirás ${$(pago.neto_cuidador)} (${comision})`
+      : `Pago recibido (${pago.detalle}) · queda retenido hasta que termine el servicio`;
   }
-  if (pago.estado === 'liberado') return esCuidador ? `Pago liberado · recibiste ${neto}` : 'Pago liberado al cuidador';
-  return 'Pago reembolsado';
+  if (pago.estado === 'liberado') {
+    if (esCuidador) return `Pago liberado · recibiste ${$(pago.neto_cuidador)} (${comision})`;
+    return devuelto > 0 ? `Se te devolvieron ${$(devuelto)}; el resto se pagó al cuidador` : 'Pago liberado al cuidador';
+  }
+  return esCuidador ? 'Pago reembolsado al viajero' : `Pago reembolsado · se te devolvieron ${$(devuelto || pago.monto)}`;
 }
 
 export default function MisReservasPage() {
@@ -42,6 +51,8 @@ export default function MisReservasPage() {
   const [motivo, setMotivo] = useState('');
   const [filtro, setFiltro] = useState('activas');
   const [pagos, setPagos] = useState({});
+  // HU-21: reserva que se está por cancelar, con lo que se devolvería.
+  const [cancelando, setCancelando] = useState(null);
 
   const cargar = useCallback(async () => {
     if (rol === 'admin') {
@@ -74,10 +85,20 @@ export default function MisReservasPage() {
       await accion();
       setRechazando(null);
       setMotivo('');
+      setCancelando(null);
     } catch (e) {
       setError(e.message);
     }
     await cargar();
+  }
+
+  async function pedirCancelacion(id) {
+    setError('');
+    try {
+      setCancelando({ id, ...(await cotizarCancelacion(id)) });
+    } catch (e) {
+      setError(e.message);
+    }
   }
 
   if (rol === 'admin') {
@@ -141,7 +162,14 @@ export default function MisReservasPage() {
                 {r.estado === 'pendiente' && (
                   <p className="rs-texto">Responder antes del {fechaHora(r.responder_antes)}</p>
                 )}
-                {r.estado === 'rechazada' && r.motivo_rechazo && <p className="rs-texto">Motivo: {r.motivo_rechazo}</p>}
+                {['rechazada', 'cancelada'].includes(r.estado) && r.motivo_rechazo && <p className="rs-texto">Motivo: {r.motivo_rechazo}</p>}
+                {r.estado === 'confirmada' && !pago && (
+                  <p className="rs-texto rs-texto--aviso">
+                    {esCuidador
+                      ? `Esperando el pago del viajero (hasta el ${fechaCorta(r.fecha_inicio)})`
+                      : `Paga hasta el ${fechaCorta(r.fecha_inicio)}; si no, la reserva se cancela sola`}
+                  </p>
+                )}
                 <span className="rs-ver">Ver reserva →</span>
               </Link>
 
@@ -158,9 +186,32 @@ export default function MisReservasPage() {
                 </div>
               )}
               {pago && <p className="rs-texto">{textoPago(pago, esCuidador, r.moneda.trim())}</p>}
-              {r.estado === 'confirmada' && !esCuidador && !pago && (
+              {r.estado === 'confirmada' && !esCuidador && cancelando?.id !== r.id && (
                 <div className="rs-acciones">
-                  <Link className="btn-primary" to={`/pagos/reserva/${r.id}`}>Pagar {precio(r.total, r.moneda.trim())}</Link>
+                  {!pago && <Link className="btn-primary" to={`/pagos/reserva/${r.id}`}>Pagar {precio(r.total, r.moneda.trim())}</Link>}
+                  <button type="button" className="rs-boton-claro" onClick={() => pedirCancelacion(r.id)}>Cancelar reserva</button>
+                </div>
+              )}
+              {cancelando?.id === r.id && (
+                <div className="rs-cancelar" role="alertdialog" aria-labelledby={`cancelar-${r.id}`}>
+                  <p id={`cancelar-${r.id}`} className="rs-cancelar-titulo">
+                    {cancelando.pagada
+                      ? <>Te devolveremos <strong>{precio(cancelando.reembolso, cancelando.moneda)}</strong> ({cancelando.porcentaje} %)</>
+                      : 'Todavía no pagaste: cancelar no tiene costo'}
+                  </p>
+                  {cancelando.pagada && (
+                    <ul className="rs-politica">
+                      {cancelando.politica.map((t) => (
+                        <li key={t} className={t === cancelando.regla ? 'rs-politica--aplica' : ''}>{t}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="rs-acciones">
+                    <button type="button" className="btn-primary rs-boton-peligro" onClick={() => ejecutar(() => cancelarReserva(r.id))}>
+                      Sí, cancelar
+                    </button>
+                    <button type="button" className="rs-boton-claro" onClick={() => setCancelando(null)}>Volver</button>
+                  </div>
                 </div>
               )}
 

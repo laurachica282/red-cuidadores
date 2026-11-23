@@ -32,6 +32,7 @@ router.get('/recibidas', comoCuidador, responder((req) => reservas.delCuidador(r
 router.get('/:id', responder((req) => reservas.obtener(req.usuario.id, req.params.id)));
 router.post('/:id/confirmar', comoCuidador, responder((req) => reservas.confirmar(req.usuario.id, req.params.id)));
 router.post('/:id/rechazar', comoCuidador, responder((req) => reservas.rechazar(req.usuario.id, req.params.id, req.body?.motivo)));
+router.get('/:id/cancelacion', comoViajero, responder((req) => reservas.cotizarCancelar(req.usuario.id, req.params.id)));
 router.post('/:id/cancelar', comoViajero, responder((req) => reservas.cancelar(req.usuario.id, req.params.id)));
 
 export default router;

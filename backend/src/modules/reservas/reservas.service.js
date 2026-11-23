@@ -1,4 +1,7 @@
 import { pool } from '../../db.js';
+import { hoyISO } from '../../shared/fecha.js';
+import { actualizarEstados } from './ciclo.js';
+import { aplicarCancelacion, cotizarCancelacion } from '../pagos/index.js';
 
 const SERVICIOS = ['alojamiento', 'domicilio', 'paseo', 'guarderia'];
 const MAX_DIAS = 60;
@@ -15,16 +18,8 @@ export class ErrorReserva extends Error {
   }
 }
 
-export async function vencerPendientes() {
-  await pool.query(
-    `UPDATE reservas SET estado = 'vencida', actualizado_en = NOW()
-      WHERE estado = 'pendiente' AND responder_antes < NOW()`
-  );
-  await pool.query(
-    `UPDATE reservas SET estado = 'completada', actualizado_en = NOW()
-      WHERE estado IN ('confirmada','en_curso') AND fecha_fin < CURRENT_DATE`
-  );
-}
+// Pone al día los estados (vencer, cancelar sin pago, en curso, completar) antes de leer o cambiar.
+export const vencerPendientes = actualizarEstados;
 
 export async function crear(viajeroId, d) {
   if (!esId(d.cuidador_id)) throw new ErrorReserva(400, 'Elige un cuidador');
@@ -39,8 +34,7 @@ export async function crear(viajeroId, d) {
   if (noches > MAX_DIAS) throw new ErrorReserva(400, `La reserva no puede durar más de ${MAX_DIAS} días`);
   const unidades = d.servicio === 'alojamiento' ? noches : noches + 1;
 
-  const hoy = (await pool.query('SELECT CURRENT_DATE::text AS hoy')).rows[0].hoy;
-  if (d.fecha_inicio < hoy) throw new ErrorReserva(400, 'La fecha de entrada ya pasó');
+  if (d.fecha_inicio < hoyISO()) throw new ErrorReserva(400, 'La fecha de entrada ya pasó');
 
   const masc = await pool.query(
     'SELECT id FROM mascotas WHERE id = $1 AND usuario_id = $2 AND status',
@@ -63,6 +57,7 @@ export async function crear(viajeroId, d) {
   const viajero = await pool.query('SELECT pais FROM usuarios WHERE id = $1', [viajeroId]);
   if (viajero.rows[0]?.pais !== c.pais) throw new ErrorReserva(400, 'Solo puedes reservar cuidadores de tu región');
 
+  await actualizarEstados(); // libera fechas de reservas que se cancelaron sin pago
   const cruce = await pool.query(
     `SELECT 1 FROM reservas
       WHERE cuidador_id = $1 AND estado IN ('confirmada', 'en_curso')
@@ -125,6 +120,7 @@ async function explicarFallo(id, columnaDueno, usuarioId) {
   if (f.estado === 'confirmada') {
     throw new ErrorReserva(409, 'Esta reserva ya está confirmada. Para cancelarla se aplica la política de reembolso');
   }
+  if (f.estado === 'en_curso') throw new ErrorReserva(409, 'El servicio ya empezó: ya no se puede cancelar');
   throw new ErrorReserva(409, `Esta reserva ya está ${f.estado}`);
 }
 
@@ -158,14 +154,50 @@ export async function rechazar(cuidadorId, id, motivo) {
   return explicarFallo(id, 'cuidador_id', cuidadorId);
 }
 
-// El viajero solo cancela solicitudes pendientes. Cancelar una confirmada (con reembolso) es HU-21.
+// HU-21: el viajero cancela una solicitud pendiente (sin dinero de por medio) o una reserva confirmada.
+// En la confirmada se devuelve el pago según la anticipación (pagos/reembolsos.js), todo en una transacción.
 export async function cancelar(viajeroId, id) {
   await vencerPendientes();
-  const r = await pool.query(
-    `UPDATE reservas SET estado = 'cancelada', actualizado_en = NOW()
-      WHERE id = $1 AND viajero_id = $2 AND estado = 'pendiente' RETURNING *`,
+  const db = await pool.connect();
+  try {
+    await db.query('BEGIN');
+    const { rows } = await db.query(
+      `SELECT *, fecha_inicio::text AS fecha_inicio FROM reservas
+        WHERE id = $1 AND viajero_id = $2 AND estado IN ('pendiente', 'confirmada') FOR UPDATE`,
+      [id, viajeroId]
+    );
+    const reserva = rows[0];
+    if (!reserva) {
+      await db.query('ROLLBACK');
+      return explicarFallo(id, 'viajero_id', viajeroId);
+    }
+    const reembolso = reserva.estado === 'confirmada' ? await aplicarCancelacion(db, reserva) : null;
+    const motivo = reembolso?.pagada
+      ? `Cancelada por el viajero · reembolso del ${reembolso.porcentaje} %`
+      : 'Cancelada por el viajero';
+    const r = await db.query(
+      `UPDATE reservas SET estado = 'cancelada', motivo_rechazo = $2, actualizado_en = NOW() WHERE id = $1 RETURNING *`,
+      [id, motivo]
+    );
+    await db.query('COMMIT');
+    return { ...r.rows[0], reembolso };
+  } catch (e) {
+    await db.query('ROLLBACK').catch(() => {});
+    throw e;
+  } finally {
+    db.release();
+  }
+}
+
+// HU-21: lo que se devolvería si el viajero cancela hoy (para mostrarlo antes de confirmar).
+export async function cotizarCancelar(viajeroId, id) {
+  await vencerPendientes();
+  const { rows } = await pool.query(
+    `SELECT id, estado, moneda, fecha_inicio::text AS fecha_inicio FROM reservas WHERE id = $1 AND viajero_id = $2`,
     [id, viajeroId]
   );
-  if (r.rows[0]) return r.rows[0];
-  return explicarFallo(id, 'viajero_id', viajeroId);
+  const reserva = rows[0];
+  if (!reserva) throw new ErrorReserva(404, 'Reserva no encontrada');
+  if (!['pendiente', 'confirmada'].includes(reserva.estado)) return explicarFallo(id, 'viajero_id', viajeroId);
+  return { estado: reserva.estado, ...(await cotizarCancelacion(reserva)) };
 }

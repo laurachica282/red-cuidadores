@@ -368,3 +368,23 @@
 .rs-boton-claro { transition: border-color .15s ease, background .15s ease; }
 .rs-boton-claro:hover:not(:disabled) { border-color: var(--teal); background: var(--tint); }
 .rs-vacio, .rs-aviso, .rs-form { box-shadow: var(--shadow-sm); }
+
+/* Confirmada sin pagar: aviso del plazo (se cancela sola si no se paga antes del inicio). */
+.rs-texto--aviso {
+  color: var(--coral, #e07a5f);
+  font-weight: 600;
+}
+
+/* HU-21: confirmación de la cancelación con el reembolso que aplica. */
+.rs-cancelar {
+  margin-top: 10px;
+  padding: 14px 16px;
+  border-radius: var(--radius, 14px);
+  background: var(--tint-gold, #fff6e5);
+  border: 1px solid color-mix(in srgb, var(--coral, #e07a5f) 35%, transparent);
+}
+.rs-cancelar-titulo { margin: 0 0 8px; font-size: 15px; color: var(--ink, inherit); }
+.rs-politica { margin: 0 0 12px; padding-left: 18px; font-size: 13px; color: var(--slate); }
+.rs-politica li { margin: 2px 0; }
+.rs-politica--aplica { color: var(--ink, inherit); font-weight: 700; }
+.rs-boton-peligro { background: var(--coral, #e07a5f); border-color: var(--coral, #e07a5f); }

@@ -57,6 +57,8 @@ export default function MapaResultados({ cuidadores, punto, precio, enlacePerfil
         {conUbicacion.map((c) => (
           <Marker key={c.id} position={[c.ubicacion.lat, c.ubicacion.lng]}
             zIndexOffset={resaltado === c.id ? 1000 : 0}
+            // Pines cercanos se enciman: el que está bajo el mouse sube, así se abre el que se ve.
+            riseOnHover riseOffset={2000}
             title={c.nombre}
             icon={L.divIcon({
               className: '',

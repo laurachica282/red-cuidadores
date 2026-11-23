@@ -4,6 +4,7 @@ import * as pasarelas from './pasarelas.service.js';
 import { paisDeCoordenadas } from './deteccion.js';
 import * as pagos from './pagos.service.js';
 import { METODOS } from './metodos.js';
+import { movimientosDe } from './reembolsos.js';
 
 const router = Router();
 router.use(verificarToken);
@@ -90,6 +91,16 @@ router.get('/mios', async (req, res) => {
   } catch (e) {
     console.error(e.message);
     res.status(500).json({ error: 'No se pudieron cargar los pagos' });
+  }
+});
+
+// Movimientos de dinero (cobros, reembolsos y liberaciones con su comisión): HU-21 y HU-22.
+router.get('/movimientos', async (req, res) => {
+  try {
+    res.json(await movimientosDe(req.usuario.id));
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'No se pudieron cargar los movimientos' });
   }
 });
 
