@@ -7,8 +7,11 @@ import BotonGoogle from '../components/BotonGoogle.jsx';
 import BotonMicrosoft from '../components/BotonMicrosoft.jsx';
 import { CaminoHuellas, PerroYGato } from '../components/DecoracionMascotas.jsx';
 import './LoginPage.css';
+import '../i18n.js';
+import { useIdioma } from '@/modules/region';
 
 export default function LoginPage() {
+  const { t } = useIdioma();
   const [correo, setCorreo] = useState('');
   const [clave, setClave] = useState('');
   const [verClave, setVerClave] = useState(false);
@@ -22,11 +25,11 @@ export default function LoginPage() {
   // Al vencer el bloqueo se rehabilita el botón y se quita el aviso.
   useEffect(() => {
     if (!bloqueadoHasta) return undefined;
-    const t = setTimeout(() => {
+    const id = setTimeout(() => {
       setBloqueadoHasta(null);
       setError('');
     }, Math.max(0, bloqueadoHasta - Date.now()));
-    return () => clearTimeout(t);
+    return () => clearTimeout(id);
   }, [bloqueadoHasta]);
 
   // Misma salida para la clave y los proveedores sociales.
@@ -95,34 +98,34 @@ export default function LoginPage() {
           Red de Cuidadores
         </div>
 
-        <h1>Inicia sesión <span className="login-saludo" aria-hidden="true">🐾</span></h1>
-        <p className="login-sub">Deja a tu mascota con vecinos de confianza, sin preocuparte.</p>
+        <h1>{t('auth.login.titulo')} <span className="login-saludo" aria-hidden="true">🐾</span></h1>
+        <p className="login-sub">{t('auth.login.sub')}</p>
 
         {state?.cuentaActivada && (
-          <p className="login-exito" role="status">¡Cuenta activada! Ya puedes iniciar sesión.</p>
+          <p className="login-exito" role="status">{t('auth.login.cuentaActivada')}</p>
         )}
 
         {state?.claveActualizada && (
-          <p className="login-exito" role="status">Contraseña actualizada. Inicia sesión con la nueva.</p>
+          <p className="login-exito" role="status">{t('auth.login.claveActualizada')}</p>
         )}
 
         <form className="login-form" onSubmit={entrar}>
           <div>
-            <label className="label" htmlFor="email">Correo electrónico</label>
+            <label className="label" htmlFor="email">{t('auth.correo')}</label>
             <div className="campo">
               <span className="campo-icono"><IconCorreo /></span>
-              <input id="email" className="input" type="email" autoComplete="email" placeholder="nombre@correo.com"
+              <input id="email" className="input" type="email" autoComplete="email" placeholder={t('auth.correoPlaceholder')}
                 value={correo} onChange={(e) => setCorreo(e.target.value)} required />
             </div>
           </div>
 
           <div>
-            <label className="label" htmlFor="clave">Contraseña</label>
+            <label className="label" htmlFor="clave">{t('auth.clave')}</label>
             <div className="campo">
               <span className="campo-icono"><IconCandado /></span>
-              <input id="clave" className="input con-ojo" type={verClave ? 'text' : 'password'} autoComplete="current-password" placeholder="Tu contraseña"
+              <input id="clave" className="input con-ojo" type={verClave ? 'text' : 'password'} autoComplete="current-password" placeholder={t('auth.login.clavePlaceholder')}
                 value={clave} onChange={(e) => setClave(e.target.value)} required />
-              <button type="button" className="campo-ojo" aria-label={verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'} onClick={() => setVerClave(!verClave)}>
+              <button type="button" className="campo-ojo" aria-label={t(verClave ? 'auth.ocultarClave' : 'auth.mostrarClave')} onClick={() => setVerClave(!verClave)}>
                 {verClave ? <IconOjoCerrado /> : <IconOjo />}
               </button>
             </div>
@@ -133,24 +136,24 @@ export default function LoginPage() {
           <div className="login-fila">
             <label className="login-check">
               <input type="checkbox" defaultChecked />
-              Mantener sesión iniciada
+              {t('auth.login.mantener')}
             </label>
-            <Link className="enlace" to="/recuperar" style={{ fontSize: 14 }}>¿Olvidaste tu contraseña?</Link>
+            <Link className="enlace" to="/recuperar" style={{ fontSize: 14 }}>{t('auth.olvidaste')}</Link>
           </div>
 
           <button type="submit" className="btn-primary" disabled={cargando || !!bloqueadoHasta}>
-            {cargando ? 'Ingresando…' : 'Ingresar'}
+            {t(cargando ? 'auth.login.ingresando' : 'auth.login.ingresar')}
           </button>
         </form>
 
-        <div className="login-o">o continúa con</div>
+        <div className="login-o">{t('auth.login.o')}</div>
         <div className="login-redes">
           <BotonGoogle onCredencial={entrarConGoogle} onError={setError} deshabilitado={cargando || !!bloqueadoHasta} />
           <BotonMicrosoft onIdToken={entrarConMicrosoft} onError={setError} deshabilitado={cargando || !!bloqueadoHasta} />
         </div>
 
         <p className="login-pie">
-          ¿Aún no tienes cuenta? <Link className="enlace" to="/registro">Crear cuenta</Link>
+          {t('auth.login.sinCuenta')} <Link className="enlace" to="/registro">{t('auth.login.crearCuenta')}</Link>
         </p>
       </main>
     </div>

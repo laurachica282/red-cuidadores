@@ -6,7 +6,7 @@ import { guardarMiRegion, listarPaises, obtenerMiRegion } from '../services/regi
 
 // Mockup "Idioma, país y moneda" (HU-34): tres selectores, aviso y botón Guardar fijo abajo.
 export default function RegionPage() {
-  const { t } = useIdioma();
+  const { t, pais: nombrePais } = useIdioma();
   const [paises, setPaises] = useState([]);
   const [pais, setPais] = useState('');
   const [idioma, setIdioma] = useState('es');
@@ -74,7 +74,7 @@ export default function RegionPage() {
           <label className="label" htmlFor="pais">{t('region.pais')}</label>
           <div className="rg-select">
             <select id="pais" className="input" value={pais} onChange={(e) => elegirPais(e.target.value)} required>
-              {paises.map((p) => <option key={p.pais} value={p.pais}>{p.nombre}</option>)}
+              {paises.map((p) => <option key={p.pais} value={p.pais}>{nombrePais(p.pais)}</option>)}
             </select>
           </div>
         </div>

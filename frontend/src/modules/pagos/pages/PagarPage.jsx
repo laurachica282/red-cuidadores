@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { useIdioma } from '@/modules/region';
 import { obtenerMiPais, pagarReserva, pasarelaDePais, reservaPorId } from '../services/pagosService.js';
+import '../i18n.js';
 import './pagos.css';
-
-const dinero = (v, m) =>
-  new Intl.NumberFormat('es-CO', { style: 'currency', currency: m, maximumFractionDigits: 0 }).format(v);
 
 const formatoNumero = (v) => v.replace(/\D/g, '').slice(0, 16).replace(/(\d{4})(?=\d)/g, '$1 ');
 const formatoVence = (v) => {
@@ -13,63 +12,40 @@ const formatoVence = (v) => {
 };
 
 // Lo que pide cada método de pago (simulado) y la regla de prueba para ver un rechazo.
+// Los textos se guardan como claves 'pagos.*'; `nombre` sin clave es nombre propio (marca) y no se traduce.
 const METODOS = {
-  tarjeta: { nombre: 'Tarjeta de crédito o débito' },
-  paypal: {
-    nombre: 'PayPal',
-    etiqueta: 'Correo de PayPal',
-    placeholder: 'tucorreo@ejemplo.com',
-    ayuda: 'Para simular un rechazo, usa un correo que contenga "rechazar".',
-  },
+  tarjeta: { claveNombre: 'pagos.metodo.tarjeta' },
+  paypal: { nombre: 'PayPal', etiqueta: 'pagos.paypal.etiqueta', placeholder: 'pagos.paypal.placeholder', ayuda: 'pagos.paypal.ayuda' },
   pse: {
     nombre: 'PSE',
-    etiqueta: 'Tu banco',
+    etiqueta: 'pagos.pse.etiqueta',
     opciones: [
       ['bancolombia', 'Bancolombia'],
       ['davivienda', 'Davivienda'],
       ['bbva', 'BBVA'],
       ['bogota', 'Banco de Bogotá'],
-      ['sin_fondos', 'Banco de prueba (sin fondos)'],
+      ['sin_fondos', null], // banco de prueba: su nombre se traduce
     ],
-    ayuda: 'Para simular un rechazo, elige "Banco de prueba (sin fondos)".',
+    ayuda: 'pagos.pse.ayuda',
   },
-  nequi: {
-    nombre: 'Nequi',
-    etiqueta: 'Celular de Nequi',
-    placeholder: '3101234567',
-    digitos: 10,
-    ayuda: 'Para simular un rechazo, usa un celular que termine en 0002.',
-  },
-  spei: {
-    nombre: 'SPEI',
-    etiqueta: 'CLABE interbancaria (18 dígitos)',
-    placeholder: '012345678901234567',
-    digitos: 18,
-    ayuda: 'Para simular un rechazo, usa una CLABE que termine en 0002.',
-  },
-  oxxo: {
-    nombre: 'OXXO',
-    etiqueta: 'Nombre completo',
-    placeholder: 'Como aparece en tu identificación',
-    ayuda: 'Pago en efectivo simulado: siempre se aprueba.',
-  },
-  bizum: {
-    nombre: 'Bizum',
-    etiqueta: 'Móvil de Bizum',
-    placeholder: '612345678',
-    digitos: 9,
-    ayuda: 'Para simular un rechazo, usa un móvil que termine en 0002.',
-  },
-  pix: {
-    nombre: 'Pix',
-    etiqueta: 'CPF (11 dígitos)',
-    placeholder: '12345678901',
-    digitos: 11,
-    ayuda: 'Para simular un rechazo, usa un CPF que termine en 0002.',
-  },
+  nequi: { nombre: 'Nequi', etiqueta: 'pagos.nequi.etiqueta', placeholder: '3101234567', digitos: 10, ayuda: 'pagos.nequi.ayuda' },
+  spei: { nombre: 'SPEI', etiqueta: 'pagos.spei.etiqueta', placeholder: '012345678901234567', digitos: 18, ayuda: 'pagos.spei.ayuda' },
+  oxxo: { nombre: 'OXXO', etiqueta: 'pagos.oxxo.etiqueta', placeholder: 'pagos.oxxo.placeholder', ayuda: 'pagos.oxxo.ayuda' },
+  bizum: { nombre: 'Bizum', etiqueta: 'pagos.bizum.etiqueta', placeholder: '612345678', digitos: 9, ayuda: 'pagos.bizum.ayuda' },
+  pix: { nombre: 'Pix', etiqueta: 'pagos.pix.etiqueta', placeholder: '12345678901', digitos: 11, ayuda: 'pagos.pix.ayuda' },
 };
 
+// El detalle lo arma el servidor en español (pagos/metodos.js); se traducen solo las partes que no son marcas.
+function textoDetalle(t, detalle) {
+  if (typeof detalle !== 'string') return detalle;
+  const tarjeta = /^Tarjeta ••••(\d{4})$/.exec(detalle);
+  if (tarjeta) return t('pagos.detalle.tarjeta', { ultimos: tarjeta[1] });
+  if (detalle === 'OXXO · pago en efectivo') return t('pagos.detalle.oxxo');
+  return detalle.replace('Banco de prueba (sin fondos)', t('pagos.banco_prueba'));
+}
+
 export default function PagarPage() {
+  const { t, locale, precio } = useIdioma();
   const { id } = useParams();
   const [reserva, setReserva] = useState(null);
   const [metodos, setMetodos] = useState([]); // métodos que ofrece el país del viajero
@@ -120,16 +96,21 @@ export default function PagarPage() {
     }
   }
 
+  const nombreMetodo = (k) => (METODOS[k].claveNombre ? t(METODOS[k].claveNombre) : METODOS[k].nombre);
+  // Las claves 'pagos.*' se traducen; lo demás (números de ejemplo) se muestra tal cual.
+  const textoCampo = (v) => (v?.startsWith('pagos.') ? t(v) : v);
+  const fecha = (v) => new Date(`${String(v).slice(0, 10)}T12:00:00`)
+    .toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
+
   if (pago) {
     return (
       <main className="pg-pagina">
-        <h1 className="pg-titulo">¡Pago recibido!</h1>
+        <h1 className="pg-titulo">{t('pagos.pago_recibido')}</h1>
         <p className="pg-aviso pg-aviso--ok">
-          Pagaste {dinero(pago.monto, pago.moneda.trim())} con {pago.detalle}.
-          El dinero queda retenido y se le entrega al cuidador cuando termine el servicio.
+          {t('pagos.pagaste', { monto: precio(pago.monto, pago.moneda.trim()), detalle: textoDetalle(t, pago.detalle) })}
         </p>
-        <p className="pg-texto">Referencia: <strong>{pago.referencia}</strong></p>
-        <Link className="pg-boton" to="/reservas">Ir a mis reservas</Link>
+        <p className="pg-texto">{t('pagos.referencia')} <strong>{pago.referencia}</strong></p>
+        <Link className="pg-boton" to="/reservas">{t('pagos.ir_reservas')}</Link>
       </main>
     );
   }
@@ -137,83 +118,93 @@ export default function PagarPage() {
   const moneda = reserva?.moneda?.trim();
   const pagable = reserva?.estado === 'confirmada';
   const m = METODOS[metodo];
+  const textoEstado = (e) => {
+    const texto = t(`pagos.estado.${e}`);
+    return texto === `pagos.estado.${e}` ? e : texto;
+  };
 
   return (
     <main className="pg-pagina">
-      <h1 className="pg-titulo">Pagar reserva</h1>
+      <h1 className="pg-titulo">{t('pagos.pagar_reserva')}</h1>
       {error && !pagable && <p className="pg-aviso pg-aviso--error" role="alert">{error}</p>}
 
       {reserva && (
         <div className="pg-tarjeta">
-          <p className="pg-texto"><strong>{reserva.cuidador}</strong> cuidará a <strong>{reserva.mascota}</strong></p>
-          <p className="pg-texto">{reserva.fecha_inicio} → {reserva.fecha_fin}</p>
-          <p className="pg-valor">{dinero(reserva.total, moneda)}</p>
+          <p className="pg-texto">
+            {/* Los nombres van en negrita: se deja la marca {cuidador}/{mascota} y se reemplaza por <strong>. */}
+            {t('pagos.cuidara_a', { cuidador: '{cuidador}', mascota: '{mascota}' }).split(/(\{cuidador\}|\{mascota\})/).map((parte) => {
+              if (parte === '{cuidador}') return <strong key="cuidador">{reserva.cuidador}</strong>;
+              if (parte === '{mascota}') return <strong key="mascota">{reserva.mascota}</strong>;
+              return parte;
+            })}
+          </p>
+          <p className="pg-texto">{fecha(reserva.fecha_inicio)} → {fecha(reserva.fecha_fin)}</p>
+          <p className="pg-valor">{precio(reserva.total, moneda)}</p>
         </div>
       )}
 
       {reserva && !pagable && (
-        <p className="pg-aviso pg-aviso--error">Esta reserva no se puede pagar ahora (estado: {reserva.estado}).</p>
+        <p className="pg-aviso pg-aviso--error">{t('pagos.no_pagable', { estado: textoEstado(reserva.estado) })}</p>
       )}
 
       {pagable && (
         <form className="pg-form" onSubmit={enviar}>
-          <p className="pg-texto"><strong>¿Cómo quieres pagar?</strong></p>
-          <div className="pg-metodos" role="group" aria-label="Método de pago">
+          <p className="pg-texto"><strong>{t('pagos.como_pagar')}</strong></p>
+          <div className="pg-metodos" role="group" aria-label={t('pagos.metodo_pago')}>
             {metodos.map((k) => (
               <button key={k} type="button" aria-pressed={metodo === k}
                 className={`pg-metodo${metodo === k ? ' pg-metodo--activo' : ''}`} onClick={() => elegir(k)}>
-                {METODOS[k].nombre}
+                {nombreMetodo(k)}
               </button>
             ))}
           </div>
 
           {metodo === 'tarjeta' ? (
             <>
-              <label className="label" htmlFor="numero">Número de tarjeta</label>
+              <label className="label" htmlFor="numero">{t('pagos.numero_tarjeta')}</label>
               <input id="numero" className="input" inputMode="numeric" autoComplete="off" placeholder="4242 4242 4242 4242"
                 value={numero} onChange={(e) => setNumero(formatoNumero(e.target.value))} />
               <div className="pg-fila">
                 <div>
-                  <label className="label" htmlFor="vence">Vence</label>
-                  <input id="vence" className="input" inputMode="numeric" autoComplete="off" placeholder="MM/AA"
+                  <label className="label" htmlFor="vence">{t('pagos.vence')}</label>
+                  <input id="vence" className="input" inputMode="numeric" autoComplete="off" placeholder={t('pagos.vence_formato')}
                     value={vence} onChange={(e) => setVence(formatoVence(e.target.value))} />
                 </div>
                 <div>
-                  <label className="label" htmlFor="cvv">Código</label>
+                  <label className="label" htmlFor="cvv">{t('pagos.codigo')}</label>
                   <input id="cvv" className="input" inputMode="numeric" autoComplete="off" placeholder="123" maxLength={4}
                     value={cvv} onChange={(e) => setCvv(e.target.value.replace(/\D/g, ''))} />
                 </div>
               </div>
-              <p className="pg-nota">
-                Tarjeta de prueba aprobada: 4242 4242 4242 4242. Rechazada: 4000 0000 0000 0002.
-                Usa cualquier fecha futura y cualquier código.
-              </p>
+              <p className="pg-nota">{t('pagos.tarjetas_prueba')}</p>
             </>
           ) : (
             <>
-              <label className="label" htmlFor="dato">{m.etiqueta}</label>
+              <label className="label" htmlFor="dato">{t(m.etiqueta)}</label>
               {m.opciones ? (
                 <select id="dato" className="input" value={dato} onChange={(e) => setDato(e.target.value)}>
-                  <option value="">Elige un banco</option>
-                  {m.opciones.map(([valor, texto]) => <option key={valor} value={valor}>{texto}</option>)}
+                  <option value="">{t('pagos.elige_banco')}</option>
+                  {m.opciones.map(([valor, texto]) => (
+                    <option key={valor} value={valor}>{texto ?? t('pagos.banco_prueba')}</option>
+                  ))}
                 </select>
               ) : (
-                <input id="dato" className="input" autoComplete="off" placeholder={m.placeholder}
+                <input id="dato" className="input" autoComplete="off" placeholder={textoCampo(m.placeholder)}
                   inputMode={m.digitos ? 'numeric' : undefined} value={dato}
                   onChange={(e) => setDato(m.digitos ? e.target.value.replace(/\D/g, '').slice(0, m.digitos) : e.target.value)} />
               )}
-              <p className="pg-nota">{m.ayuda}</p>
+              <p className="pg-nota">{t(m.ayuda, { banco: t('pagos.banco_prueba') })}</p>
             </>
           )}
 
           {error && <p className="pg-aviso pg-aviso--error" role="alert">{error}</p>}
           <button type="submit" className="btn-primary" disabled={enviando}>
-            {enviando ? 'Procesando…' : `Pagar ${dinero(reserva.total, moneda)}`}
+            {enviando ? t('pagos.procesando') : t('pagos.pagar', { monto: precio(reserva.total, moneda) })}
           </button>
-          <p className="pg-nota">Pago simulado: no se cobra dinero real.</p>
+          <p className="pg-nota">{t('pagos.simulado')}</p>
         </form>
       )}
-      <Link className="pg-boton pg-boton--claro" to="/reservas">Volver</Link>
+      <Link className="pg-boton pg-boton--claro" to="/reservas">{t('pagos.volver')}</Link>
     </main>
   );
 }

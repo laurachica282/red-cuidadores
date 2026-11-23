@@ -1,4 +1,7 @@
 import { api } from '@/shared/api/client.js';
+import { traducirMensajeServidor } from '@/shared/api/mensajesServidor.js';
+import { traducir } from '@/modules/region';
+import '../i18n.js';
 
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 const ORIGEN = API.replace(/\/api\/?$/, '');
@@ -42,13 +45,18 @@ export async function crearReporte(id, { titulo, nota, foto }) {
   try {
     resp = await fetch(`${API}/seguimiento/reservas/${id}/reportes`, {
       method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: {
+        'Accept-Language': document.documentElement.lang || 'es',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: datos,
     });
   } catch {
-    throw new Error('No hay conexión con el servidor');
+    throw new Error(traducir('seguimiento.error_conexion'));
   }
   const cuerpo = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw new Error(cuerpo.error ?? 'No se pudo subir el reporte');
+  if (!resp.ok) {
+    throw Object.assign(new Error(traducirMensajeServidor(cuerpo.error) ?? traducir('seguimiento.error_subir_reporte')), { original: cuerpo.error });
+  }
   return cuerpo;
 }

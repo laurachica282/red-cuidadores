@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useIdioma } from '@/modules/region';
 import { crearReserva, misMascotas, obtenerCuidador } from '../services/reservasService.js';
-import { HORAS, SERVICIOS, dias, esPorHora, fechaHora, horasEntre, hoyISO, precio } from '../utils.js';
+import {
+  HORAS, SERVICIOS, dias, esPorHora, fechaHora, horasEntre, hoyISO, nombreServicio, precio, textoEspecie, textoUnidad,
+} from '../utils.js';
 import { IconPata } from '@/shared/components/Icons.jsx';
+import '../i18n.js';
 import './reservas.css';
 
 export default function NuevaReservaPage() {
+  const { t } = useIdioma();
   const { cuidadorId } = useParams();
   const [params] = useSearchParams();
   const location = useLocation();
@@ -82,12 +87,12 @@ export default function NuevaReservaPage() {
     }
   }
 
-  if (cargando) return <main className="rs-pagina"><p className="rs-texto">Cargando…</p></main>;
+  if (cargando) return <main className="rs-pagina"><p className="rs-texto">{t('reservas.cargando')}</p></main>;
   if (!cuidador) {
     return (
       <main className="rs-pagina">
-        <p className="rs-aviso rs-aviso--error">{error || 'No encontramos a este cuidador.'}</p>
-        <Link to="/inicio">Volver a la búsqueda</Link>
+        <p className="rs-aviso rs-aviso--error">{error || t('reservas.cuidador_no_encontrado')}</p>
+        <Link to="/inicio">{t('reservas.volver_busqueda')}</Link>
       </main>
     );
   }
@@ -95,12 +100,11 @@ export default function NuevaReservaPage() {
   if (creada) {
     return (
       <main className="rs-pagina">
-        <h1 className="rs-titulo">Solicitud enviada</h1>
+        <h1 className="rs-titulo">{t('reservas.solicitud_enviada')}</h1>
         <p className="rs-texto">
-          {cuidador.nombre} tiene hasta el {fechaHora(creada.responder_antes)} para responder. Si no responde,
-          la solicitud vence.
+          {t('reservas.plazo_respuesta', { nombre: cuidador.nombre, fecha: fechaHora(creada.responder_antes) })}
         </p>
-        <Link className="btn-primary" to="/reservas">Ver mis reservas</Link>
+        <Link className="btn-primary" to="/reservas">{t('reservas.ver_mis_reservas')}</Link>
       </main>
     );
   }
@@ -112,38 +116,36 @@ export default function NuevaReservaPage() {
       {/* Si se llegó desde el perfil se retrocede; así el historial no se repite (perfil → reserva → perfil → ...). */}
       <Link className="rs-volver" to={`/cuidadores/${cuidadorId}`} replace
         onClick={(e) => { if (location.state?.desdePerfil) { e.preventDefault(); navigate(-1); } }}>
-        ← Volver al perfil
+        {t('reservas.volver_perfil')}
       </Link>
-      <h1 className="rs-titulo">Reservar con {cuidador.nombre}</h1>
+      <h1 className="rs-titulo">{t('reservas.reservar_con', { nombre: cuidador.nombre })}</h1>
 
       {mascotas.length === 0 ? (
         <section className="rs-vacio">
           <span className="rs-vacio-icono"><IconPata /></span>
-          <h2>Primero registra a tu mascota</h2>
-          <p>
-            {cuidador.nombre.split(' ')[0]} necesita saber a quién va a cuidar: especie, raza, vacunas e indicaciones médicas.
-          </p>
-          <Link className="btn-primary rs-vacio-boton" to="/mascotas/nueva">Agregar mascota</Link>
-          <small>Solo toma un minuto. Luego vuelve aquí para terminar tu reserva.</small>
+          <h2>{t('reservas.registra_mascota')}</h2>
+          <p>{t('reservas.necesita_saber', { nombre: cuidador.nombre.split(' ')[0] })}</p>
+          <Link className="btn-primary rs-vacio-boton" to="/mascotas/nueva">{t('reservas.agregar_mascota')}</Link>
+          <small>{t('reservas.solo_un_minuto')}</small>
         </section>
       ) : (
         <form className="rs-form" onSubmit={enviar}>
           <div>
-            <label className="label" htmlFor="servicio">Servicio</label>
+            <label className="label" htmlFor="servicio">{t('reservas.servicio')}</label>
             <select id="servicio" className="input" value={form.servicio} onChange={cambiar('servicio')}>
               {cuidador.servicios.map((s) => (
                 <option key={s.servicio} value={s.servicio}>
-                  {SERVICIOS[s.servicio]?.texto ?? s.servicio} · {precio(s.tarifa, cuidador.moneda)} / {s.unidad}
+                  {nombreServicio(s.servicio)} · {precio(s.tarifa, cuidador.moneda)} / {textoUnidad(s.unidad)}
                 </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="label" htmlFor="mascota">Mascota</label>
+            <label className="label" htmlFor="mascota">{t('reservas.mascota_campo')}</label>
             <select id="mascota" className="input" value={form.mascota_id} onChange={cambiar('mascota_id')}>
               {mascotas.map((m) => (
-                <option key={m.id} value={m.id}>{m.nombre} ({m.especie})</option>
+                <option key={m.id} value={m.id}>{m.nombre} ({textoEspecie(m.especie)})</option>
               ))}
             </select>
           </div>
@@ -151,23 +153,23 @@ export default function NuevaReservaPage() {
           {porHora ? (
             <>
               <div>
-                <label className="label" htmlFor="dia">Día</label>
+                <label className="label" htmlFor="dia">{t('reservas.dia')}</label>
                 <input id="dia" type="date" className="input" min={hoyISO()} value={form.fecha_inicio}
                   onChange={cambiar('fecha_inicio')} required />
               </div>
               <div className="rs-fila">
                 <div>
-                  <label className="label" htmlFor="hora-inicio">Desde</label>
+                  <label className="label" htmlFor="hora-inicio">{t('reservas.desde')}</label>
                   <select id="hora-inicio" className="input" value={form.hora_inicio} onChange={cambiarHoraInicio} required>
-                    <option value="" disabled>Hora</option>
+                    <option value="" disabled>{t('reservas.hora')}</option>
                     {HORAS.slice(0, -1).map((h) => <option key={h} value={h}>{h}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="label" htmlFor="hora-fin">Hasta</label>
+                  <label className="label" htmlFor="hora-fin">{t('reservas.hasta')}</label>
                   <select id="hora-fin" className="input" value={form.hora_fin} onChange={cambiar('hora_fin')} required
                     disabled={!form.hora_inicio}>
-                    <option value="" disabled>Hora</option>
+                    <option value="" disabled>{t('reservas.hora')}</option>
                     {HORAS.filter((h) => h > form.hora_inicio && horasEntre(form.hora_inicio, h) <= 12)
                       .map((h) => <option key={h} value={h}>{h}</option>)}
                   </select>
@@ -177,12 +179,12 @@ export default function NuevaReservaPage() {
           ) : (
             <div className="rs-fila">
               <div>
-                <label className="label" htmlFor="desde">Entrada</label>
+                <label className="label" htmlFor="desde">{t('reservas.entrada')}</label>
                 <input id="desde" type="date" className="input" min={hoyISO()} value={form.fecha_inicio}
                   onChange={cambiar('fecha_inicio')} required />
               </div>
               <div>
-                <label className="label" htmlFor="hasta">Salida</label>
+                <label className="label" htmlFor="hasta">{t('reservas.salida')}</label>
                 <input id="hasta" type="date" className="input" min={form.fecha_inicio || hoyISO()} value={form.fecha_fin}
                   onChange={cambiar('fecha_fin')} required />
               </div>
@@ -190,13 +192,13 @@ export default function NuevaReservaPage() {
           )}
 
           <div>
-            <label className="label" htmlFor="nota">Nota para el cuidador (opcional)</label>
+            <label className="label" htmlFor="nota">{t('reservas.nota')}</label>
             <textarea id="nota" className="input rs-nota" maxLength={500} value={form.nota} onChange={cambiar('nota')} />
           </div>
 
           {resumen && (
             <p className="rs-resumen">
-              {resumen.unidades} {unidad === 'hora' ? (resumen.unidades === 1 ? 'hora' : 'horas') : (resumen.unidades === 1 ? 'noche' : 'noches')} × {precio(resumen.tarifa, cuidador.moneda)} ={' '}
+              {resumen.unidades} {textoUnidad(unidad, resumen.unidades)} × {precio(resumen.tarifa, cuidador.moneda)} ={' '}
               <strong>{precio(resumen.total, cuidador.moneda)}</strong>
             </p>
           )}
@@ -204,9 +206,9 @@ export default function NuevaReservaPage() {
           {error && <p className="rs-aviso rs-aviso--error" role="alert">{error}</p>}
 
           <button type="submit" className="btn-primary" disabled={enviando}>
-            {enviando ? 'Enviando…' : 'Enviar solicitud'}
+            {enviando ? t('reservas.enviando') : t('reservas.enviar_solicitud')}
           </button>
-          <p className="rs-texto">El pago se hace cuando el cuidador confirme.</p>
+          <p className="rs-texto">{t('reservas.pago_al_confirmar')}</p>
         </form>
       )}
     </main>

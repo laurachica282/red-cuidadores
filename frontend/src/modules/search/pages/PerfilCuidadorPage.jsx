@@ -5,8 +5,13 @@ import { useIdioma } from '@/modules/region';
 import { obtenerPerfilCuidador, urlApi, urlFotoCuidador } from '../services/busquedaService.js';
 import { IconAtras, IconCasa, IconEstrella } from '../components/Iconos.jsx';
 import InsigniaVerificado from '../components/InsigniaVerificado.jsx';
-import { TIPOS_MASCOTA, esPorHora, formatoCalificacion, horasEntre, iniciales, noches, rangoFechas, servicio, tiempoEnLaRed } from '../utils.js';
+import TextoTraducible from '@/shared/components/TextoTraducible.jsx';
+import {
+  TIPOS_MASCOTA, esPorHora, formatoCalificacion, horasEntre, iniciales, noches, numeroKm, porUnidad, rangoFechas, servicio,
+  textoHora, textoNoches, tiempoEnLaRed,
+} from '../utils.js';
 import '../busqueda.css';
+import '../i18n.js';
 
 const nombreTipo = (v) => TIPOS_MASCOTA.find((t) => t.valor === v)?.texto ?? v;
 
@@ -17,7 +22,7 @@ export default function PerfilCuidadorPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { precio, fecha } = useIdioma();
+  const { precio, fecha, t } = useIdioma();
   const { usuario } = useAuth();
   const desde = params.get('desde');
   const hasta = params.get('hasta');
@@ -46,13 +51,13 @@ export default function PerfilCuidadorPage() {
   if (error) {
     return (
       <main className="page bs-page">
-        <button type="button" className="bs-redondo" aria-label="Volver" onClick={volver}><IconAtras /></button>
+        <button type="button" className="bs-redondo" aria-label={t('busqueda.volver')} onClick={volver}><IconAtras /></button>
         <p className="bs-error" role="alert">{error}</p>
-        <Link className="bs-enlace" to="/inicio">Volver a la búsqueda</Link>
+        <Link className="bs-enlace" to="/inicio">{t('busqueda.volverBusqueda')}</Link>
       </main>
     );
   }
-  if (!c) return <main className="page bs-page"><p className="bs-sub">Cargando perfil…</p></main>;
+  if (!c) return <main className="page bs-page"><p className="bs-sub">{t('busqueda.cargandoPerfil')}</p></main>;
 
   const km = params.get('km');
   const s = c.servicios.find((x) => x.servicio === elegido) ?? c.servicios[0];
@@ -68,31 +73,31 @@ export default function PerfilCuidadorPage() {
     ...(desde && (porHora ? { desde } : n > 0 && { desde, hasta })),
     ...(horas > 0 && { horaDesde, horaHasta }),
   }).toString();
-  let leyenda = s ? `${servicio(s.servicio).texto} desde` : 'Sin servicios';
+  let leyenda = s ? t('busqueda.servicioDesde', { servicio: servicio(s.servicio).texto }) : t('busqueda.sinServicios');
   if (cantidad > 0) {
     leyenda = porHora
-      ? `${rangoFechas(desde, desde)} · ${horaDesde}–${horaHasta} · ${horas} h`
-      : `${rangoFechas(desde, hasta)} · ${n} ${n === 1 ? 'noche' : 'noches'}`;
+      ? `${rangoFechas(desde, desde)} · ${textoHora(horaDesde)}–${textoHora(horaHasta)} · ${t('busqueda.horasCorto', { n: horas })}`
+      : `${rangoFechas(desde, hasta)} · ${textoNoches(n)}`;
   }
-  if (ocupado) leyenda = porHora ? 'No está disponible a esa hora' : 'No está disponible en esas fechas';
+  if (ocupado) leyenda = t(porHora ? 'busqueda.noDisponibleHora' : 'busqueda.noDisponibleFechas');
 
   return (
     <main className="bs-perfil">
       <div className="bs-portada">
         {c.fotos.length > 0
-          ? <img src={urlFotoCuidador(c.fotos[fotoActiva])} alt={`Espacio de ${c.nombre}`} />
+          ? <img src={urlFotoCuidador(c.fotos[fotoActiva])} alt={t('busqueda.espacioDe', { nombre: c.nombre })} />
           : <IconCasa width="72" height="72" className="bs-portada-icono" />}
-        <button type="button" className="bs-redondo bs-redondo--flotante" aria-label="Volver" onClick={volver}><IconAtras /></button>
+        <button type="button" className="bs-redondo bs-redondo--flotante" aria-label={t('busqueda.volver')} onClick={volver}><IconAtras /></button>
       </div>
 
       <div className="bs-perfil-cuerpo">
         <div className="bs-perfil-cabecera">
           <span className="bs-avatar bs-avatar--grande">
-            {c.fotoPerfil ? <img src={urlApi(c.fotoPerfil)} alt={`Foto de ${c.nombre}`} /> : iniciales(c.nombre)}
+            {c.fotoPerfil ? <img src={urlApi(c.fotoPerfil)} alt={t('busqueda.fotoDe', { nombre: c.nombre })} /> : iniciales(c.nombre)}
           </span>
           <div>
             <h1>{c.nombre}</h1>
-            <p className="bs-sub">{[c.barrio ?? c.ciudad, km ? `a ${km.replace('.', ',')} km` : null].filter(Boolean).join(' · ')}</p>
+            <p className="bs-sub">{[c.barrio ?? c.ciudad, km ? t('busqueda.aKm', { n: numeroKm(km) }) : null].filter(Boolean).join(' · ')}</p>
             <InsigniaVerificado venceEn={c.antecedentesVencenEn} nombre={c.nombre.split(' ')[0]} />
           </div>
         </div>
@@ -103,18 +108,18 @@ export default function PerfilCuidadorPage() {
               {c.calificacion !== null && <IconEstrella width="18" height="18" className="bs-estrella" />}
               {c.calificacion !== null ? formatoCalificacion(c.calificacion) : '—'}
             </strong>
-            <small>Calificación</small>
+            <small>{t('busqueda.calificacion')}</small>
           </div>
-          <div><strong>{c.totalResenas}</strong><small>Reseñas</small></div>
-          <div><strong>{tiempoEnLaRed(c.enLaRedDesde)}</strong><small>En la red</small></div>
+          <div><strong>{c.totalResenas}</strong><small>{t('busqueda.resenas')}</small></div>
+          <div><strong>{tiempoEnLaRed(c.enLaRedDesde)}</strong><small>{t('busqueda.enLaRed')}</small></div>
         </div>
 
         {c.fotos.length > 1 && (
           <section>
-            <h2>Fotos del espacio</h2>
+            <h2>{t('busqueda.fotosEspacio')}</h2>
             <div className="bs-miniaturas">
               {c.fotos.map((f, i) => (
-                <button key={f} type="button" aria-label={`Foto ${i + 1}`} aria-pressed={i === fotoActiva}
+                <button key={f} type="button" aria-label={t('busqueda.fotoN', { n: i + 1 })} aria-pressed={i === fotoActiva}
                   className={`bs-miniatura${i === fotoActiva ? ' bs-miniatura--activa' : ''}`} onClick={() => setFotoActiva(i)}>
                   <img src={urlFotoCuidador(f)} alt="" loading="lazy" />
                 </button>
@@ -125,45 +130,45 @@ export default function PerfilCuidadorPage() {
 
         {c.descripcion && (
           <section>
-            <h2>Sobre mí</h2>
+            <h2>{t('busqueda.sobreMi')}</h2>
             <p className="bs-texto">{c.descripcion}</p>
           </section>
         )}
 
         <section>
-          <h2>Servicios</h2>
+          <h2>{t('busqueda.servicios')}</h2>
           <ul className="bs-servicios">
             {c.servicios.map((x) => (
               <li key={x.servicio}>
                 <button type="button" aria-pressed={x.servicio === s?.servicio}
                   className={`bs-servicio${x.servicio === s?.servicio ? ' bs-servicio--activo' : ''}`} onClick={() => setElegido(x.servicio)}>
                   <span>{servicio(x.servicio).texto}</span>
-                  <span><strong>{precio(x.tarifa, c.moneda)}</strong> <small>/{x.unidad}</small></span>
+                  <span><strong>{precio(x.tarifa, c.moneda)}</strong> <small>{porUnidad(x.unidad)}</small></span>
                 </button>
               </li>
             ))}
           </ul>
           <div className="bs-etiquetas">
-            <small className="bs-sub">Acepta:</small>
+            <small className="bs-sub">{t('busqueda.acepta')}</small>
             {c.tiposMascota.map((t) => <span key={t} className="bs-etiqueta">{nombreTipo(t)}</span>)}
           </div>
         </section>
 
         <section>
-          <h2>Reseñas</h2>
-          {c.resenas.length === 0 && <p className="bs-sub">Este cuidador aún no tiene reseñas.</p>}
+          <h2>{t('busqueda.resenas')}</h2>
+          {c.resenas.length === 0 && <p className="bs-sub">{t('busqueda.sinResenas')}</p>}
           <ul className="bs-resenas">
             {c.resenas.map((r) => (
               <li key={r.id} className="bs-resena">
                 <div className="bs-card-fila">
                   <strong>{r.autor}</strong>
-                  <span className="bs-estrellas" aria-label={`${r.calificacion} de 5 estrellas`}>
+                  <span className="bs-estrellas" aria-label={t('busqueda.estrellas', { n: r.calificacion })}>
                     {[1, 2, 3, 4, 5].map((i) => (
                       <IconEstrella key={i} width="14" height="14" className={i <= r.calificacion ? 'bs-estrella' : 'bs-estrella--vacia'} />
                     ))}
                   </span>
                 </div>
-                {r.comentario && <p className="bs-texto">{r.comentario}</p>}
+                {r.comentario && <TextoTraducible texto={r.comentario} className="bs-texto" />}
                 <small className="bs-sub">{fecha(r.fecha)}</small>
               </li>
             ))}
@@ -177,16 +182,16 @@ export default function PerfilCuidadorPage() {
           {s && (
             <p>
               <strong>{precio(cantidad > 0 ? s.tarifa * cantidad : s.tarifa, c.moneda)}</strong>{' '}
-              <small>{cantidad > 0 ? 'total' : `/${s.unidad}`}</small>
+              <small>{cantidad > 0 ? t('busqueda.total') : porUnidad(s.unidad)}</small>
             </p>
           )}
         </div>
         {/* La solicitud la hace el módulo reservas (HU-17); se le pasa el servicio y las fechas. */}
         {puedeReservar ? (
-          <Link className="bs-boton" to={`/reservas/nueva/${c.id}${qs ? `?${qs}` : ''}`} state={{ desdePerfil: true }}>Reservar</Link>
+          <Link className="bs-boton" to={`/reservas/nueva/${c.id}${qs ? `?${qs}` : ''}`} state={{ desdePerfil: true }}>{t('busqueda.reservar')}</Link>
         ) : (
           <button type="button" className="bs-boton" disabled
-            title={ocupado ? 'Elige otras fechas' : 'Solo los viajeros pueden reservar'}>Reservar</button>
+            title={t(ocupado ? 'busqueda.eligeOtrasFechas' : 'busqueda.soloViajeros')}>{t('busqueda.reservar')}</button>
         )}
       </div>
     </main>

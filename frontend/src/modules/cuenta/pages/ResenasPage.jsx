@@ -1,3 +1,5 @@
+import { useIdioma } from '@/modules/region';
+import '../i18n.js';
 import Aviso from '../components/Aviso.jsx';
 import Estrellas from '../components/Estrellas.jsx';
 import Pantalla from '../components/Pantalla.jsx';
@@ -8,17 +10,18 @@ import { fecha } from '../utils/textos.js';
 // HU-33: las reseñas que el usuario ha escrito. Calificar se hace desde la reserva terminada
 // (RUTAS.nuevaResenaPatron).
 export default function ResenasPage() {
+  const { t, locale } = useIdioma();
   const { datos, cargando, error } = useCarga(listarMisResenas);
   const resenas = datos?.resenas ?? [];
 
   return (
-    <Pantalla titulo="Mis reseñas">
-      {cargando && <p className="cu-cargando">Cargando…</p>}
+    <Pantalla titulo={t('cuenta.menu.resenas')}>
+      {cargando && <p className="cu-cargando">{t('cuenta.cargando')}</p>}
       {!cargando && error && <Aviso>{error}</Aviso>}
       {datos && resenas.length === 0 && (
         <p className="cu-vacio">
-          Aún no has calificado a ningún cuidador.<br />
-          Cuando termine una reserva podrás dejar tu reseña.
+          {t('cuenta.resenas.vacio1')}<br />
+          {t('cuenta.resenas.vacio2')}
         </p>
       )}
       {resenas.length > 0 && (
@@ -30,7 +33,7 @@ export default function ResenasPage() {
                 <Estrellas valor={r.calificacion} tamano={18} />
               </div>
               {r.comentario && <p className="cu-item-texto">{r.comentario}</p>}
-              <p className="cu-item-meta">{fecha(r.creado_en)}</p>
+              <p className="cu-item-meta">{fecha(r.creado_en, locale)}</p>
             </li>
           ))}
         </ul>

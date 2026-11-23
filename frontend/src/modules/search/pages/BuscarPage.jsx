@@ -8,13 +8,15 @@ import MapaResultados from '../components/MapaResultados.jsx';
 import PanelFiltros from '../components/PanelFiltros.jsx';
 import { FILTROS_VACIOS, contarFiltros, fechasParaBuscar, resumirFiltros, textoFechas } from '../filtros.js';
 import { guardarPunto, leerPunto, nombreCorto } from '../ubicacion.js';
-import { SERVICIOS, formatoCalificacion, hoyISO, iniciales, noches, rangoFechas } from '../utils.js';
+import { SERVICIOS, formatoCalificacion, formatoKm, hoyISO, iniciales, noches, porUnidad, rangoFechas } from '../utils.js';
 import '../busqueda.css';
+import '../i18n.js';
 
 const MAX_SERVICIOS = 2;
 
 // Servicios del cuidador en una sola línea: primero el que se busca, y "+N" si no caben.
 function ServiciosCuidador({ servicios, activo }) {
+  useIdioma();
   const lista = SERVICIOS.filter((s) => servicios.includes(s.valor))
     .sort((a, b) => (b.valor === activo) - (a.valor === activo));
   const resto = lista.length - MAX_SERVICIOS;
@@ -22,7 +24,7 @@ function ServiciosCuidador({ servicios, activo }) {
     <span className="bs-servicios-chips">
       {lista.slice(0, MAX_SERVICIOS).map((s) => (
         <span key={s.valor} className={`bs-servicio-chip${activo === s.valor ? ' bs-servicio-chip--activo' : ''}`}>
-          {s.corto ?? s.texto}
+          {s.corto}
         </span>
       ))}
       {resto > 0 && <span className="bs-servicio-chip" title={lista.slice(MAX_SERVICIOS).map((s) => s.texto).join(', ')}>+{resto}</span>}
@@ -30,11 +32,9 @@ function ServiciosCuidador({ servicios, activo }) {
   );
 }
 
-const formatoKm = (km) => `${km.toLocaleString('es-CO', { maximumFractionDigits: 1 })} km`;
-
 // HU-15 · mockup 1: buscar cuidadores por ubicación, fechas, tipo de mascota y precio.
 export default function BuscarPage() {
-  const { precio } = useIdioma();
+  const { precio, t, pais } = useIdioma();
   // Dirección elegida en el mapa; null = la ciudad del perfil.
   const [punto, setPunto] = useState(leerPunto);
   // undefined = la que decida el servidor (la ciudad del perfil); 'todas' = sin filtro.
@@ -109,20 +109,22 @@ export default function BuscarPage() {
     return qs ? `/cuidadores/${c.id}?${qs}` : `/cuidadores/${c.id}`;
   };
 
-  let tituloLista = 'En tu región';
-  if (punto || ciudadElegida !== 'todas') tituloLista = 'Cerca de ti';
-  if (vista) tituloLista = 'En esta zona del mapa';
+  let tituloLista = t('busqueda.enTuRegion');
+  if (punto || ciudadElegida !== 'todas') tituloLista = t('busqueda.cercaDeTi');
+  if (vista) tituloLista = t('busqueda.enEstaZona');
+  // Nombre del país en el idioma actual a partir de su código (el servidor lo manda en español).
+  const nombrePaisActual = ubicacion?.pais ? pais(ubicacion.pais) : ubicacion?.paisNombre;
   // La barra dice dónde se busca; debajo, las fechas y los filtros como etiquetas.
-  let zonaTexto = ciudadElegida ?? 'Buscar cuidador';
-  if (ciudadElegida === 'todas') zonaTexto = `Todo ${ubicacion?.paisNombre ?? 'el país'}`;
+  let zonaTexto = ciudadElegida ?? t('busqueda.buscarCuidador');
+  if (ciudadElegida === 'todas') zonaTexto = t('busqueda.todoPais', { pais: nombrePaisActual ?? t('busqueda.elPais') });
   if (punto) zonaTexto = nombreCorto(punto);
-  if (!datos && !punto) zonaTexto = 'Buscar cuidador';
+  if (!datos && !punto) zonaTexto = t('busqueda.buscarCuidador');
   const etiquetas = fechasListas ? [textoFechas(completos, rangoFechas, noches), ...resumen] : resumen;
 
   return (
     <main className="page bs-page">
       <div className="bs-arriba">
-        <h1 className="bs-titulo">Encuentra un cuidador para tu mascota</h1>
+        <h1 className="bs-titulo">{t('busqueda.titulo')}</h1>
         <Campana />
       </div>
 
@@ -134,7 +136,7 @@ export default function BuscarPage() {
             {etiquetas.map((r) => <span key={r} className="bs-resumen-item">{r}</span>)}
           </span>
         </span>
-        {activos > 0 && <span className="bs-contador" aria-label={`${activos} filtros activos`}>{activos}</span>}
+        {activos > 0 && <span className="bs-contador" aria-label={t(activos === 1 ? 'busqueda.filtrosActivos.uno' : 'busqueda.filtrosActivos.otros', { n: activos })}>{activos}</span>}
       </button>
 
       <MapaResultados cuidadores={resultados} punto={punto} precio={precio} enlacePerfil={enlacePerfil} resaltado={resaltado}
@@ -142,31 +144,31 @@ export default function BuscarPage() {
 
       <div className="bs-encabezado">
         <h2>{tituloLista}</h2>
-        {!error && datos && <small>{lista.length} {lista.length === 1 ? 'cuidador verificado' : 'cuidadores verificados'}</small>}
+        {!error && datos && <small>{t(lista.length === 1 ? 'busqueda.verificados.uno' : 'busqueda.verificados.otros', { n: lista.length })}</small>}
       </div>
       {vista && lista.length > 0 && lista.length < resultados.length && (
         <button type="button" className="bs-enlace bs-ver-todos" onClick={verTodos}>
-          Ver los {resultados.length} cuidadores de la búsqueda
+          {t('busqueda.verLosResultados', { n: resultados.length })}
         </button>
       )}
 
       {error && <p className="bs-error" role="alert">{error}</p>}
-      {cargando && !datos && <p className="bs-sub">Buscando cuidadores…</p>}
+      {cargando && !datos && <p className="bs-sub">{t('busqueda.buscando')}</p>}
       {!error && datos && vista && lista.length === 0 && resultados.length > 0 && (
         <div className="bs-vacio">
-          <p>No hay cuidadores en esta parte del mapa.</p>
-          <button type="button" className="bs-enlace" onClick={verTodos}>Ver todos</button>
+          <p>{t('busqueda.vacioZona')}</p>
+          <button type="button" className="bs-enlace" onClick={verTodos}>{t('busqueda.verTodos')}</button>
         </div>
       )}
       {!error && datos && resultados.length === 0 && (
         <div className="bs-vacio">
-          <p>No encontramos cuidadores con esos filtros.</p>
-          {activos > 0 && <button type="button" className="bs-enlace" onClick={() => setFiltros(FILTROS_VACIOS)}>Quitar filtros</button>}
+          <p>{t('busqueda.vacio')}</p>
+          {activos > 0 && <button type="button" className="bs-enlace" onClick={() => setFiltros(FILTROS_VACIOS)}>{t('busqueda.quitarFiltros')}</button>}
           {punto && (
-            <button type="button" className="bs-enlace" onClick={() => setFiltros((f) => ({ ...f, radioKm: 20 }))}>Buscar hasta 20 km</button>
+            <button type="button" className="bs-enlace" onClick={() => setFiltros((f) => ({ ...f, radioKm: 20 }))}>{t('busqueda.buscarHasta20')}</button>
           )}
           {!punto && ciudadElegida !== 'todas' && (
-            <button type="button" className="bs-enlace" onClick={() => setCiudad('todas')}>Ver toda la región</button>
+            <button type="button" className="bs-enlace" onClick={() => setCiudad('todas')}>{t('busqueda.verTodaRegion')}</button>
           )}
         </div>
       )}
@@ -181,7 +183,7 @@ export default function BuscarPage() {
               <span className="bs-card-info">
                 <span className="bs-card-titulo">
                   <strong className="bs-card-nombre">{c.nombre}</strong>
-                  <IconEscudo width="16" height="16" className="bs-acento" aria-label="Antecedentes verificados" role="img" />
+                  <IconEscudo width="16" height="16" className="bs-acento" aria-label={t('busqueda.antecedentesVerificados')} role="img" />
                 </span>
                 <small className="bs-sub">
                   {[c.barrio ?? c.ciudad, c.distanciaKm === null ? null : formatoKm(c.distanciaKm)].filter(Boolean).join(' · ')}
@@ -189,7 +191,7 @@ export default function BuscarPage() {
                 <ServiciosCuidador servicios={c.servicios} activo={filtros.servicio} />
                 <span className="bs-card-fila bs-card-pie">
                   {c.calificacion === null ? (
-                    <small className="bs-nuevo">Nuevo</small>
+                    <small className="bs-nuevo">{t('busqueda.nuevo')}</small>
                   ) : (
                     <span className="bs-calificacion">
                       <IconEstrella width="15" height="15" className="bs-estrella" />
@@ -197,8 +199,8 @@ export default function BuscarPage() {
                     </span>
                   )}
                   <span className="bs-precio">
-                    {!filtros.servicio && <small>desde </small>}
-                    {precio(c.tarifa, c.moneda)}<small>/{c.unidad}</small>
+                    {!filtros.servicio && <small>{t('busqueda.desde')} </small>}
+                    {precio(c.tarifa, c.moneda)}<small>{porUnidad(c.unidad)}</small>
                   </span>
                 </span>
               </span>
@@ -209,7 +211,7 @@ export default function BuscarPage() {
 
       {verFiltros && (
         <PanelFiltros inicial={{ ...FILTROS_VACIOS, ...filtros }} moneda={moneda} onCerrar={cerrarFiltros}
-          zonaInicial={{ punto, ciudad: ciudadElegida }} ciudades={datos?.ciudades ?? []} pais={ubicacion?.paisNombre}
+          zonaInicial={{ punto, ciudad: ciudadElegida }} ciudades={datos?.ciudades ?? []} pais={nombrePaisActual}
           onAplicar={aplicar} />
       )}
     </main>

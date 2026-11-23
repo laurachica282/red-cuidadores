@@ -10,15 +10,18 @@ import { IconEscudo, IconFlechaAtras } from '../components/IconosRegistro.jsx';
 import './LoginPage.css';
 import './RegistroPage.css';
 import './VerificarCorreoPage.css';
+import '../i18n.js';
+import { useIdioma } from '@/modules/region';
 
 const ESPERA = 60;
 
+// titulo e intro son claves de traducción.
 // Lo que cambia entre verificar el correo del registro, el código de recuperación de clave y la verificación en dos pasos.
 const MODOS = {
   registro: {
     claveCorreo: 'correoPorVerificar',
     volverA: '/registro',
-    titulo: 'Revisa tu correo',
+    titulo: 'auth.verificar.tituloCorreo',
     verificar: async ({ correo, codigo, navigate }) => {
       await verificarCorreo(correo, codigo);
       navigate('/login', { state: { cuentaActivada: true } });
@@ -28,7 +31,7 @@ const MODOS = {
   recuperacion: {
     claveCorreo: 'correoPorRecuperar',
     volverA: '/recuperar',
-    titulo: 'Revisa tu correo',
+    titulo: 'auth.verificar.tituloCorreo',
     verificar: async ({ correo, codigo, navigate }) => {
       const { token } = await verificarCodigoRecuperacion(correo, codigo);
       navigate('/recuperar/nueva-clave', { state: { token }, replace: true });
@@ -39,8 +42,8 @@ const MODOS = {
     claveCorreo: 'correoPor2fa',
     claveToken: 'token2fa',
     volverA: '/login',
-    titulo: 'Confirma que eres tú',
-    intro: 'Entraste desde un equipo nuevo. ',
+    titulo: 'auth.confirmaQueEresTu',
+    intro: 'auth.verificar.intro2fa',
     verificar: async ({ token2fa, codigo, navigate, iniciarSesion }) => {
       iniciarSesion(await verificar2fa(token2fa, codigo));
       navigate('/inicio', { replace: true });
@@ -74,6 +77,7 @@ const olvidarDatos = (config) => {
 };
 
 export default function VerificarCorreoPage({ modo = 'registro' }) {
+  const { t } = useIdioma();
   const config = MODOS[modo];
   const { state } = useLocation();
   const navigate = useNavigate();
@@ -82,7 +86,7 @@ export default function VerificarCorreoPage({ modo = 'registro' }) {
   const [token2fa] = useState(() => leerDato(state?.token2fa, config.claveToken));
   const [codigo, setCodigo] = useState('');
   const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
+  const [info, setInfo] = useState(''); // clave de traducción
   const [cargando, setCargando] = useState(false);
   const [segundos, setSegundos] = useState(ESPERA);
 
@@ -126,7 +130,7 @@ export default function VerificarCorreoPage({ modo = 'registro' }) {
     try {
       await config.reenviar({ correo, token2fa });
       setCodigo('');
-      setInfo('Te enviamos un código nuevo.');
+      setInfo('auth.verificar.nuevoCodigo');
       setSegundos(ESPERA);
     } catch (err) {
       if (tokenVencido(err)) return;
@@ -138,40 +142,40 @@ export default function VerificarCorreoPage({ modo = 'registro' }) {
   return (
     <div className="login-fondo">
       <main className="login registro">
-        <button type="button" className="registro-atras" aria-label="Volver" onClick={() => navigate(-1)}>
+        <button type="button" className="registro-atras" aria-label={t('auth.volver')} onClick={() => navigate(-1)}>
           <IconFlechaAtras />
         </button>
 
         <span className="verificar-sello"><IconCorreo width="28" height="28" /></span>
 
-        <h1 style={{ marginTop: 20 }}>{config.titulo}</h1>
+        <h1 style={{ marginTop: 20 }}>{t(config.titulo)}</h1>
         <p className="login-sub">
-          {config.intro}Enviamos un código de 6 dígitos a <strong>{enmascarar(correo)}</strong>. Escríbelo para continuar.
+          {config.intro && t(config.intro)}{t('auth.verificar.enviamosA')}<strong>{enmascarar(correo)}</strong>{t('auth.verificar.escribelo')}
         </p>
 
         <form className="login-form" onSubmit={verificar}>
           <CodigoVerificacion valor={codigo} onChange={setCodigo} deshabilitado={cargando} />
 
           {error && <p className="registro-error" role="alert">{error}</p>}
-          {info && <p className="verificar-info" role="status">{info}</p>}
+          {info && <p className="verificar-info" role="status">{t(info)}</p>}
 
           <button type="submit" className="btn-primary" disabled={codigo.length < 6 || cargando}>
-            {cargando ? 'Verificando…' : 'Verificar'}
+            {t(cargando ? 'auth.verificar.verificando' : 'auth.verificar.verificar')}
           </button>
         </form>
 
         <div className="verificar-reenvio">
-          <span>¿No te llegó el código?</span>
+          <span>{t('auth.verificar.noLlego')}</span>
           {segundos > 0 ? (
-            <span className="verificar-contador">Reenviar en {reloj(segundos)}</span>
+            <span className="verificar-contador">{t('auth.verificar.reenviarEn', { tiempo: reloj(segundos) })}</span>
           ) : (
-            <button type="button" className="enlace" onClick={reenviar}>Reenviar código</button>
+            <button type="button" className="enlace" onClick={reenviar}>{t('auth.reenviarCodigo')}</button>
           )}
         </div>
 
         <p className="verificar-aviso">
           <IconEscudo width="16" height="16" />
-          <span>El código vence en 10 minutos. Nunca lo compartas con nadie, ni siquiera con nosotros.</span>
+          <span>{t('auth.verificar.aviso')}</span>
         </p>
       </main>
     </div>

@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useIdioma } from '@/modules/region';
 import { notificaciones } from '../services/seguimientoService.js';
 import { IconCampana } from './Iconos.jsx';
 import { DESDE_APP } from '../useVolver.js';
+import '../i18n.js';
 import '../seguimiento.css';
 
 const CADA_MS = 30000;
 
 // Campana del mockup 1: abre las notificaciones y muestra cuántas son nuevas.
 export default function Campana() {
+  const { t } = useIdioma();
   const [nuevas, setNuevas] = useState(0);
 
   useEffect(() => {
@@ -20,7 +23,8 @@ export default function Campana() {
   }, []);
 
   return (
-    <Link to="/notificaciones" state={DESDE_APP} className="sg-campana" aria-label={nuevas ? `Notificaciones: ${nuevas} nuevas` : 'Notificaciones'}>
+    <Link to="/notificaciones" state={DESDE_APP} className="sg-campana"
+      aria-label={nuevas ? t('seguimiento.notif.nuevas', { n: nuevas }) : t('seguimiento.notif.titulo')}>
       <IconCampana width="22" height="22" />
       {nuevas > 0 && <span className="sg-campana-numero">{nuevas > 9 ? '9+' : nuevas}</span>}
     </Link>

@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom';
+import { useIdioma } from '@/modules/region';
+import '../i18n.js';
 import { IconAtras } from './Iconos.jsx';
 import '../cuenta.css';
 import { RUTAS } from '../rutas.js';
@@ -6,12 +8,13 @@ import { RUTAS } from '../rutas.js';
 // Marco común de las pantallas del módulo: cabecera con "volver" y contenido.
 // En celular ocupa todo el ancho; en computador se ve como tarjeta centrada, igual que el login.
 // atras={null}: pantallas principales de la barra de navegación, sin flecha de volver.
-export default function Pantalla({ titulo, atras = RUTAS.configuracion, etiquetaAtras = 'Volver', children }) {
+export default function Pantalla({ titulo, atras = RUTAS.configuracion, etiquetaAtras, children }) {
+  const { t } = useIdioma();
   return (
     <div className="cu-fondo">
       <main className="cu">
         <header className="cu-cabecera">
-          {atras && <Link className="cu-atras" to={atras} aria-label={etiquetaAtras}><IconAtras /></Link>}
+          {atras && <Link className="cu-atras" to={atras} aria-label={etiquetaAtras ?? t('cuenta.volver')}><IconAtras /></Link>}
           <h1>{titulo}</h1>
         </header>
         {children}

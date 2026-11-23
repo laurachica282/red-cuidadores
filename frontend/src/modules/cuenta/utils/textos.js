@@ -1,58 +1,44 @@
-// Textos de la interfaz del módulo. Los códigos coinciden con los del backend (config.js).
+// Claves de texto de la interfaz del módulo (se traducen con t() en cada pantalla; ver ../i18n.js).
+// Los códigos coinciden con los del backend (config.js). Este archivo no importa nada para que las
+// pruebas con node lo puedan cargar.
 
-export const MOTIVOS = [
-  { valor: 'ya_no_uso', titulo: 'Ya no uso la red' },
-  { valor: 'privacidad', titulo: 'Por privacidad' },
-  { valor: 'mala_experiencia', titulo: 'Tuve una mala experiencia' },
-  { valor: 'encontre_alternativa', titulo: 'Encontré otra alternativa' },
-  { valor: 'otro', titulo: 'Otro motivo' },
-];
+const MOTIVOS_CODIGOS = ['ya_no_uso', 'privacidad', 'mala_experiencia', 'encontre_alternativa', 'otro'];
+export const MOTIVOS = MOTIVOS_CODIGOS.map((valor) => ({ valor, titulo: `cuenta.motivo.${valor}` }));
 
+// Código de motivo -> clave de texto.
 export const ETIQUETA_MOTIVO = {
   ...Object.fromEntries(MOTIVOS.map((m) => [m.valor, m.titulo])),
-  suspension: 'Suspendida por un administrador',
+  suspension: 'cuenta.motivo.suspension',
 };
 
 // Notificaciones (mockup 16): "Qué te avisamos" y "Por dónde".
-export const EVENTOS = [
-  { valor: 'reservas', titulo: 'Reservas', desc: 'Confirmaciones, cambios y recordatorios.' },
-  { valor: 'reportes', titulo: 'Reportes del cuidador', desc: 'Fotos y novedades de tu mascota.' },
-  { valor: 'mensajes', titulo: 'Mensajes', desc: 'Cuando alguien te escribe en el chat.' },
-  { valor: 'promociones', titulo: 'Promociones', desc: 'Descuentos y novedades de la red.' },
-];
+export const EVENTOS = ['reservas', 'reportes', 'mensajes', 'promociones']
+  .map((valor) => ({ valor, titulo: `cuenta.evento.${valor}`, desc: `cuenta.evento.${valor}.desc` }));
 
-export const CANALES = [
-  { valor: 'push', titulo: 'Notificaciones en el teléfono' },
-  { valor: 'correo', titulo: 'Correo electrónico' },
-  { valor: 'sms', titulo: 'Mensaje de texto (SMS)' },
-];
+export const CANALES = ['push', 'correo', 'sms'].map((valor) => ({ valor, titulo: `cuenta.canal.${valor}` }));
 
 // "Antes de irte" (mockup 18): una línea por verificación de paz y salvo (RN-4).
+// ok: clave cuando no hay nada pendiente; pendiente(n): clave en singular o plural (se usa con { n }).
+const paz = (codigo) => ({
+  ok: `cuenta.paz.${codigo}.ok`,
+  pendiente: (n) => `cuenta.paz.${codigo}.${n === 1 ? 'uno' : 'varios'}`,
+});
 export const PAZ_Y_SALVO = {
-  reservas_activas: {
-    ok: 'No tienes reservas activas.',
-    pendiente: (n) => `Tienes ${n} ${n === 1 ? 'reserva activa' : 'reservas activas'}: debes terminarla o cancelarla primero.`,
-  },
-  pagos_pendientes: {
-    ok: 'No tienes pagos pendientes.',
-    pendiente: (n) => `Tienes ${n} ${n === 1 ? 'pago pendiente' : 'pagos pendientes'}: se completan antes de cerrar la cuenta.`,
-  },
-  disputas_abiertas: {
-    ok: 'No tienes disputas abiertas.',
-    pendiente: (n) => `Tienes ${n} ${n === 1 ? 'disputa abierta' : 'disputas abiertas'}: debe resolverse antes de irte.`,
-  },
-  saldo_sin_liquidar: {
-    ok: 'No tienes saldo por liquidar.',
-    pendiente: () => 'Tienes saldo sin liquidar: espera a que se complete el pago.',
-  },
+  reservas_activas: paz('reservas_activas'),
+  pagos_pendientes: paz('pagos_pendientes'),
+  disputas_abiertas: paz('disputas_abiertas'),
+  saldo_sin_liquidar: paz('saldo_sin_liquidar'),
 };
 
 // 42 -> "0:42" (cuenta regresiva del reenvío de códigos).
 export const minutosYSegundos = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-export const NOMBRES_CALIFICACION = ['Muy mala', 'Mala', 'Regular', 'Buena', 'Excelente'];
+// Claves de los nombres de calificación, de 1 a 5 estrellas.
+export const NOMBRES_CALIFICACION = [1, 2, 3, 4, 5].map((n) => `cuenta.calif.${n}`);
 
-export const ETIQUETA_ROL = { viajero: 'Viajero', cuidador: 'Cuidador', admin: 'Administrador' };
+// Código de rol -> clave de texto.
+export const ETIQUETA_ROL = { viajero: 'cuenta.rol.viajero', cuidador: 'cuenta.rol.cuidador', admin: 'cuenta.rol.admin' };
 
-const formato = new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium' });
-export const fecha = (iso) => (iso ? formato.format(new Date(iso)) : '—');
+// Fecha corta en el locale del idioma actual (las pantallas pasan el locale de useIdioma).
+export const fecha = (iso, locale = 'es-CO') =>
+  (iso ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(iso)) : '—');

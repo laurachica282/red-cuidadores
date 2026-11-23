@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useIdioma } from '@/modules/region';
+import '../i18n.js';
 import { buscarDirecciones } from '../services/busquedaService.js';
 import { CENTRO_POR_DEFECTO } from '../ubicacion.js';
 import { IconLupa } from './Iconos.jsx';
@@ -10,6 +12,7 @@ export default function BuscadorDirecciones({ texto, onTexto, onElegir, placehol
   const [consulta, setConsulta] = useState('');
   const [sugerencias, setSugerencias] = useState([]);
   const [error, setError] = useState('');
+  const { t } = useIdioma();
 
   // Busca con una pausa para no consultar en cada tecla.
   useEffect(() => {
@@ -20,7 +23,8 @@ export default function BuscadorDirecciones({ texto, onTexto, onElegir, placehol
         .then((d) => {
           if (!vivo) return;
           setSugerencias(d.resultados);
-          setError(d.resultados.length ? '' : 'No encontramos ese lugar. Prueba con el barrio o una calle cercana.');
+          // Se guarda la clave (no el texto) para que el aviso cambie si cambia el idioma.
+          setError(d.resultados.length ? '' : 'busqueda.error.lugarNoEncontrado');
         })
         .catch((e) => vivo && setError(e.message));
     }, 600);
@@ -51,7 +55,7 @@ export default function BuscadorDirecciones({ texto, onTexto, onElegir, placehol
           onChange={(e) => escribir(e.target.value)} autoComplete="off" />
       </label>
       {sugerencias.length > 0 && (
-        <ul className="bs-menu bs-menu--ancho" role="listbox" aria-label="Lugares encontrados">
+        <ul className="bs-menu bs-menu--ancho" role="listbox" aria-label={t('busqueda.lugaresEncontrados')}>
           {sugerencias.map((s) => {
             const [principal, ...resto] = s.etiqueta.split(', ');
             return (
@@ -67,7 +71,7 @@ export default function BuscadorDirecciones({ texto, onTexto, onElegir, placehol
           })}
         </ul>
       )}
-      {error && <p className="bs-error" role="alert">{error}</p>}
+      {error && <p className="bs-error" role="alert">{t(error)}</p>}
     </div>
   );
 }

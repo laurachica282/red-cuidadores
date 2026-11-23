@@ -1,10 +1,13 @@
 import { useRef } from 'react';
 import './CodigoVerificacion.css';
+import '../i18n.js';
+import { useIdioma } from '@/modules/region';
 
 const LARGO = 6;
 
 // `valor` es el texto con los dígitos escritos (hasta 6); `onChange` recibe el texto nuevo.
 export default function CodigoVerificacion({ valor, onChange, deshabilitado = false }) {
+  const { t } = useIdioma();
   const casillas = useRef([]);
   const digitos = Array.from({ length: LARGO }, (_, i) => valor[i] ?? '');
 
@@ -48,7 +51,7 @@ export default function CodigoVerificacion({ valor, onChange, deshabilitado = fa
   };
 
   return (
-    <div className="codigo" role="group" aria-label="Código de verificación de 6 dígitos">
+    <div className="codigo" role="group" aria-label={t('auth.codigo.grupo')}>
       {digitos.map((d, i) => (
         <input
           key={i}
@@ -58,7 +61,7 @@ export default function CodigoVerificacion({ valor, onChange, deshabilitado = fa
           inputMode="numeric"
           autoComplete={i === 0 ? 'one-time-code' : 'off'}
           maxLength={LARGO}
-          aria-label={`Dígito ${i + 1}`}
+          aria-label={t('auth.codigo.digito', { n: i + 1 })}
           value={d}
           disabled={deshabilitado}
           onChange={(e) => cambiar(i, e)}

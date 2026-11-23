@@ -1,10 +1,14 @@
-import { MAX_HORAS, TIPOS_MASCOTA, esPorHora, horasEntre, servicio } from './utils.js';
+import { traducir } from '@/modules/region';
+import { MAX_HORAS, TIPOS_MASCOTA, esPorHora, horasEntre, servicio, textoHora, textoNoches } from './utils.js';
+import './i18n.js';
 
+// El texto se traduce al leerlo, así sigue al idioma actual.
+const orden = (valor, extra = {}) => ({ valor, get texto() { return traducir(`busqueda.orden.${valor}`); }, ...extra });
 export const ORDENES = [
-  { valor: 'calificacion', texto: 'Mejor calificados' },
-  { valor: 'distancia', texto: 'Más cerca', soloConPunto: true },
-  { valor: 'precio', texto: 'Menor precio' },
-  { valor: 'precio_desc', texto: 'Mayor precio' },
+  orden('calificacion'),
+  orden('distancia', { soloConPunto: true }),
+  orden('precio'),
+  orden('precio_desc'),
 ];
 
 export const RADIOS_KM = [2, 5, 10, 20];
@@ -20,12 +24,12 @@ export const contarFiltros = (f) =>
 
 // Resumen de lo elegido (lista de textos), para mostrar en la tarjeta. Siempre dice qué servicio se busca.
 export function resumirFiltros(f, precio, moneda) {
-  const partes = [f.servicio ? servicio(f.servicio).texto : 'Todos los servicios'];
+  const partes = [f.servicio ? servicio(f.servicio).texto : traducir('busqueda.todosServicios')];
   if (f.tipo) partes.push(TIPOS_MASCOTA.find((t) => t.valor === f.tipo)?.texto);
   if (f.precioMin && f.precioMax) partes.push(`${precio(f.precioMin, moneda)} – ${precio(f.precioMax, moneda)}`);
-  else if (f.precioMin) partes.push(`Desde ${precio(f.precioMin, moneda)}`);
-  else if (f.precioMax) partes.push(`Hasta ${precio(f.precioMax, moneda)}`);
-  if (f.radioKm !== FILTROS_VACIOS.radioKm) partes.push(`A ${f.radioKm} km`);
+  else if (f.precioMin) partes.push(traducir('busqueda.resumen.desde', { precio: precio(f.precioMin, moneda) }));
+  else if (f.precioMax) partes.push(traducir('busqueda.resumen.hasta', { precio: precio(f.precioMax, moneda) }));
+  if (f.radioKm !== FILTROS_VACIOS.radioKm) partes.push(traducir('busqueda.resumen.radio', { n: f.radioKm }));
   if (f.orden !== FILTROS_VACIOS.orden) partes.push(ORDENES.find((o) => o.valor === f.orden)?.texto);
   if (f.q.trim()) partes.push(`"${f.q.trim()}"`);
   return partes;
@@ -37,21 +41,21 @@ export function resumirFiltros(f, precio, moneda) {
 //   todos: un día o un rango.
 export function errorFechas({ servicio: s, desde, hasta, horaDesde, horaHasta }, hoy) {
   if (!desde && !hasta && !horaDesde && !horaHasta) return '';
-  if (!desde) return esPorHora(s) ? 'Elige el día.' : 'Elige la fecha de entrada.';
-  if (desde < hoy) return 'La fecha ya pasó.';
+  if (!desde) return traducir(esPorHora(s) ? 'busqueda.error.elegirDia' : 'busqueda.error.elegirEntrada');
+  if (desde < hoy) return traducir('busqueda.error.fechaPasada');
   if (esPorHora(s)) {
     if (!horaDesde && !horaHasta) return '';
-    if (!horaDesde || !horaHasta) return 'Elige la hora de inicio y la de fin.';
+    if (!horaDesde || !horaHasta) return traducir('busqueda.error.elegirHoras');
     const h = horasEntre(horaDesde, horaHasta);
-    if (h <= 0) return 'La hora de fin debe ser después de la de inicio.';
-    if (h > MAX_HORAS) return `Máximo ${MAX_HORAS} horas por reserva.`;
+    if (h <= 0) return traducir('busqueda.error.horaFin');
+    if (h > MAX_HORAS) return traducir('busqueda.error.maxHoras', { n: MAX_HORAS });
     return '';
   }
   if (s === 'alojamiento') {
-    if (!hasta) return 'Elige la fecha de salida.';
-    if (hasta <= desde) return 'La salida debe ser después de la entrada.';
+    if (!hasta) return traducir('busqueda.error.elegirSalida');
+    if (hasta <= desde) return traducir('busqueda.error.salida');
   }
-  if (hasta && hasta < desde) return 'La fecha final no puede ser antes de la inicial.';
+  if (hasta && hasta < desde) return traducir('busqueda.error.rango');
   return '';
 }
 
@@ -70,11 +74,11 @@ export function textoFechas(f, rango, noches) {
   if (!p.desde) return '';
   if (p.horaDesde) {
     const h = horasEntre(p.horaDesde, p.horaHasta);
-    return `${rango(p.desde, p.desde)} · ${p.horaDesde}–${p.horaHasta} · ${h} h`;
+    return `${rango(p.desde, p.desde)} · ${textoHora(p.horaDesde)}–${textoHora(p.horaHasta)} · ${traducir('busqueda.horasCorto', { n: h })}`;
   }
   if (f.servicio === 'alojamiento') {
     const n = noches(p.desde, p.hasta);
-    return `${rango(p.desde, p.hasta)} · ${n} ${n === 1 ? 'noche' : 'noches'}`;
+    return `${rango(p.desde, p.hasta)} · ${textoNoches(n)}`;
   }
   return rango(p.desde, p.hasta ?? p.desde);
 }

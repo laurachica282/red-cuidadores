@@ -6,7 +6,7 @@ import { listarPaises, obtenerTerminos } from '../services/regionService.js';
 
 // HU-36: los términos legales cambian según el país. Es pública (también sirve desde el registro).
 export default function TerminosPage() {
-  const { t } = useIdioma();
+  const { t, pais: nombrePais } = useIdioma();
   const { usuario } = useAuth();
   const [paises, setPaises] = useState([]);
   const [pais, setPais] = useState(usuario?.pais ?? 'CO');
@@ -30,7 +30,7 @@ export default function TerminosPage() {
         <div>
           <label className="label" htmlFor="pais-terminos">{t('terminos.pais')}</label>
           <select id="pais-terminos" className="input" value={pais} onChange={(e) => setPais(e.target.value)}>
-            {paises.map((p) => <option key={p.pais} value={p.pais}>{p.nombre}</option>)}
+            {paises.map((p) => <option key={p.pais} value={p.pais}>{nombrePais(p.pais)}</option>)}
           </select>
         </div>
 

@@ -8,8 +8,11 @@ import { IconFlechaAtras } from '../components/IconosRegistro.jsx';
 import './LoginPage.css';
 import './RegistroPage.css';
 import './VerificarCorreoPage.css';
+import '../i18n.js';
+import { useIdioma } from '@/modules/region';
 
 export default function NuevaClavePage() {
+  const { t } = useIdioma();
   const { state } = useLocation();
   const navigate = useNavigate();
   const [clave, setClave] = useState('');
@@ -44,34 +47,34 @@ export default function NuevaClavePage() {
   return (
     <div className="login-fondo">
       <main className="login registro">
-        <Link className="registro-atras" to="/login" aria-label="Volver al inicio de sesión">
+        <Link className="registro-atras" to="/login" aria-label={t('auth.volverLogin')}>
           <IconFlechaAtras />
         </Link>
 
-        <h1 style={{ marginTop: 20 }}>Crea una nueva contraseña</h1>
-        <p className="login-sub">Elige una que no uses en otros sitios.</p>
+        <h1 style={{ marginTop: 20 }}>{t('auth.nuevaClave.titulo')}</h1>
+        <p className="login-sub">{t('auth.nuevaClave.sub')}</p>
 
         <form className="login-form" onSubmit={guardar}>
-          <CampoClave id="clave" etiqueta="Nueva contraseña" placeholder="Crea una contraseña"
+          <CampoClave id="clave" etiqueta={t('auth.nuevaClave')} placeholder={t('auth.creaClavePlaceholder')}
             valor={clave} onChange={setClave} ver={verClave} onVer={() => setVerClave(!verClave)} />
-          <CampoClave id="confirmar" etiqueta="Confirma la contraseña" placeholder="Repite la contraseña"
+          <CampoClave id="confirmar" etiqueta={t('auth.nuevaClave.confirmar')} placeholder={t('auth.repiteClavePlaceholder')}
             valor={confirmar} onChange={setConfirmar} ver={verConfirmar} onVer={() => setVerConfirmar(!verConfirmar)} />
 
-          <ReglasClave clave={clave} extras={[{ id: 'coinciden', texto: 'Las dos contraseñas coinciden', ok: coinciden }]} />
+          <ReglasClave clave={clave} extras={[{ id: 'coinciden', texto: t('auth.coinciden'), ok: coinciden }]} />
 
           {error && (
             <p className="registro-error" role="alert">
-              {error} {tokenVencido && <Link className="enlace" to="/recuperar">Pedir código</Link>}
+              {error} {tokenVencido && <Link className="enlace" to="/recuperar">{t('auth.nuevaClave.pedirCodigo')}</Link>}
             </p>
           )}
 
           <button type="submit" className="btn-primary" disabled={!completo || cargando}>
-            {cargando ? 'Guardando…' : 'Guardar contraseña'}
+            {t(cargando ? 'auth.guardando' : 'auth.nuevaClave.guardar')}
           </button>
         </form>
 
         <p className="verificar-info" style={{ marginTop: 16, textAlign: 'center', fontWeight: 400 }}>
-          Por seguridad, cerraremos tu sesión en los demás dispositivos.
+          {t('auth.nuevaClave.aviso')}
         </p>
       </main>
     </div>

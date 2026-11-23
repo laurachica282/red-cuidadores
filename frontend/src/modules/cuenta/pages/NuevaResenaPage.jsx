@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { useIdioma } from '@/modules/region';
+import { traducirMensajeServidor } from '@/shared/api/mensajesServidor.js';
+import '../i18n.js';
 import Aviso from '../components/Aviso.jsx';
 import Estrellas from '../components/Estrellas.jsx';
 import Pantalla from '../components/Pantalla.jsx';
@@ -12,6 +15,7 @@ const MAX = 1000;
 
 // HU-33: de 1 a 5 estrellas con comentario, solo si la reserva se completó.
 function Formulario({ estado, reservaId, alTerminar }) {
+  const { t } = useIdioma();
   const [calificacion, setCalificacion] = useState(0);
   const [comentario, setComentario] = useState('');
   const [error, setError] = useState('');
@@ -19,7 +23,7 @@ function Formulario({ estado, reservaId, alTerminar }) {
 
   const enviar = async (e) => {
     e.preventDefault();
-    if (!calificacion) return setError('Elige de 1 a 5 estrellas');
+    if (!calificacion) return setError(t('cuenta.resena.elegir'));
     setError('');
     setEnviando(true);
     try {
@@ -35,40 +39,41 @@ function Formulario({ estado, reservaId, alTerminar }) {
   return (
     <form className="cu-form" onSubmit={enviar} noValidate>
       <div>
-        <p className="label">¿Cómo fue el servicio de {estado.cuidador?.nombre}?</p>
+        <p className="label">{t('cuenta.resena.comoFue', { nombre: estado.cuidador?.nombre })}</p>
         <Estrellas valor={calificacion} onChange={(n) => { setCalificacion(n); setError(''); }} />
-        <p className="cu-ayuda" aria-live="polite">{calificacion ? NOMBRES_CALIFICACION[calificacion - 1] : 'Toca una estrella'}</p>
+        <p className="cu-ayuda" aria-live="polite">{calificacion ? t(NOMBRES_CALIFICACION[calificacion - 1]) : t('cuenta.resena.tocaEstrella')}</p>
       </div>
 
       <div>
-        <label className="label" htmlFor="comentario">Comentario (opcional)</label>
-        <textarea id="comentario" className="input" maxLength={MAX} placeholder="Cuéntale a otros viajeros cómo le fue a tu mascota"
+        <label className="label" htmlFor="comentario">{t('cuenta.resena.comentario')}</label>
+        <textarea id="comentario" className="input" maxLength={MAX} placeholder={t('cuenta.resena.comentarioPh')}
           value={comentario} onChange={(e) => setComentario(e.target.value)} />
         <p className="cu-ayuda">{comentario.length}/{MAX}</p>
       </div>
 
       <Aviso>{error}</Aviso>
       <button type="submit" className="btn-primary" disabled={enviando}>
-        {enviando ? 'Enviando…' : 'Publicar reseña'}
+        {enviando ? t('cuenta.enviando') : t('cuenta.resena.publicar')}
       </button>
     </form>
   );
 }
 
 export default function NuevaResenaPage() {
+  const { t } = useIdioma();
   const { reservaId } = useParams();
   const { datos: estado, cargando, error } = useCarga(() => estadoDeReserva(reservaId), reservaId);
   const [publicada, setPublicada] = useState(false);
 
   return (
-    <Pantalla titulo="Calificar cuidador">
-      {cargando && <p className="cu-cargando">Cargando…</p>}
+    <Pantalla titulo={t('cuenta.resena.titulo')}>
+      {cargando && <p className="cu-cargando">{t('cuenta.cargando')}</p>}
       {!cargando && error && <Aviso>{error}</Aviso>}
 
       {publicada && (
         <>
-          <Aviso tipo="ok">¡Gracias! Tu reseña ayuda a otros viajeros.</Aviso>
-          <Link className="btn-primary" to={RUTAS.resenas}>Ver mis reseñas</Link>
+          <Aviso tipo="ok">{t('cuenta.resena.gracias')}</Aviso>
+          <Link className="btn-primary" to={RUTAS.resenas}>{t('cuenta.resena.verMis')}</Link>
         </>
       )}
 
@@ -76,7 +81,7 @@ export default function NuevaResenaPage() {
         ? <Formulario estado={estado} reservaId={reservaId} alTerminar={() => setPublicada(true)} />
         : (
           <>
-            <Aviso tipo="info">{estado.motivo}</Aviso>
+            <Aviso tipo="info">{traducirMensajeServidor(estado.motivo)}</Aviso>
             {estado.resena && (
               <div className="cu-item">
                 <Estrellas valor={estado.resena.calificacion} tamano={20} />

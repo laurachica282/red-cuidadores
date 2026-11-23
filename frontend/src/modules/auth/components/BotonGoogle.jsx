@@ -1,5 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
+import '../i18n.js';
+import { useIdioma } from '@/modules/region';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
@@ -16,6 +18,7 @@ const LogoGoogle = () => (
 // Por eso se dibuja nuestro botón (igual al de Microsoft) y el oficial queda encima, invisible, recibiendo el clic.
 // onCredencial recibe el id_token; onError, un mensaje para mostrar.
 export default function BotonGoogle({ onCredencial, onError, deshabilitado = false }) {
+  const { t, idioma } = useIdioma();
   const caja = useRef(null);
   const [ancho, setAncho] = useState(0);
 
@@ -27,7 +30,7 @@ export default function BotonGoogle({ onCredencial, onError, deshabilitado = fal
 
   if (!CLIENT_ID) {
     return (
-      <span className="login-red" title="Inicio con Google no configurado">
+      <span className="login-red" title={t('auth.google.noConfigurado')}>
         <button type="button" className="login-social" disabled><LogoGoogle /> Google</button>
       </span>
     );
@@ -35,13 +38,14 @@ export default function BotonGoogle({ onCredencial, onError, deshabilitado = fal
 
   return (
     <div ref={caja} className={`login-red login-google${deshabilitado ? ' login-google-ocupado' : ''}`}>
-      <span className="login-social" aria-hidden="true"><LogoGoogle /> Iniciar sesión con Google</span>
+      <span className="login-social" aria-hidden="true"><LogoGoogle /> {t('auth.google.entrar')}</span>
       {ancho > 0 && (
-        <GoogleOAuthProvider clientId={CLIENT_ID}>
+        // key: el iframe oficial solo lee el idioma al crearse, así que se vuelve a montar al cambiarlo.
+        <GoogleOAuthProvider key={idioma} clientId={CLIENT_ID} locale={idioma}>
           <GoogleLogin
             onSuccess={({ credential }) => onCredencial(credential)}
-            onError={() => onError('No pudimos conectar con Google. Inténtalo de nuevo.')}
-            theme="outline" shape="rectangular" size="large" text="signin_with" locale="es"
+            onError={() => onError(t('auth.google.error'))}
+            theme="outline" shape="rectangular" size="large" text="signin_with" locale={idioma}
             width={String(ancho)}
             containerProps={{ className: 'login-google-boton' }}
           />
