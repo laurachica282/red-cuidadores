@@ -50,7 +50,6 @@
 .cu-ayuda { margin: 6px 0 0; font-size: 13px; line-height: 1.4; color: var(--slate); }
 .cu-error-campo { margin: 6px 0 0; font-size: 13px; font-weight: 600; color: var(--danger); }
 .cu textarea.input { height: auto; min-height: 96px; padding: 12px 14px; resize: vertical; line-height: 1.4; }
-.cu select.input { appearance: none; background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%234a5d70' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 14px center; padding-right: 44px; }
 .cu .input[readonly] { background: #eef2f4; color: var(--slate); }
 
 /* ---------- Campos con icono ---------- */

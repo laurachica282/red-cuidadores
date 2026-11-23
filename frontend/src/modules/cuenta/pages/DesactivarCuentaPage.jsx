@@ -12,6 +12,7 @@ import { useCarga } from '../hooks/useCarga.js';
 import { desactivarCuenta, obtenerPendientes } from '../services/cuentaService.js';
 import { MOTIVOS, PAZ_Y_SALVO } from '../utils/textos.js';
 import { RUTAS } from '../rutas.js';
+import Desplegable from '@/shared/components/Desplegable.jsx';
 
 // Mockup 18 (antes "Eliminar cuenta"; ahora "Desactivar cuenta" por RN-5: nada se borra).
 // HU-37: "Antes de irte" muestra qué falta para cerrar. HU-39: desactiva con motivo y contraseña.
@@ -44,10 +45,10 @@ function Formulario({ alTerminar }) {
     <form className="cu-form" onSubmit={enviar}>
       <div>
         <label className="label" htmlFor="motivo">{t('cuenta.desactivar.porQue')}</label>
-        <select id="motivo" name="motivo" className="input" value={motivo} onChange={(e) => setMotivo(e.target.value)}>
+        <Desplegable id="motivo" name="motivo" className="input" value={motivo} onChange={(e) => setMotivo(e.target.value)}>
           <option value="">{t('cuenta.desactivar.eligeMotivo')}</option>
           {MOTIVOS.map((m) => <option key={m.valor} value={m.valor}>{t(m.titulo)}</option>)}
-        </select>
+        </Desplegable>
       </div>
 
       {motivo === 'otro' && (

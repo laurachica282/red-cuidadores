@@ -8,6 +8,7 @@ import {
 import { IconPata } from '@/shared/components/Icons.jsx';
 import '../i18n.js';
 import './reservas.css';
+import Desplegable from '@/shared/components/Desplegable.jsx';
 
 export default function NuevaReservaPage() {
   const { t } = useIdioma();
@@ -132,22 +133,22 @@ export default function NuevaReservaPage() {
         <form className="rs-form" onSubmit={enviar}>
           <div>
             <label className="label" htmlFor="servicio">{t('reservas.servicio')}</label>
-            <select id="servicio" className="input" value={form.servicio} onChange={cambiar('servicio')}>
+            <Desplegable id="servicio" className="input" value={form.servicio} onChange={cambiar('servicio')}>
               {cuidador.servicios.map((s) => (
                 <option key={s.servicio} value={s.servicio}>
                   {nombreServicio(s.servicio)} · {precio(s.tarifa, cuidador.moneda)} / {textoUnidad(s.unidad)}
                 </option>
               ))}
-            </select>
+            </Desplegable>
           </div>
 
           <div>
             <label className="label" htmlFor="mascota">{t('reservas.mascota_campo')}</label>
-            <select id="mascota" className="input" value={form.mascota_id} onChange={cambiar('mascota_id')}>
+            <Desplegable id="mascota" className="input" value={form.mascota_id} onChange={cambiar('mascota_id')}>
               {mascotas.map((m) => (
                 <option key={m.id} value={m.id}>{m.nombre} ({textoEspecie(m.especie)})</option>
               ))}
-            </select>
+            </Desplegable>
           </div>
 
           {porHora ? (
@@ -160,19 +161,19 @@ export default function NuevaReservaPage() {
               <div className="rs-fila">
                 <div>
                   <label className="label" htmlFor="hora-inicio">{t('reservas.desde')}</label>
-                  <select id="hora-inicio" className="input" value={form.hora_inicio} onChange={cambiarHoraInicio} required>
+                  <Desplegable id="hora-inicio" className="input" value={form.hora_inicio} onChange={cambiarHoraInicio} required>
                     <option value="" disabled>{t('reservas.hora')}</option>
                     {HORAS.slice(0, -1).map((h) => <option key={h} value={h}>{h}</option>)}
-                  </select>
+                  </Desplegable>
                 </div>
                 <div>
                   <label className="label" htmlFor="hora-fin">{t('reservas.hasta')}</label>
-                  <select id="hora-fin" className="input" value={form.hora_fin} onChange={cambiar('hora_fin')} required
+                  <Desplegable id="hora-fin" className="input" value={form.hora_fin} onChange={cambiar('hora_fin')} required
                     disabled={!form.hora_inicio}>
                     <option value="" disabled>{t('reservas.hora')}</option>
                     {HORAS.filter((h) => h > form.hora_inicio && horasEntre(form.hora_inicio, h) <= 12)
                       .map((h) => <option key={h} value={h}>{h}</option>)}
-                  </select>
+                  </Desplegable>
                 </div>
               </div>
             </>

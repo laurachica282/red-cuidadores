@@ -4,6 +4,7 @@ import { guardarMascota, obtenerMascota, urlArchivo } from '../services/mascotas
 import { useIdioma } from '@/modules/region';
 import '../i18n.js';
 import '../mascotas.css';
+import Desplegable from '@/shared/components/Desplegable.jsx';
 
 const ESPECIES = ['perro', 'gato', 'ave', 'conejo', 'roedor', 'reptil', 'otro'];
 const TIPOS_FOTO = ['image/jpeg', 'image/png', 'image/webp'];
@@ -123,9 +124,9 @@ export default function FichaMascotaPage() {
 
             <div className="masc-campo">
               <label className="label" htmlFor="especie">{t('mascotas.ficha.especie')}</label>
-              <select className="input" id="especie" name="especie" value={form.especie} onChange={cambiar}>
+              <Desplegable className="input" id="especie" name="especie" value={form.especie} onChange={cambiar}>
                 {ESPECIES.map((valor) => <option key={valor} value={valor}>{t(`mascotas.especie.${valor}`)}</option>)}
-              </select>
+              </Desplegable>
             </div>
 
             <div className="masc-campo">

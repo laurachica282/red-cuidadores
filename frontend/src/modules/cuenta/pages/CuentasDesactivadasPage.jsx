@@ -6,6 +6,7 @@ import Aviso from '../components/Aviso.jsx';
 import Pantalla from '../components/Pantalla.jsx';
 import { historialDeCuenta, listarCuentasDesactivadas } from '../services/cuentaService.js';
 import { ETIQUETA_MOTIVO, ETIQUETA_ROL, fecha } from '../utils/textos.js';
+import Desplegable from '@/shared/components/Desplegable.jsx';
 
 // HU-41 (solo administradores). El historial no trae nombre, correo ni teléfono: las cuentas se
 // identifican por número. Las reservas, pagos y reseñas siguen en los reportes porque nada se borra.
@@ -113,20 +114,20 @@ export default function CuentasDesactivadasPage() {
       <div className="cu-fila">
         <div>
           <label className="label" htmlFor="filtro-estado">{t('cuenta.admin.estado')}</label>
-          <select id="filtro-estado" className="input" value={filtros.estado} onChange={filtrar('estado')}>
+          <Desplegable id="filtro-estado" className="input" value={filtros.estado} onChange={filtrar('estado')}>
             <option value="">{t('cuenta.admin.todas')}</option>
             <option value="desactivada">{t('cuenta.admin.desactivadas')}</option>
             <option value="reactivada">{t('cuenta.admin.reactivadas')}</option>
-          </select>
+          </Desplegable>
         </div>
         <div>
           <label className="label" htmlFor="filtro-rol">{t('cuenta.admin.tipoCuenta')}</label>
-          <select id="filtro-rol" className="input" value={filtros.rol} onChange={filtrar('rol')}>
+          <Desplegable id="filtro-rol" className="input" value={filtros.rol} onChange={filtrar('rol')}>
             <option value="">{t('cuenta.admin.todos')}</option>
             <option value="viajero">{t('cuenta.admin.viajeros')}</option>
             <option value="cuidador">{t('cuenta.admin.cuidadores')}</option>
             <option value="admin">{t('cuenta.admin.administradores')}</option>
-          </select>
+          </Desplegable>
         </div>
       </div>
 

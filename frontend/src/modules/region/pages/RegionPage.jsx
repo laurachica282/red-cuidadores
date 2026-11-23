@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Pantalla from '../components/Pantalla.jsx';
 import { IDIOMAS, guardarRegionLocal, useIdioma } from '../i18n/i18n.js';
 import { guardarMiRegion, listarPaises, obtenerMiRegion } from '../services/regionService.js';
+import Desplegable from '@/shared/components/Desplegable.jsx';
 
 // Mockup "Idioma, país y moneda" (HU-34): tres selectores, aviso y botón Guardar fijo abajo.
 export default function RegionPage() {
@@ -64,27 +65,27 @@ export default function RegionPage() {
         <div>
           <label className="label" htmlFor="idioma">{t('region.idioma')}</label>
           <div className="rg-select">
-            <select id="idioma" className="input" value={idioma} onChange={(e) => { setIdioma(e.target.value); setOk(false); }}>
+            <Desplegable id="idioma" className="input" value={idioma} onChange={(e) => { setIdioma(e.target.value); setOk(false); }}>
               {IDIOMAS.map((i) => <option key={i} value={i}>{t(`idioma.${i}`)}</option>)}
-            </select>
+            </Desplegable>
           </div>
         </div>
 
         <div>
           <label className="label" htmlFor="pais">{t('region.pais')}</label>
           <div className="rg-select">
-            <select id="pais" className="input" value={pais} onChange={(e) => elegirPais(e.target.value)} required>
+            <Desplegable id="pais" className="input" value={pais} onChange={(e) => elegirPais(e.target.value)} required>
               {paises.map((p) => <option key={p.pais} value={p.pais}>{nombrePais(p.pais)}</option>)}
-            </select>
+            </Desplegable>
           </div>
         </div>
 
         <div>
           <label className="label" htmlFor="moneda">{t('region.moneda')}</label>
           <div className="rg-select">
-            <select id="moneda" className="input" value={moneda} onChange={(e) => { setMoneda(e.target.value); setOk(false); }}>
+            <Desplegable id="moneda" className="input" value={moneda} onChange={(e) => { setMoneda(e.target.value); setOk(false); }}>
               {monedas.map((m) => <option key={m} value={m}>{t(`moneda.${m}`)}</option>)}
-            </select>
+            </Desplegable>
           </div>
         </div>
 
