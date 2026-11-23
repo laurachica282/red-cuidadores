@@ -170,4 +170,18 @@ export default {
   'nav.mascotas': 'Pets',
   'nav.reservas': 'Bookings',
   'nav.cuenta': 'Account',
+
+  // Errores comunes (servicios que no usan el cliente compartido)
+  'comun.sin_conexion': 'Cannot connect to the server',
+  'comun.error_generico': 'Something went wrong. Please try again.',
+  'admin.error_archivo': 'The file could not be opened',
+
+  // Traducir textos escritos por personas (shared/components/TextoTraducible.jsx)
+  'traduccion.traducir': 'Translate',
+  'traduccion.traduciendo': 'Translating…',
+  'traduccion.ver_original': 'See original',
+  'traduccion.ver_traduccion': 'See translation',
+  'traduccion.traducido_de': 'Translated from {idioma}',
+  'traduccion.mismo_idioma': 'Already in your language',
+  'traduccion.error': 'Could not translate right now. Try again later.',
 };

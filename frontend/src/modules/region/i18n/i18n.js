@@ -4,7 +4,13 @@ import en from './en.js';
 import pt from './pt.js';
 
 export const IDIOMAS = ['es', 'en', 'pt'];
-const DICCIONARIOS = { es, en, pt };
+const DICCIONARIOS = { es: { ...es }, en: { ...en }, pt: { ...pt } };
+
+// Cada módulo registra sus propios textos con agregarTextos({ es: {...}, en: {...}, pt: {...} }),
+// en un archivo i18n.js del módulo que importan sus pantallas. Así nadie edita el diccionario de otro.
+export function agregarTextos(textos) {
+  for (const idioma of IDIOMAS) Object.assign(DICCIONARIOS[idioma], textos[idioma] ?? {});
+}
 
 // El idioma de quien inició sesión manda; si no hay sesión, el último elegido.
 const leerAlmacen = () => {
@@ -54,22 +60,37 @@ export function guardarRegionLocal({ pais, idioma, moneda }) {
   window.dispatchEvent(new CustomEvent('region-cambiada', { detail: { pais, idioma, moneda } }));
 }
 
+// Idioma actual fuera de React (utilidades .js, servicios). Las pantallas usan useIdioma para re-renderizar.
+export const idiomaActual = () => actual;
+
+const LOCALES = { es: 'es-CO', en: 'en-US', pt: 'pt-BR' };
+// Locale de Intl para el idioma actual (fechas, números, horas).
+export const localeActual = (idioma = actual) => LOCALES[idioma] ?? 'es-CO';
+
+// Traduce fuera de un componente. Dentro de un componente, usar el t de useIdioma.
+export function traducir(clave, vars = {}, idioma = actual) {
+  const texto = DICCIONARIOS[idioma]?.[clave] ?? DICCIONARIOS.es[clave] ?? clave;
+  return String(texto).replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+}
+
+// Nombre del país en el idioma actual a partir del código ISO (CO, MX, BR, US, ES).
+export function nombrePais(codigo, idioma = actual) {
+  try { return new Intl.DisplayNames([localeActual(idioma)], { type: 'region' }).of(codigo) ?? codigo; }
+  catch { return codigo; }
+}
+
 export function useIdioma() {
   const idioma = useSyncExternalStore(suscribir, () => actual);
 
   // Al entrar a una pantalla se alinea con el idioma guardado de la persona.
   useEffect(() => { cambiarIdioma(leerAlmacen()); }, []);
 
-  const t = (clave, vars = {}) => {
-    const texto = DICCIONARIOS[idioma][clave] ?? es[clave] ?? clave;
-    return texto.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
-  };
-  const fecha = (valor) => new Date(valor).toLocaleDateString(idioma, { day: 'numeric', month: 'long', year: 'numeric' });
+  const t = (clave, vars = {}) => traducir(clave, vars, idioma);
+  const locale = localeActual(idioma);
+  const fecha = (valor) => new Date(valor).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
   const precio = (valor, moneda) => formatearPrecio(valor, moneda, idioma);
-  return { idioma, t, fecha, precio };
+  return { idioma, locale, t, fecha, precio, pais: (c) => nombrePais(c, idioma) };
 }
-
-const LOCALES = { es: 'es-CO', en: 'en-US', pt: 'pt-BR' };
 
 // Precio en la moneda indicada y con el formato del idioma (ej.: $ 50.000 / US$45 / R$ 50).
 export function formatearPrecio(valor, moneda = 'COP', idioma = 'es') {

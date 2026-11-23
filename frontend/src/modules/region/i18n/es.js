@@ -170,4 +170,18 @@ export default {
   'nav.mascotas': 'Mascotas',
   'nav.reservas': 'Reservas',
   'nav.cuenta': 'Cuenta',
+
+  // Errores comunes (servicios que no usan el cliente compartido)
+  'comun.sin_conexion': 'No hay conexión con el servidor',
+  'comun.error_generico': 'Algo salió mal. Inténtalo de nuevo.',
+  'admin.error_archivo': 'No se pudo abrir el archivo',
+
+  // Traducir textos escritos por personas (shared/components/TextoTraducible.jsx)
+  'traduccion.traducir': 'Traducir',
+  'traduccion.traduciendo': 'Traduciendo…',
+  'traduccion.ver_original': 'Ver original',
+  'traduccion.ver_traduccion': 'Ver traducción',
+  'traduccion.traducido_de': 'Traducido del {idioma}',
+  'traduccion.mismo_idioma': 'Ya está en tu idioma',
+  'traduccion.error': 'No se pudo traducir ahora. Inténtalo más tarde.',
 };

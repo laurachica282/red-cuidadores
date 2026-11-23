@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useIdioma } from '@/modules/region';
+import '../i18n.js';
 import { IconCorreo } from '@/shared/components/Icons.jsx';
 import Aviso from '../components/Aviso.jsx';
 import CampoClave from '../components/CampoClave.jsx';
@@ -15,9 +17,15 @@ import { minutosYSegundos } from '../utils/textos.js';
 import { enmascarar, validarCodigo, validarCorreo } from '../utils/validaciones.js';
 import { RUTAS } from '../rutas.js';
 
+// Arma un texto traducido con {marcas} reemplazadas por elementos (por ejemplo, correos en negrita).
+function conMarcas(texto, valores) {
+  return texto.split(/\{(\w+)\}/).map((parte, i) => (i % 2 ? <span key={i}>{valores[parte]}</span> : parte));
+}
+
 // HU-06 (mockups 14 y 9): pide la clave, manda un código al correo NUEVO y avisa al anterior.
 // El correo no cambia hasta confirmar el código.
 function Flujo({ perfil }) {
+  const { t } = useIdioma();
   const pendiente = perfil.cambio_correo_pendiente;
   const [paso, setPaso] = useState(pendiente ? 'codigo' : 'datos');
   const [nuevo, setNuevo] = useState(pendiente?.correo_nuevo ?? '');
@@ -31,7 +39,7 @@ function Flujo({ perfil }) {
   const pedirCodigo = async (e) => {
     e?.preventDefault();
     setError('');
-    if (validarCorreo(nuevo)) return setError(validarCorreo(nuevo));
+    if (validarCorreo(nuevo)) return setError(t(validarCorreo(nuevo)));
     setCargando(true);
     try {
       const r = await solicitarCambioCorreo(nuevo.trim(), clave);
@@ -48,7 +56,7 @@ function Flujo({ perfil }) {
   const confirmar = async (e) => {
     e.preventDefault();
     setError('');
-    if (validarCodigo(codigo)) return setError(validarCodigo(codigo));
+    if (validarCodigo(codigo)) return setError(t(validarCodigo(codigo)));
     setCargando(true);
     try {
       const r = await confirmarCambioCorreo(codigo);
@@ -66,12 +74,12 @@ function Flujo({ perfil }) {
   if (paso === 'listo') {
     return (
       <div className="cu-form">
-        <Aviso tipo="ok">Tu correo se actualizó. Te enviamos un aviso al correo anterior.</Aviso>
+        <Aviso tipo="ok">{t('cuenta.correo.actualizado')}</Aviso>
         <div className="cu-tarjeta cu-tarjeta-suave">
-          <p className="cu-item-meta">Tu correo ahora es</p>
+          <p className="cu-item-meta">{t('cuenta.correo.ahoraEs')}</p>
           <p className="cu-item-titulo">{correoActual}</p>
         </div>
-        <div className="cu-acciones"><Link className="btn-primary" to={RUTAS.configuracion}>Listo</Link></div>
+        <div className="cu-acciones"><Link className="btn-primary" to={RUTAS.configuracion}>{t('cuenta.correo.listo')}</Link></div>
       </div>
     );
   }
@@ -80,41 +88,43 @@ function Flujo({ perfil }) {
     return (
       <form className="cu-form" onSubmit={confirmar} noValidate>
         <span className="cu-icono-grande"><IconCorreo /></span>
-        <h2 className="cu-titulo-grande">Revisa tu correo</h2>
+        <h2 className="cu-titulo-grande">{t('cuenta.correo.revisa')}</h2>
         <p className="cu-texto">
-          Enviamos un código de 6 dígitos a <strong style={{ color: 'var(--navy)' }}>{enmascarar(nuevo)}</strong>.
-          Escríbelo para continuar. Tu correo actual (<strong style={{ color: 'var(--navy)' }}>{perfil.correo}</strong>) no cambia hasta que lo confirmes.
+          {conMarcas(t('cuenta.correo.enviado', { nuevo: '{nuevo}', actual: '{actual}' }), {
+            nuevo: <strong style={{ color: 'var(--navy)' }}>{enmascarar(nuevo)}</strong>,
+            actual: <strong style={{ color: 'var(--navy)' }}>{perfil.correo}</strong>,
+          })}
         </p>
         <CampoCodigo valor={codigo} onChange={setCodigo} />
         <Aviso>{error}</Aviso>
         <button type="submit" className="btn-primary" disabled={cargando || codigo.length !== 6}>
-          {cargando ? 'Verificando…' : 'Verificar'}
+          {cargando ? t('cuenta.correo.verificando') : t('cuenta.correo.verificar')}
         </button>
 
         <div className="cu-centro">
-          <p className="cu-texto">¿No te llegó el código?</p>
+          <p className="cu-texto">{t('cuenta.correo.noLlego')}</p>
           {/* Reenviar necesita la contraseña; si se retomó el trámite sin ella, se vuelve al paso anterior. */}
           {clave ? (
             <button type="button" className="cu-btn cu-btn-texto" style={{ margin: '0 auto' }} disabled={espera > 0 || cargando} onClick={pedirCodigo}>
-              {espera > 0 ? <span className="cu-reenvio">Reenviar en {minutosYSegundos(espera)}</span> : 'Reenviar código'}
+              {espera > 0 ? <span className="cu-reenvio">{t('cuenta.reenviarEn', { tiempo: minutosYSegundos(espera) })}</span> : t('cuenta.reenviarCodigo')}
             </button>
           ) : (
             <button type="button" className="cu-btn cu-btn-texto" style={{ margin: '0 auto' }}
               onClick={() => { setPaso('datos'); setError(''); }}>
-              Pedir un código nuevo
+              {t('cuenta.correo.pedirNuevo')}
             </button>
           )}
           {clave && (
             <button type="button" className="cu-btn cu-btn-texto" style={{ margin: '0 auto' }}
               onClick={() => { setPaso('datos'); setError(''); }}>
-              Usar otro correo
+              {t('cuenta.usarOtroCorreo')}
             </button>
           )}
         </div>
 
         <div className="cu-nota" style={{ marginTop: 'auto' }}>
           <IconEscudo />
-          <span>El código vence en 10 minutos. Nunca lo compartas con nadie, ni siquiera con nosotros.</span>
+          <span>{t('cuenta.correo.vence')}</span>
         </div>
       </form>
     );
@@ -123,31 +133,31 @@ function Flujo({ perfil }) {
   return (
     <form className="cu-form" onSubmit={pedirCodigo} noValidate>
       <div className="cu-tarjeta">
-        <p className="cu-item-meta" style={{ fontWeight: 700 }}>Correo actual</p>
+        <p className="cu-item-meta" style={{ fontWeight: 700 }}>{t('cuenta.correo.actual')}</p>
         <p className="cu-item-titulo" style={{ fontWeight: 500, overflowWrap: 'anywhere' }}>{perfil.correo}</p>
       </div>
 
       <div>
-        <label className="label" htmlFor="correo-nuevo">Nuevo correo electrónico</label>
+        <label className="label" htmlFor="correo-nuevo">{t('cuenta.correo.nuevo')}</label>
         <div className="cu-campo">
           <span className="cu-campo-icono"><IconCorreo /></span>
-          <input id="correo-nuevo" className="input cu-con-icono" type="email" autoComplete="email" placeholder="nuevo@correo.com"
+          <input id="correo-nuevo" className="input cu-con-icono" type="email" autoComplete="email" placeholder={t('cuenta.correo.nuevoPh')}
             value={nuevo} onChange={(e) => setNuevo(e.target.value)} required />
         </div>
       </div>
 
-      <CampoClave id="clave-actual" etiqueta="Contraseña actual" placeholder="Para confirmar que eres tú"
-        valor={clave} onChange={setClave} ayuda="Te enviaremos un código de 6 dígitos al correo nuevo." />
+      <CampoClave id="clave-actual" etiqueta={t('cuenta.correo.claveActual')} placeholder={t('cuenta.correo.claveActualPh')}
+        valor={clave} onChange={setClave} ayuda={t('cuenta.correo.claveAyuda')} />
 
       <p className="cu-nota" role="note">
         <IconEscudo />
-        <span>Hasta que lo verifiques, seguirás entrando con tu correo actual. También avisaremos al correo anterior del cambio.</span>
+        <span>{t('cuenta.correo.nota')}</span>
       </p>
 
       <div className="cu-acciones">
         <Aviso>{error}</Aviso>
         <button type="submit" className="btn-primary" disabled={cargando || !nuevo.trim() || !clave}>
-          {cargando ? 'Enviando código…' : 'Enviar código'}
+          {cargando ? t('cuenta.correo.enviandoCodigo') : t('cuenta.enviarCodigo')}
         </button>
       </div>
     </form>
@@ -155,10 +165,11 @@ function Flujo({ perfil }) {
 }
 
 export default function CambiarCorreoPage() {
+  const { t } = useIdioma();
   const { datos, cargando, error } = useCarga(obtenerPerfil);
   return (
-    <Pantalla titulo="Cambiar correo">
-      {cargando && <p className="cu-cargando">Cargando…</p>}
+    <Pantalla titulo={t('cuenta.correo.titulo')}>
+      {cargando && <p className="cu-cargando">{t('cuenta.cargando')}</p>}
       {!cargando && error && <Aviso>{error}</Aviso>}
       {datos && <Flujo perfil={datos} />}
     </Pantalla>

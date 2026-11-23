@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useIdioma } from '@/modules/region';
+import '../i18n.js';
 import L from 'leaflet';
 import { MapContainer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import CapaMapa from './CapaMapa.jsx';
 import BuscadorDirecciones from './BuscadorDirecciones.jsx';
 import { direccionDe } from '../services/busquedaService.js';
-import { CENTRO_POR_DEFECTO, obtenerMiUbicacion } from '../ubicacion.js';
+import { CENTRO_POR_DEFECTO, etiquetaPunto, obtenerMiUbicacion } from '../ubicacion.js';
 import { IconUbicacion } from './Iconos.jsx';
 
 const pin = L.divIcon({ className: 'bs-pin-direccion', html: '<span></span>', iconSize: [28, 28], iconAnchor: [14, 28] });
@@ -26,8 +28,9 @@ function AlTocar({ onTocar }) {
 // Escribe una dirección y se ubica en el mapa, o toca/arrastra el pin y se escribe la dirección.
 // valor / onCambiar: { etiqueta, barrio, ciudad, lat, lng } | null.
 // Lo usa la búsqueda (dónde busca el viajero) y puede usarlo el perfil del cuidador (dónde vive).
-export default function MapaDireccion({ valor, onCambiar, placeholder = 'Escribe una dirección o barrio' }) {
-  const [texto, setTexto] = useState(valor?.etiqueta ?? '');
+export default function MapaDireccion({ valor, onCambiar, placeholder }) {
+  const { t } = useIdioma();
+  const [texto, setTexto] = useState(valor ? etiquetaPunto(valor) : '');
   const [ubicando, setUbicando] = useState(false);
   const [error, setError] = useState('');
 
@@ -39,11 +42,13 @@ export default function MapaDireccion({ valor, onCambiar, placeholder = 'Escribe
   // Punto tocado o arrastrado en el mapa → su dirección.
   const ubicarPunto = async (lat, lng) => {
     setUbicando(true);
-    onCambiar({ etiqueta: 'Ubicando…', barrio: null, ciudad: null, lat, lng });
+    // Mientras se busca la dirección el punto queda marcado como "ubicando" (no se puede aplicar todavía).
+    onCambiar({ etiqueta: '', ubicando: true, barrio: null, ciudad: null, lat, lng });
     try {
       const { direccion } = await direccionDe(lat, lng);
-      const d = direccion ?? { etiqueta: 'Punto en el mapa', barrio: null, ciudad: null, lat, lng };
-      setTexto(d.etiqueta);
+      // Sin dirección conocida la etiqueta queda vacía y se muestra "Punto en el mapa" en el idioma actual.
+      const d = direccion ?? { etiqueta: '', barrio: null, ciudad: null, lat, lng };
+      setTexto(etiquetaPunto(d));
       setError('');
       onCambiar(d);
     } catch (e) {
@@ -68,10 +73,10 @@ export default function MapaDireccion({ valor, onCambiar, placeholder = 'Escribe
 
   return (
     <div className="bs-mapa-direccion">
-      <BuscadorDirecciones texto={texto} onTexto={setTexto} onElegir={elegir} placeholder={placeholder} cerca={valor ?? undefined} />
+      <BuscadorDirecciones texto={texto} onTexto={setTexto} onElegir={elegir} placeholder={placeholder ?? t('busqueda.escribeDireccion')} cerca={valor ?? undefined} />
 
       <button type="button" className="bs-enlace bs-mi-ubicacion" onClick={usarMiUbicacion} disabled={ubicando}>
-        <IconUbicacion width="18" height="18" /> Usar mi ubicación actual
+        <IconUbicacion width="18" height="18" /> {t('busqueda.usarMiUbicacion')}
       </button>
       {error && <p className="bs-error" role="alert">{error}</p>}
 
@@ -86,7 +91,7 @@ export default function MapaDireccion({ valor, onCambiar, placeholder = 'Escribe
           )}
         </MapContainer>
       </div>
-      <p className="bs-ayuda">Toca el mapa o arrastra el pin para ajustar el punto.</p>
+      <p className="bs-ayuda">{t('busqueda.ayudaMapa')}</p>
     </div>
   );
 }

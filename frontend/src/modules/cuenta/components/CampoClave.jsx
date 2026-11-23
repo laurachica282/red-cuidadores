@@ -1,7 +1,10 @@
 import { useState } from 'react';
+import { useIdioma } from '@/modules/region';
+import '../i18n.js';
 import { IconCandado, IconOjo, IconOjoCerrado } from '@/shared/components/Icons.jsx';
 
 export default function CampoClave({ id, etiqueta, valor, onChange, autoComplete = 'current-password', ayuda, placeholder }) {
+  const { t } = useIdioma();
   const [ver, setVer] = useState(false);
   return (
     <div>
@@ -11,7 +14,7 @@ export default function CampoClave({ id, etiqueta, valor, onChange, autoComplete
         <input id={id} className="input cu-con-icono cu-con-ojo" type={ver ? 'text' : 'password'}
           autoComplete={autoComplete} placeholder={placeholder} value={valor} onChange={(e) => onChange(e.target.value)}
           aria-describedby={ayuda ? `${id}-ayuda` : undefined} required />
-        <button type="button" className="cu-campo-ojo" aria-label={ver ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+        <button type="button" className="cu-campo-ojo" aria-label={t(ver ? 'cuenta.clave.ocultar' : 'cuenta.clave.mostrar')}
           onClick={() => setVer(!ver)}>
           {ver ? <IconOjoCerrado /> : <IconOjo />}
         </button>

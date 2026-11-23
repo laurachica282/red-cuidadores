@@ -1,12 +1,15 @@
 import { useCallback, useState } from 'react';
+import { useIdioma } from '@/modules/region';
 import { detalle } from '../services/seguimientoService.js';
 import HojaEmergencia from './HojaEmergencia.jsx';
 import { IconAlerta } from './Iconos.jsx';
+import '../i18n.js';
 import '../seguimiento.css';
 
 // HU-28: botón de emergencia para poner en cada reserva en curso (lo usa la lista de reservas).
 // Carga el contacto y el veterinario solo al tocarlo.
 export default function BotonEmergencia({ reservaId, className = '' }) {
+  const { t } = useIdioma();
   const [datos, setDatos] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
@@ -27,7 +30,7 @@ export default function BotonEmergencia({ reservaId, className = '' }) {
   return (
     <>
       <button type="button" className={`sg-boton-emergencia ${className}`} onClick={abrir} disabled={cargando}>
-        <IconAlerta width="18" height="18" /> {cargando ? 'Abriendo…' : 'Emergencia'}
+        <IconAlerta width="18" height="18" /> {cargando ? t('seguimiento.emerg.abriendo') : t('seguimiento.emergencia')}
       </button>
       {error && <p className="sg-error" role="alert">{error}</p>}
       {datos && (

@@ -1,4 +1,7 @@
 import { api } from '@/shared/api/client.js';
+import { traducirMensajeServidor } from '@/shared/api/mensajesServidor.js';
+import { traducir } from '@/modules/region';
+import '../i18n.js';
 
 // Misma URL base que usa el cliente compartido (shared/api/client.js no la exporta).
 export const API = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
@@ -19,14 +22,20 @@ export async function subirFoto(archivo) {
   try {
     resp = await fetch(`${API}/cuenta/perfil/foto`, {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+        // El servidor responde sus errores en el idioma de la interfaz.
+        'Accept-Language': document.documentElement.lang || 'es',
+      },
       body: datos,
     });
   } catch {
-    throw new Error('No hay conexión con el servidor');
+    throw new Error(traducir('cuenta.error.sinConexion'));
   }
   const cuerpo = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw new Error(cuerpo.error ?? 'No se pudo subir la foto');
+  if (!resp.ok) {
+    throw Object.assign(new Error(traducirMensajeServidor(cuerpo.error) ?? traducir('cuenta.error.subirFoto')), { original: cuerpo.error });
+  }
   return cuerpo;
 }
 

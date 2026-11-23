@@ -12,16 +12,17 @@ import {
 import './LoginPage.css';
 import './RegistroPage.css';
 import './SeguridadPage.css';
+import '../i18n.js';
+import { useIdioma } from '@/modules/region';
 
 const ICONOS = { telefono: IconTelefono, tablet: IconTablet, computador: IconComputador };
-const ESTE = { telefono: 'Este teléfono', tablet: 'Esta tableta', computador: 'Este equipo' };
-
-const tiempo = new Intl.RelativeTimeFormat('es', { numeric: 'always' });
+const ESTE = { telefono: 'auth.seguridad.esteTelefono', tablet: 'auth.seguridad.estaTableta', computador: 'auth.seguridad.esteEquipo' };
 
 // ultima_actividad se refresca como mucho cada minuto, así que menos de 2 minutos cuenta como "ahora".
-function haceCuanto(fecha) {
+function haceCuanto(fecha, t, locale) {
+  const tiempo = new Intl.RelativeTimeFormat(locale, { numeric: 'always' });
   const minutos = Math.floor((Date.now() - new Date(fecha).getTime()) / 60000);
-  if (minutos < 2) return 'activo ahora';
+  if (minutos < 2) return t('auth.seguridad.activoAhora');
   if (minutos < 60) return tiempo.format(-minutos, 'minute');
   const horas = Math.floor(minutos / 60);
   if (horas < 24) return tiempo.format(-horas, 'hour');
@@ -30,18 +31,51 @@ function haceCuanto(fecha) {
   return tiempo.format(-Math.floor(dias / 7), 'week');
 }
 
-function nombreDispositivo(s) {
-  if (!s.actual || !s.so) return s.dispositivo;
-  return `${ESTE[s.tipo] ?? 'Este equipo'} · ${s.so}`;
+// El servidor guarda 'Navegador desconocido' cuando no reconoce el user-agent; el resto son nombres propios (Chrome · Windows).
+const DESCONOCIDO = 'Navegador desconocido';
+const dispositivoLegible = (s, t) => (s.dispositivo === DESCONOCIDO ? t('auth.seguridad.navegadorDesconocido') : s.dispositivo);
+
+function nombreDispositivo(s, t) {
+  if (!s.actual || !s.so) return dispositivoLegible(s, t);
+  return `${t(ESTE[s.tipo] ?? 'auth.seguridad.esteEquipo')} · ${s.so}`;
+}
+
+// El servidor guarda la ubicación como "Ciudad, País" con el país en español; se vuelve a nombrar el país
+// en el idioma actual (la ciudad es nombre propio). Si el país no se reconoce, se deja tal cual.
+let paisesEnEspanol = null;
+function codigoDePais(nombre) {
+  if (!paisesEnEspanol) {
+    paisesEnEspanol = new Map();
+    try {
+      const es = new Intl.DisplayNames(['es'], { type: 'region' });
+      const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      for (const a of letras) {
+        for (const b of letras) {
+          const nom = es.of(a + b);
+          if (nom && nom !== a + b) paisesEnEspanol.set(nom, a + b);
+        }
+      }
+    } catch { /* sin Intl.DisplayNames: se deja el texto del servidor */ }
+  }
+  return paisesEnEspanol.get(nombre);
+}
+
+function ubicacion(ciudad, t, pais) {
+  if (!ciudad) return t('auth.seguridad.ubicacionDesconocida');
+  const coma = ciudad.lastIndexOf(', ');
+  if (coma < 0) return ciudad;
+  const codigo = codigoDePais(ciudad.slice(coma + 2));
+  return codigo ? `${ciudad.slice(0, coma)}, ${pais(codigo)}` : ciudad;
 }
 
 export default function SeguridadPage() {
+  const { t, locale, pais } = useIdioma();
   const navigate = useNavigate();
   const [sesiones, setSesiones] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [cerrando, setCerrando] = useState(null); // id de la sesión que se está cerrando, o 'todas'
   const [error, setError] = useState('');
-  const [exito, setExito] = useState('');
+  const [exito, setExito] = useState(''); // { clave, n } para traducir al dibujar
   const { usuario, actualizarUsuario } = useAuth();
   const [confirmar2fa, setConfirmar2fa] = useState(false); // panel para pedir la clave antes de cambiar el interruptor
   const [clave, setClave] = useState('');
@@ -49,7 +83,7 @@ export default function SeguridadPage() {
   const [verClave, setVerClave] = useState(false);
   const [guardando2fa, setGuardando2fa] = useState(false);
   const [error2fa, setError2fa] = useState('');
-  const [exito2fa, setExito2fa] = useState('');
+  const [exito2fa, setExito2fa] = useState(''); // clave de traducción
 
   // Para cuidadores es obligatoria; dos_pasos falta en sesiones anteriores a esta función (entonces no estaba activa).
   const obligatoria = usuario?.rol === 'cuidador';
@@ -99,7 +133,7 @@ export default function SeguridadPage() {
       const r = await cambiar2fa(!dosPasos, clave, codigo);
       actualizarUsuario(r.usuario);
       cancelar2fa();
-      setExito2fa(r.usuario.dos_pasos ? 'Activamos la verificación en dos pasos.' : 'Desactivamos la verificación en dos pasos.');
+      setExito2fa(r.usuario.dos_pasos ? 'auth.seguridad.activada' : 'auth.seguridad.desactivada');
     } catch (err) {
       setError2fa(err.message);
       setClave('');
@@ -132,7 +166,7 @@ export default function SeguridadPage() {
     try {
       const r = await cerrarTodasLasSesiones();
       setSesiones((lista) => lista.filter((s) => s.actual));
-      setExito(r.cerradas === 1 ? 'Cerramos 1 sesión.' : `Cerramos ${r.cerradas} sesiones.`);
+      setExito({ clave: r.cerradas === 1 ? 'auth.seguridad.cerradaUna' : 'auth.seguridad.cerradasVarias', n: r.cerradas });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -144,29 +178,29 @@ export default function SeguridadPage() {
     <div className="login-fondo">
       <main className="login seguridad">
         <div className="seguridad-cabecera">
-          <Link className="registro-atras" to="/configuracion" onClick={(e) => { e.preventDefault(); navigate(-1); }} aria-label="Volver">
+          <Link className="registro-atras" to="/configuracion" onClick={(e) => { e.preventDefault(); navigate(-1); }} aria-label={t('auth.volver')}>
             <IconFlechaAtras />
           </Link>
-          <h1>Seguridad</h1>
+          <h1>{t('auth.seguridad.titulo')}</h1>
         </div>
 
         <div className={`seguridad-banner${dosPasos ? '' : ' seguridad-banner-pendiente'}`}>
           <IconEscudo width="20" height="20" />
           <span>
-            <strong>{dosPasos ? 'Tu cuenta está protegida' : 'Protege más tu cuenta'}</strong>
-            {dosPasos ? 'Verificación en dos pasos activa.' : 'Activa la verificación en dos pasos.'}
+            <strong>{t(dosPasos ? 'auth.seguridad.protegida' : 'auth.seguridad.protegeMas')}</strong>
+            {t(dosPasos ? 'auth.seguridad.dosPasosActiva' : 'auth.seguridad.activaDosPasos')}
           </span>
         </div>
 
-        <h2 className="seguridad-titulo">Inicio de sesión</h2>
+        <h2 className="seguridad-titulo">{t('auth.seguridad.inicioSesion')}</h2>
         <div className="seguridad-tarjeta">
           <div className="seguridad-fila">
             <span className="seguridad-info">
-              <span className="seguridad-nombre" id="dos-pasos-titulo">Verificación en dos pasos</span>
+              <span className="seguridad-nombre" id="dos-pasos-titulo">{t('auth.seguridad.dosPasos')}</span>
               <span className="seguridad-detalle">
                 {obligatoria
-                  ? 'Obligatoria para cuidadores'
-                  : 'Pedimos un código al correo cada vez que entras desde un equipo nuevo.'}
+                  ? t('auth.seguridad.obligatoria')
+                  : t('auth.seguridad.detalleDosPasos')}
               </span>
             </span>
             <button type="button" role="switch" className="seguridad-interruptor" aria-checked={dosPasos}
@@ -181,32 +215,32 @@ export default function SeguridadPage() {
               {sinClave ? (
                 <ConfirmarConCodigo valor={codigo} onChange={setCodigo} deshabilitado={guardando2fa} />
               ) : (
-                <CampoClave id="clave-2fa" etiqueta="Confirma tu contraseña" placeholder="Tu contraseña actual"
+                <CampoClave id="clave-2fa" etiqueta={t('auth.seguridad.confirmaClave')} placeholder={t('auth.claveActualPlaceholder')}
                   valor={clave} onChange={setClave} ver={verClave} onVer={() => setVerClave(!verClave)}
                   autoComplete="current-password" />
               )}
               {error2fa && <p className="registro-error" role="alert">{error2fa}</p>}
               <div className="seguridad-acciones">
                 <button type="button" className="btn-secundario" onClick={cancelar2fa} disabled={guardando2fa}>
-                  Cancelar
+                  {t('auth.cancelar')}
                 </button>
                 <button type="submit" className="btn-primary" disabled={!confirmado || guardando2fa}>
-                  {guardando2fa ? 'Guardando…' : dosPasos ? 'Desactivar' : 'Activar'}
+                  {t(guardando2fa ? 'auth.guardando' : dosPasos ? 'auth.seguridad.desactivar' : 'auth.seguridad.activar')}
                 </button>
               </div>
             </form>
           )}
 
           <Link className="seguridad-fila seguridad-enlace" to="/configuracion/cambiar-clave">
-            <span className="seguridad-nombre">Cambiar contraseña</span>
+            <span className="seguridad-nombre">{t('auth.cambiarClave.tituloCambiar')}</span>
             <IconChevron />
           </Link>
         </div>
-        {exito2fa && <p className="login-exito seguridad-aviso" role="status">{exito2fa}</p>}
+        {exito2fa && <p className="login-exito seguridad-aviso" role="status">{t(exito2fa)}</p>}
 
-        <h2 className="seguridad-titulo">Dispositivos con sesión abierta</h2>
+        <h2 className="seguridad-titulo">{t('auth.seguridad.dispositivos')}</h2>
         {cargando ? (
-          <p className="login-sub">Cargando tus sesiones…</p>
+          <p className="login-sub">{t('auth.seguridad.cargando')}</p>
         ) : (
           sesiones.length > 0 && (
             <ul className="seguridad-tarjeta">
@@ -216,17 +250,17 @@ export default function SeguridadPage() {
                   <li key={s.id} className="seguridad-fila">
                     <span className="seguridad-icono"><Icono /></span>
                     <span className="seguridad-info">
-                      <span className="seguridad-nombre">{nombreDispositivo(s)}</span>
+                      <span className="seguridad-nombre">{nombreDispositivo(s, t)}</span>
                       <span className="seguridad-detalle">
-                        {s.ciudad ?? 'Ubicación desconocida'} · {s.actual ? 'activo ahora' : haceCuanto(s.ultimaActividad)}
+                        {ubicacion(s.ciudad, t, pais)} · {s.actual ? t('auth.seguridad.activoAhora') : haceCuanto(s.ultimaActividad, t, locale)}
                       </span>
                     </span>
                     {s.actual ? (
-                      <span className="seguridad-actual">Actual</span>
+                      <span className="seguridad-actual">{t('auth.seguridad.actual')}</span>
                     ) : (
                       <button type="button" className="seguridad-cerrar" onClick={() => cerrarUna(s.id)}
-                        disabled={cerrando !== null} aria-label={`Cerrar sesión en ${s.dispositivo}`}>
-                        {cerrando === s.id ? 'Cerrando…' : 'Cerrar'}
+                        disabled={cerrando !== null} aria-label={t('auth.seguridad.cerrarEn', { dispositivo: dispositivoLegible(s, t) })}>
+                        {t(cerrando === s.id ? 'auth.seguridad.cerrando' : 'auth.seguridad.cerrar')}
                       </button>
                     )}
                   </li>
@@ -236,12 +270,12 @@ export default function SeguridadPage() {
           )
         )}
 
-        {exito && <p className="login-exito" role="status">{exito}</p>}
+        {exito && <p className="login-exito" role="status">{t(exito.clave, { n: exito.n })}</p>}
         {error && <p className="registro-error seguridad-error" role="alert">{error}</p>}
 
         <button type="button" className="seguridad-cerrar-todas" onClick={cerrarTodas}
           disabled={cargando || otras.length === 0 || cerrando !== null}>
-          {cerrando === 'todas' ? 'Cerrando sesiones…' : 'Cerrar sesión en todos los dispositivos'}
+          {t(cerrando === 'todas' ? 'auth.seguridad.cerrandoSesiones' : 'auth.seguridad.cerrarTodas')}
         </button>
       </main>
     </div>

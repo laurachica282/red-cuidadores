@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useIdioma } from '@/modules/region';
 import { IconAtras, IconEnviar } from '../components/Iconos.jsx';
 import { detalle, enviarMensaje, leerMensajes } from '../services/seguimientoService.js';
 import { diaCorto, hora, primerNombre } from '../utils.js';
 import { useVolver } from '../useVolver.js';
+import '../i18n.js';
 import '../seguimiento.css';
 
 const CADA_MS = 4000;
 
 // HU-31: chat de la reserva. "Casi en tiempo real": pregunta por mensajes nuevos cada 4 segundos.
 export default function ChatPage() {
+  const { t } = useIdioma();
   const { id } = useParams();
   const volver = useVolver(`/reservas/${id}/seguimiento`);
   const [reserva, setReserva] = useState(null);
@@ -48,12 +51,12 @@ export default function ChatPage() {
 
   async function enviar(e) {
     e.preventDefault();
-    const t = texto.trim();
-    if (!t) return;
+    const limpio = texto.trim();
+    if (!limpio) return;
     setEnviando(true);
     setError('');
     try {
-      const m = await enviarMensaje(id, t);
+      const m = await enviarMensaje(id, limpio);
       ultimo.current = Math.max(Number(ultimo.current), Number(m.id));
       setMensajes((lista) => [...lista, m]);
       setTexto('');
@@ -69,15 +72,17 @@ export default function ChatPage() {
   return (
     <main className="sg-chat">
       <div className="sg-encabezado sg-encabezado--chat">
-        <button type="button" className="sg-redondo" aria-label="Volver" onClick={volver}><IconAtras /></button>
+        <button type="button" className="sg-redondo" aria-label={t('seguimiento.volver')} onClick={volver}><IconAtras /></button>
         <div>
-          <h1>{otro || 'Chat'}</h1>
-          {reserva && <small>{reserva.mascota.nombre} · Reserva #{reserva.id}</small>}
+          <h1>{otro || t('seguimiento.chat.titulo')}</h1>
+          {reserva && <small>{reserva.mascota.nombre} · {t('seguimiento.chat.reserva', { id: reserva.id })}</small>}
         </div>
       </div>
 
       <div className="sg-mensajes" aria-live="polite">
-        {mensajes.length === 0 && <p className="sg-vacio">Aún no hay mensajes. Saluda a {primerNombre(otro) || 'la otra persona'}.</p>}
+        {mensajes.length === 0 && (
+          <p className="sg-vacio">{t('seguimiento.chat.vacio', { nombre: primerNombre(otro) || t('seguimiento.chat.otra_persona') })}</p>
+        )}
         {mensajes.map((m, i) => {
           const dia = diaCorto(m.creadoEn);
           const nuevoDia = i === 0 || diaCorto(mensajes[i - 1].creadoEn) !== dia;
@@ -86,7 +91,7 @@ export default function ChatPage() {
               {nuevoDia && <p className="sg-separador">{dia}</p>}
               <div className={`sg-burbuja${m.mio ? ' sg-burbuja--mia' : ''}`}>
                 <p>{m.texto}</p>
-                <small>{hora(m.creadoEn)}{m.mio && m.leido ? ' · Leído' : ''}</small>
+                <small>{hora(m.creadoEn)}{m.mio && m.leido ? ` · ${t('seguimiento.chat.leido')}` : ''}</small>
               </div>
             </div>
           );
@@ -97,13 +102,13 @@ export default function ChatPage() {
       {error && <p className="sg-error sg-chat-error" role="alert">{error}</p>}
       {chat.abierto ? (
         <form className="sg-escribir" onSubmit={enviar}>
-          <input className="input" placeholder="Escribe un mensaje" maxLength={1000} value={texto}
-            onChange={(e) => setTexto(e.target.value)} aria-label="Mensaje" />
-          <button type="submit" className="sg-enviar" aria-label="Enviar" disabled={enviando || !texto.trim()}><IconEnviar /></button>
+          <input className="input" placeholder={t('seguimiento.chat.escribir')} maxLength={1000} value={texto}
+            onChange={(e) => setTexto(e.target.value)} aria-label={t('seguimiento.chat.mensaje')} />
+          <button type="submit" className="sg-enviar" aria-label={t('seguimiento.chat.enviar')} disabled={enviando || !texto.trim()}><IconEnviar /></button>
         </form>
       ) : (
         <p className="sg-chat-cerrado">
-          El chat se cerró el {chat.cierraEl ? diaCorto(chat.cierraEl) : ''}, 7 días después del servicio. El historial queda como evidencia.
+          {t('seguimiento.chat.cerrado', { fecha: chat.cierraEl ? diaCorto(chat.cierraEl) : '' })}
         </p>
       )}
     </main>

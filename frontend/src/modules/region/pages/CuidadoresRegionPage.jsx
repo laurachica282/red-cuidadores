@@ -7,7 +7,7 @@ const iniciales = (nombre = '') => nombre.split(' ').filter(Boolean).slice(0, 2)
 
 // HU-36: la lista se limita a la región de la persona. Tarjetas como "Cerca de ti" en los mockups.
 export default function CuidadoresRegionPage() {
-  const { t, precio } = useIdioma();
+  const { t, precio, pais } = useIdioma();
   const [lista, setLista] = useState(null);
   const [texto, setTexto] = useState('');
   const [error, setError] = useState('');
@@ -44,7 +44,7 @@ export default function CuidadoresRegionPage() {
                 <strong>{c.nombre}</strong>
                 <span className="rg-precio">{precio(c.tarifaNoche, c.moneda)} <small>{t('cr.noche')}</small></span>
               </div>
-              <small>{c.ciudad ?? c.pais}</small>
+              <small>{c.ciudad ?? pais(c.pais)}</small>
               <span className="rg-verificado">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M12 3 5 6v5c0 4.5 3 8 7 10 4-2 7-5.5 7-10V6l-7-3Z" /><path d="m9 12 2 2 4-4" />

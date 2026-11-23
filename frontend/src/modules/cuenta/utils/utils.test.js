@@ -60,10 +60,11 @@ test('minutosYSegundos: cuenta regresiva del reenvío', () => {
   assert.equal(minutosYSegundos(5), '0:05');
 });
 
-test('PAZ_Y_SALVO tiene texto para las 4 verificaciones, en singular y plural', () => {
+test('PAZ_Y_SALVO tiene clave para las 4 verificaciones, en singular y plural', () => {
   assert.deepEqual(Object.keys(PAZ_Y_SALVO), ['reservas_activas', 'pagos_pendientes', 'disputas_abiertas', 'saldo_sin_liquidar']);
-  assert.match(PAZ_Y_SALVO.reservas_activas.pendiente(1), /1 reserva activa:/);
-  assert.match(PAZ_Y_SALVO.reservas_activas.pendiente(2), /2 reservas activas/);
+  assert.equal(PAZ_Y_SALVO.reservas_activas.ok, 'cuenta.paz.reservas_activas.ok');
+  assert.equal(PAZ_Y_SALVO.reservas_activas.pendiente(1), 'cuenta.paz.reservas_activas.uno');
+  assert.equal(PAZ_Y_SALVO.reservas_activas.pendiente(2), 'cuenta.paz.reservas_activas.varios');
 });
 
 test('los motivos de desactivación tienen texto, y la suspensión también', () => {
@@ -75,4 +76,5 @@ test('los motivos de desactivación tienen texto, y la suspensión también', ()
 test('fecha: vacío se muestra como raya', () => {
   assert.equal(fecha(null), '—');
   assert.match(fecha('2026-10-30T12:00:00Z'), /2026/);
+  assert.match(fecha('2026-10-30T12:00:00Z', 'en-US'), /Oct/);
 });

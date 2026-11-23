@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { guardarMascota, obtenerMascota, urlArchivo } from '../services/mascotasService.js';
+import { useIdioma } from '@/modules/region';
+import '../i18n.js';
 import '../mascotas.css';
 
-const ESPECIES = [
-  ['perro', 'Perro'], ['gato', 'Gato'], ['ave', 'Ave'], ['conejo', 'Conejo'],
-  ['roedor', 'Roedor'], ['reptil', 'Reptil'], ['otro', 'Otro'],
-];
+const ESPECIES = ['perro', 'gato', 'ave', 'conejo', 'roedor', 'reptil', 'otro'];
 const TIPOS_FOTO = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_MB = 5;
 
@@ -19,6 +18,7 @@ const VACIO = {
 export default function FichaMascotaPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { t } = useIdioma();
 
   const [form, setForm] = useState(VACIO);
   const [foto, setFoto] = useState(null);
@@ -58,12 +58,12 @@ export default function FichaMascotaPage() {
     const archivo = e.target.files[0];
     if (!archivo) return;
     if (!TIPOS_FOTO.includes(archivo.type)) {
-      setError('La foto debe ser JPG, PNG o WEBP');
+      setError(t('mascotas.ficha.error_foto_tipo'));
       e.target.value = '';
       return;
     }
     if (archivo.size > MAX_MB * 1024 * 1024) {
-      setError(`La foto no puede pesar más de ${MAX_MB} MB`);
+      setError(t('mascotas.ficha.error_foto_peso', { mb: MAX_MB }));
       e.target.value = '';
       return;
     }
@@ -75,7 +75,7 @@ export default function FichaMascotaPage() {
   async function enviar(e) {
     e.preventDefault();
     setError('');
-    if (!form.nombre.trim()) return setError('El nombre es obligatorio');
+    if (!form.nombre.trim()) return setError(t('mascotas.ficha.error_nombre'));
 
     const datos = new FormData();
     datos.append('nombre', form.nombre);
@@ -106,72 +106,72 @@ export default function FichaMascotaPage() {
   return (
     <div className="app-shell">
       <main className="page">
-        <Link className="masc-volver" to="/mascotas">← Mis mascotas</Link>
-        <h1 className="masc-titulo">{id ? 'Editar mascota' : 'Registrar mascota'}</h1>
-        <p className="masc-sub">Los campos con * son obligatorios.</p>
+        <Link className="masc-volver" to="/mascotas">{t('mascotas.volver')}</Link>
+        <h1 className="masc-titulo">{t(id ? 'mascotas.ficha.titulo_editar' : 'mascotas.ficha.titulo_registrar')}</h1>
+        <p className="masc-sub">{t('mascotas.ficha.obligatorios')}</p>
 
         {cargando ? (
-          <p className="masc-sub">Cargando…</p>
+          <p className="masc-sub">{t('mascotas.cargando')}</p>
         ) : (
           <form className="masc-form" onSubmit={enviar} noValidate>
             {error && <p className="masc-error" role="alert">{error}</p>}
 
             <div className="masc-campo">
-              <label className="label" htmlFor="nombre">Nombre *</label>
+              <label className="label" htmlFor="nombre">{t('mascotas.ficha.nombre')}</label>
               <input className="input" id="nombre" name="nombre" value={form.nombre} onChange={cambiar} maxLength={80} />
             </div>
 
             <div className="masc-campo">
-              <label className="label" htmlFor="especie">Especie *</label>
+              <label className="label" htmlFor="especie">{t('mascotas.ficha.especie')}</label>
               <select className="input" id="especie" name="especie" value={form.especie} onChange={cambiar}>
-                {ESPECIES.map(([valor, texto]) => <option key={valor} value={valor}>{texto}</option>)}
+                {ESPECIES.map((valor) => <option key={valor} value={valor}>{t(`mascotas.especie.${valor}`)}</option>)}
               </select>
             </div>
 
             <div className="masc-campo">
-              <label className="label" htmlFor="raza">Raza</label>
+              <label className="label" htmlFor="raza">{t('mascotas.ficha.raza')}</label>
               <input className="input" id="raza" name="raza" value={form.raza} onChange={cambiar} maxLength={80} />
             </div>
 
             <div className="masc-campo">
-              <span className="label">Edad</span>
+              <span className="label">{t('mascotas.ficha.edad')}</span>
               <div className="masc-fila">
-                <input className="input" name="anios" type="number" min="0" max="50" placeholder="Años" aria-label="Años" value={form.anios} onChange={cambiar} />
-                <input className="input" name="meses" type="number" min="0" max="11" placeholder="Meses" aria-label="Meses" value={form.meses} onChange={cambiar} />
+                <input className="input" name="anios" type="number" min="0" max="50" placeholder={t('mascotas.ficha.anios')} aria-label={t('mascotas.ficha.anios')} value={form.anios} onChange={cambiar} />
+                <input className="input" name="meses" type="number" min="0" max="11" placeholder={t('mascotas.ficha.meses')} aria-label={t('mascotas.ficha.meses')} value={form.meses} onChange={cambiar} />
               </div>
             </div>
 
             <div className="masc-campo">
-              <label className="label" htmlFor="peso_kg">Peso (kg)</label>
+              <label className="label" htmlFor="peso_kg">{t('mascotas.ficha.peso')}</label>
               <input className="input" id="peso_kg" name="peso_kg" type="number" min="0" step="0.1" value={form.peso_kg} onChange={cambiar} />
             </div>
 
             <div className="masc-campo">
-              <label className="label" htmlFor="vacunas">Vacunas</label>
-              <textarea className="input masc-textarea" id="vacunas" name="vacunas" value={form.vacunas} onChange={cambiar} placeholder="Ej.: Rabia, parvovirus" />
+              <label className="label" htmlFor="vacunas">{t('mascotas.ficha.vacunas')}</label>
+              <textarea className="input masc-textarea" id="vacunas" name="vacunas" value={form.vacunas} onChange={cambiar} placeholder={t('mascotas.ficha.vacunas_ejemplo')} />
             </div>
 
             <div className="masc-campo">
-              <label className="label" htmlFor="microchip">Microchip</label>
+              <label className="label" htmlFor="microchip">{t('mascotas.ficha.microchip')}</label>
               <input className="input" id="microchip" name="microchip" value={form.microchip} onChange={cambiar} maxLength={40} />
             </div>
 
             <div className="masc-campo">
-              <label className="label" htmlFor="indicaciones_medicas">Indicaciones médicas</label>
-              <textarea className="input masc-textarea" id="indicaciones_medicas" name="indicaciones_medicas" value={form.indicaciones_medicas} onChange={cambiar} placeholder="Alergias, medicamentos, cuidados especiales" />
+              <label className="label" htmlFor="indicaciones_medicas">{t('mascotas.ficha.indicaciones')}</label>
+              <textarea className="input masc-textarea" id="indicaciones_medicas" name="indicaciones_medicas" value={form.indicaciones_medicas} onChange={cambiar} placeholder={t('mascotas.ficha.indicaciones_ejemplo')} />
             </div>
 
             <div className="masc-campo">
-              <label className="label" htmlFor="foto">Foto</label>
-              {imagen && <img className="masc-previa" src={imagen} alt="Vista previa de la foto" />}
+              <label className="label" htmlFor="foto">{t('mascotas.ficha.foto')}</label>
+              {imagen && <img className="masc-previa" src={imagen} alt={t('mascotas.ficha.foto_previa')} />}
               <input id="foto" type="file" accept="image/jpeg,image/png,image/webp" onChange={elegirFoto} />
-              <p className="masc-ayuda">JPG, PNG o WEBP, máximo {MAX_MB} MB.</p>
+              <p className="masc-ayuda">{t('mascotas.ficha.foto_ayuda', { mb: MAX_MB })}</p>
             </div>
 
             <button className="btn-primary" type="submit" disabled={guardando}>
-              {guardando ? 'Guardando…' : 'Guardar'}
+              {guardando ? t('mascotas.guardando') : t('mascotas.guardar')}
             </button>
-            <Link className="masc-btn-secundario" to="/mascotas">Cancelar</Link>
+            <Link className="masc-btn-secundario" to="/mascotas">{t('mascotas.cancelar')}</Link>
           </form>
         )}
       </main>

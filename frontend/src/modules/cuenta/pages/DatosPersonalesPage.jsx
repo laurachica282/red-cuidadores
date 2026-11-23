@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useIdioma } from '@/modules/region';
+import '../i18n.js';
 import Aviso from '../components/Aviso.jsx';
 import Avatar from '../components/Avatar.jsx';
 import { IconCamara } from '../components/Iconos.jsx';
@@ -14,6 +16,7 @@ const MAX_FOTO = 2 * 1024 * 1024;
 
 // HU-09 (mockup 12): foto, nombre, teléfono y ciudad. El correo solo se ve; se cambia en su pantalla (HU-06).
 function Formulario({ inicial }) {
+  const { t } = useIdioma();
   const [perfil, setPerfil] = useState(inicial);
   const [form, setForm] = useState({ nombre: inicial.nombre, telefono: inicial.telefono ?? '', ciudad: inicial.ciudad ?? '' });
   const [tocados, setTocados] = useState({});
@@ -37,7 +40,7 @@ function Formulario({ inicial }) {
     setForm({ ...form, [campo]: e.target.value });
     setOk('');
   };
-  const tocar = (campo) => () => setTocados((t) => ({ ...t, [campo]: true }));
+  const tocar = (campo) => () => setTocados((x) => ({ ...x, [campo]: true }));
   const mostrarError = (campo) => tocados[campo] && errores[campo];
 
   const guardar = async (e) => {
@@ -52,7 +55,7 @@ function Formulario({ inicial }) {
       setPerfil({ ...perfil, ...nuevo });
       setForm({ nombre: nuevo.nombre, telefono: nuevo.telefono ?? '', ciudad: nuevo.ciudad ?? '' });
       sincronizarSesion({ nombre: nuevo.nombre });
-      setOk('Tus datos se guardaron');
+      setOk(t('cuenta.datos.guardados'));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -66,12 +69,12 @@ function Formulario({ inicial }) {
     if (!f) return;
     setError('');
     setOk('');
-    if (!TIPOS_FOTO.includes(f.type)) return setError('La foto debe ser JPG, PNG o WEBP');
-    if (f.size > MAX_FOTO) return setError('La foto pesa demasiado (máximo 2 MB)');
+    if (!TIPOS_FOTO.includes(f.type)) return setError(t('cuenta.datos.fotoTipo'));
+    if (f.size > MAX_FOTO) return setError(t('cuenta.datos.fotoPeso'));
     setSubiendo(true);
     try {
       setPerfil(await subirFoto(f));
-      setOk('Tu foto se actualizó');
+      setOk(t('cuenta.datos.fotoActualizada'));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -85,7 +88,7 @@ function Formulario({ inicial }) {
     setSubiendo(true);
     try {
       setPerfil(await quitarFoto());
-      setOk('Quitamos tu foto');
+      setOk(t('cuenta.datos.fotoQuitada'));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -100,56 +103,56 @@ function Formulario({ inicial }) {
           <Avatar foto={perfil.foto} nombre={perfil.nombre} tamano={112} />
           <input ref={archivo} id="foto" className="cu-input-archivo" type="file" accept={TIPOS_FOTO.join(',')}
             onChange={cambiarFoto} tabIndex={-1} aria-hidden="true" />
-          <button type="button" className="cu-foto-camara" disabled={subiendo} aria-label="Cambiar foto de perfil"
+          <button type="button" className="cu-foto-camara" disabled={subiendo} aria-label={t('cuenta.datos.cambiarFoto')}
             onClick={() => archivo.current?.click()}>
             <IconCamara />
           </button>
         </div>
         <p className="cu-ayuda" style={{ margin: 0 }}>
-          {subiendo ? 'Subiendo foto…' : 'Toca la cámara para cambiar tu foto'}
+          {subiendo ? t('cuenta.datos.subiendoFoto') : t('cuenta.datos.tocaCamara')}
         </p>
         {perfil.foto && !subiendo && (
           <button type="button" className="cu-btn cu-btn-texto cu-btn-chico" style={{ color: 'var(--danger)' }} onClick={borrarFoto}>
-            Quitar foto
+            {t('cuenta.datos.quitarFoto')}
           </button>
         )}
       </div>
 
       <div>
-        <label className="label" htmlFor="nombre">Nombre completo</label>
+        <label className="label" htmlFor="nombre">{t('cuenta.datos.nombre')}</label>
         <input id="nombre" className="input" autoComplete="name" value={form.nombre}
           onChange={poner('nombre')} onBlur={tocar('nombre')} aria-invalid={!!mostrarError('nombre')} aria-describedby="nombre-error" />
-        {mostrarError('nombre') && <p id="nombre-error" className="cu-error-campo">{errores.nombre}</p>}
+        {mostrarError('nombre') && <p id="nombre-error" className="cu-error-campo">{t(errores.nombre)}</p>}
       </div>
 
       <div>
-        <label className="label" htmlFor="telefono">Teléfono</label>
+        <label className="label" htmlFor="telefono">{t('cuenta.datos.telefono')}</label>
         <input id="telefono" className="input" type="tel" autoComplete="tel" placeholder="+57 300 123 4567" value={form.telefono}
           onChange={poner('telefono')} onBlur={tocar('telefono')} aria-invalid={!!mostrarError('telefono')} aria-describedby="telefono-error" />
-        {mostrarError('telefono') && <p id="telefono-error" className="cu-error-campo">{errores.telefono}</p>}
+        {mostrarError('telefono') && <p id="telefono-error" className="cu-error-campo">{t(errores.telefono)}</p>}
       </div>
 
       <div>
-        <label className="label" htmlFor="ciudad">Ciudad</label>
+        <label className="label" htmlFor="ciudad">{t('cuenta.datos.ciudad')}</label>
         <input id="ciudad" className="input" autoComplete="address-level2" placeholder="Bogotá" value={form.ciudad}
           onChange={poner('ciudad')} onBlur={tocar('ciudad')} aria-invalid={!!mostrarError('ciudad')} aria-describedby="ciudad-error" />
-        {mostrarError('ciudad') && <p id="ciudad-error" className="cu-error-campo">{errores.ciudad}</p>}
+        {mostrarError('ciudad') && <p id="ciudad-error" className="cu-error-campo">{t(errores.ciudad)}</p>}
       </div>
 
       <div>
-        <label className="label" htmlFor="correo">Correo electrónico</label>
+        <label className="label" htmlFor="correo">{t('cuenta.correoElectronico')}</label>
         <div className="cu-campo">
           <input id="correo" className="input cu-con-enlace" value={perfil.correo} readOnly aria-describedby="correo-ayuda" />
-          <Link className="cu-campo-enlace" to={RUTAS.correo}>Cambiar</Link>
+          <Link className="cu-campo-enlace" to={RUTAS.correo}>{t('cuenta.datos.cambiar')}</Link>
         </div>
-        <p id="correo-ayuda" className="cu-ayuda">El correo se cambia con verificación por código.</p>
+        <p id="correo-ayuda" className="cu-ayuda">{t('cuenta.datos.correoAyuda')}</p>
       </div>
 
       <div className="cu-acciones">
         <Aviso>{error}</Aviso>
         <Aviso tipo="ok">{ok}</Aviso>
         <button type="submit" className="btn-primary" disabled={!cambio || guardando}>
-          {guardando ? 'Guardando…' : 'Guardar cambios'}
+          {guardando ? t('cuenta.guardando') : t('cuenta.datos.guardarCambios')}
         </button>
       </div>
     </form>
@@ -157,10 +160,11 @@ function Formulario({ inicial }) {
 }
 
 export default function DatosPersonalesPage() {
+  const { t } = useIdioma();
   const { datos, cargando, error } = useCarga(obtenerPerfil);
   return (
-    <Pantalla titulo="Datos personales">
-      {cargando && <p className="cu-cargando">Cargando…</p>}
+    <Pantalla titulo={t('cuenta.menu.datos')}>
+      {cargando && <p className="cu-cargando">{t('cuenta.cargando')}</p>}
       {!cargando && error && <Aviso>{error}</Aviso>}
       {datos && <Formulario inicial={datos} />}
     </Pantalla>

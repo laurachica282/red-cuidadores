@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { useIdioma } from '@/modules/region';
+import '../i18n.js';
 import { IconCerrar, IconLupa, IconUbicacion } from './Iconos.jsx';
 import { direccionDe } from '../services/busquedaService.js';
 import { obtenerMiUbicacion } from '../ubicacion.js';
 import MapaDireccion from './MapaDireccion.jsx';
-import { HORAS, SERVICIOS, TIPOS_MASCOTA, esPorHora, hoyISO, servicio } from '../utils.js';
+import { HORAS, SERVICIOS, TIPOS_MASCOTA, esPorHora, hoyISO, servicio, textoHora } from '../utils.js';
 import { FILTROS_VACIOS, ORDENES, RADIOS_KM, errorFechas } from '../filtros.js';
 
 // Fila de botones donde se elige una sola opción.
@@ -24,6 +26,7 @@ function Opciones({ opciones, valor, onElegir }) {
 // zona: { punto, ciudad } — punto = dirección elegida (busca por cercanía); si no, ciudad o 'todas'.
 // ciudades: [{ nombre, cantidad }] de la región, como atajos.
 export default function PanelFiltros({ inicial, zonaInicial, ciudades, pais, moneda, onAplicar, onCerrar }) {
+  const { t } = useIdioma();
   const [f, setF] = useState(inicial);
   const [zona, setZona] = useState(zonaInicial);
   // Cambia al elegir una ciudad, para volver a montar el mapa y limpiar la dirección escrita.
@@ -58,7 +61,8 @@ export default function PanelFiltros({ inicial, zonaInicial, ciudades, pais, mon
     try {
       const { lat, lng } = await obtenerMiUbicacion();
       const { direccion } = await direccionDe(lat, lng).catch(() => ({}));
-      const punto = direccion ?? { etiqueta: 'Mi ubicación', barrio: null, ciudad: null, lat, lng };
+      // Sin dirección conocida la etiqueta queda vacía: se muestra "Mi ubicación" en el idioma actual (etiquetaPunto).
+      const punto = direccion ?? { etiqueta: '', barrio: null, ciudad: null, lat, lng };
       setZona({ punto: { ...punto, miUbicacion: true }, ciudad: undefined });
       setVersionMapa((v) => v + 1);
     } catch (e) {
@@ -67,10 +71,10 @@ export default function PanelFiltros({ inicial, zonaInicial, ciudades, pais, mon
       setBuscandoMiUbicacion(false);
     }
   };
-  const ubicando = zona.punto?.etiqueta === 'Ubicando…';
+  const ubicando = Boolean(zona.punto?.ubicando);
   const opcionesZona = [
     ...ciudades.map((c) => ({ valor: c.nombre, texto: `${c.nombre} (${c.cantidad})` })),
-    { valor: 'todas', texto: `Todo ${pais ?? 'el país'}` },
+    { valor: 'todas', texto: t('busqueda.todoPais', { pais: pais ?? t('busqueda.elPais') }) },
   ];
   const cambiarEntrada = (valor) => setF((a) => ({
     ...a, desde: valor,
@@ -92,18 +96,18 @@ export default function PanelFiltros({ inicial, zonaInicial, ciudades, pais, mon
 
   return (
     <div className="bs-capa">
-      <button type="button" className="bs-capa-fondo" aria-label="Cerrar filtros" onClick={onCerrar} />
+      <button type="button" className="bs-capa-fondo" aria-label={t('busqueda.cerrarFiltros')} onClick={onCerrar} />
       <div className="bs-hoja" role="dialog" aria-modal="true" aria-labelledby="bs-filtros-titulo">
         <div className="bs-hoja-cabecera">
-          <h2 id="bs-filtros-titulo">Buscar cuidador</h2>
-          <button type="button" className="bs-redondo bs-redondo--chico" aria-label="Cerrar" onClick={onCerrar}><IconCerrar /></button>
+          <h2 id="bs-filtros-titulo">{t('busqueda.buscarCuidador')}</h2>
+          <button type="button" className="bs-redondo bs-redondo--chico" aria-label={t('busqueda.cerrar')} onClick={onCerrar}><IconCerrar /></button>
         </div>
         <div className="bs-hoja-cuerpo">
           <fieldset className="bs-grupo bs-grupo--primero">
-            <legend>Zona</legend>
+            <legend>{t('busqueda.zona')}</legend>
             <MapaDireccion key={versionMapa} valor={zona.punto} onCambiar={elegirLugar}
-              placeholder="Ciudad, barrio o dirección" />
-            <p className="bs-ayuda">O busca en toda una ciudad:</p>
+              placeholder={t('busqueda.placeholderZona')} />
+            <p className="bs-ayuda">{t('busqueda.oCiudad')}</p>
             <div className="bs-opciones bs-opciones--zona">
               {opcionesZona.map((o) => {
                 const activa = !conPunto && zona.ciudad === o.valor;
@@ -116,44 +120,44 @@ export default function PanelFiltros({ inicial, zonaInicial, ciudades, pais, mon
               })}
               <button type="button" aria-pressed={Boolean(zona.punto?.miUbicacion)} disabled={buscandoMiUbicacion}
                 className={`bs-chip bs-chip--ubicacion${zona.punto?.miUbicacion ? ' bs-chip--activo' : ''}`} onClick={cercaDeMi}>
-                <IconUbicacion width="16" height="16" /> {buscandoMiUbicacion ? 'Ubicando…' : 'Cerca de mí'}
+                <IconUbicacion width="16" height="16" /> {t(buscandoMiUbicacion ? 'busqueda.ubicando' : 'busqueda.cercaDeMi')}
               </button>
             </div>
             {errorUbicacion && <p className="bs-error" role="alert">{errorUbicacion}</p>}
           </fieldset>
 
           <fieldset className="bs-grupo">
-            <legend>Tipo de servicio</legend>
-            <Opciones opciones={[{ valor: '', texto: 'Todos' }, ...SERVICIOS.map((s) => ({ valor: s.valor, texto: s.corto ?? s.texto }))]}
+            <legend>{t('busqueda.tipoServicio')}</legend>
+            <Opciones opciones={[{ valor: '', texto: t('busqueda.todos') }, ...SERVICIOS.map((s) => ({ valor: s.valor, texto: s.corto }))]}
               valor={f.servicio} onElegir={elegirServicio} />
             {f.servicio && (
               <p className="bs-ayuda">
-                {porHora ? 'Se cobra por hora, en un solo día.' : 'Se cobra por noche: la mascota duerme en casa del cuidador.'}
+                {t(porHora ? 'busqueda.ayudaPorHora' : 'busqueda.ayudaPorNoche')}
               </p>
             )}
           </fieldset>
 
           <fieldset className="bs-grupo">
-            <legend>{porHora ? 'Día y horario' : 'Fechas'}</legend>
+            <legend>{t(porHora ? 'busqueda.diaHorario' : 'busqueda.fechas')}</legend>
             {porHora ? (
               <>
                 <label className="bs-campo-dia">
-                  <span className="label">Día</span>
+                  <span className="label">{t('busqueda.dia')}</span>
                   <input className="input" type="date" min={hoy} value={f.desde} onChange={(e) => cambiar('desde', e.target.value)} />
                 </label>
                 <div className="bs-precios">
                   <label>
-                    <span className="label">Desde</span>
+                    <span className="label">{t('busqueda.campoDesde')}</span>
                     <select className="input" value={f.horaDesde} onChange={(e) => cambiarHoraDesde(e.target.value)}>
-                      <option value="">Cualquier hora</option>
-                      {HORAS.slice(0, -1).map((h) => <option key={h} value={h}>{h}</option>)}
+                      <option value="">{t('busqueda.cualquierHora')}</option>
+                      {HORAS.slice(0, -1).map((h) => <option key={h} value={h}>{textoHora(h)}</option>)}
                     </select>
                   </label>
                   <label>
-                    <span className="label">Hasta</span>
+                    <span className="label">{t('busqueda.campoHasta')}</span>
                     <select className="input" value={f.horaHasta} disabled={!f.horaDesde} onChange={(e) => cambiar('horaHasta', e.target.value)}>
                       <option value="">—</option>
-                      {HORAS.filter((h) => h > f.horaDesde).map((h) => <option key={h} value={h}>{h}</option>)}
+                      {HORAS.filter((h) => h > f.horaDesde).map((h) => <option key={h} value={h}>{textoHora(h)}</option>)}
                     </select>
                   </label>
                 </div>
@@ -161,11 +165,11 @@ export default function PanelFiltros({ inicial, zonaInicial, ciudades, pais, mon
             ) : (
               <div className="bs-precios">
                 <label>
-                  <span className="label">{f.servicio === 'alojamiento' ? 'Entrada' : 'Desde'}</span>
+                  <span className="label">{t(f.servicio === 'alojamiento' ? 'busqueda.entrada' : 'busqueda.campoDesde')}</span>
                   <input className="input" type="date" min={hoy} value={f.desde} onChange={(e) => cambiarEntrada(e.target.value)} />
                 </label>
                 <label>
-                  <span className="label">{f.servicio === 'alojamiento' ? 'Salida' : 'Hasta (opcional)'}</span>
+                  <span className="label">{t(f.servicio === 'alojamiento' ? 'busqueda.salida' : 'busqueda.hastaOpcional')}</span>
                   <input className="input" type="date" min={f.desde || hoy} value={f.hasta} onChange={(e) => cambiar('hasta', e.target.value)} />
                 </label>
               </div>
@@ -174,51 +178,51 @@ export default function PanelFiltros({ inicial, zonaInicial, ciudades, pais, mon
           </fieldset>
 
           <fieldset className="bs-grupo">
-            <legend>Tipo de mascota</legend>
+            <legend>{t('busqueda.tipoMascota')}</legend>
             <Opciones opciones={TIPOS_MASCOTA} valor={f.tipo} onElegir={(v) => cambiar('tipo', v)} />
           </fieldset>
 
           <fieldset className="bs-grupo">
-            <legend>{f.servicio ? `Precio por ${servicio(f.servicio).unidad}` : 'Precio (por noche o por hora)'} ({moneda})</legend>
+            <legend>{t(f.servicio ? `busqueda.precioPor.${servicio(f.servicio).unidad}` : 'busqueda.precioAmbos')} ({moneda})</legend>
             <div className="bs-precios">
               <label>
-                <span className="label">Mínimo</span>
+                <span className="label">{t('busqueda.minimo')}</span>
                 <input className="input" type="number" min="0" inputMode="numeric" placeholder="0"
                   value={f.precioMin} onChange={(e) => cambiar('precioMin', e.target.value)} />
               </label>
               <label>
-                <span className="label">Máximo</span>
-                <input className="input" type="number" min="0" inputMode="numeric" placeholder="Sin límite"
+                <span className="label">{t('busqueda.maximo')}</span>
+                <input className="input" type="number" min="0" inputMode="numeric" placeholder={t('busqueda.sinLimite')}
                   value={f.precioMax} onChange={(e) => cambiar('precioMax', e.target.value)} />
               </label>
             </div>
-            {errorPrecio && <p className="bs-error" role="alert">El mínimo no puede ser mayor que el máximo.</p>}
+            {errorPrecio && <p className="bs-error" role="alert">{t('busqueda.error.precio')}</p>}
           </fieldset>
 
           {conPunto && (
             <fieldset className="bs-grupo">
-              <legend>Distancia máxima</legend>
-              <Opciones opciones={RADIOS_KM.map((km) => ({ valor: km, texto: `${km} km` }))}
+              <legend>{t('busqueda.distanciaMaxima')}</legend>
+              <Opciones opciones={RADIOS_KM.map((km) => ({ valor: km, texto: t('busqueda.km', { n: km }) }))}
                 valor={f.radioKm} onElegir={(v) => cambiar('radioKm', v)} />
             </fieldset>
           )}
 
           <fieldset className="bs-grupo">
-            <legend>Nombre del cuidador <small>(opcional)</small></legend>
-            <input className="input" type="search" placeholder="Ej.: Camila" aria-label="Nombre del cuidador"
+            <legend>{t('busqueda.nombreCuidador')} <small>{t('busqueda.opcional')}</small></legend>
+            <input className="input" type="search" placeholder={t('busqueda.ejemploNombre')} aria-label={t('busqueda.nombreCuidador')}
               value={f.q} onChange={(e) => cambiar('q', e.target.value)} />
           </fieldset>
 
           <fieldset className="bs-grupo">
-            <legend>Ordenar por</legend>
+            <legend>{t('busqueda.ordenarPor')}</legend>
             <Opciones opciones={ORDENES.filter((o) => conPunto || !o.soloConPunto)} valor={f.orden} onElegir={(v) => cambiar('orden', v)} />
           </fieldset>
         </div>
 
         <div className="bs-hoja-acciones">
-          <button type="button" className="bs-boton bs-boton--secundario" onClick={limpiar}>Limpiar</button>
+          <button type="button" className="bs-boton bs-boton--secundario" onClick={limpiar}>{t('busqueda.limpiar')}</button>
           <button type="button" className="bs-boton" disabled={errorPrecio || Boolean(errorFecha) || ubicando} onClick={() => onAplicar(f, zona)}>
-            <IconLupa width="20" height="20" /> Buscar
+            <IconLupa width="20" height="20" /> {t('busqueda.buscar')}
           </button>
         </div>
       </div>

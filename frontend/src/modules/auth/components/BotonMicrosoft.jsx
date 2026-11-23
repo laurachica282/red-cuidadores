@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { BrowserAuthErrorCodes, PublicClientApplication } from '@azure/msal-browser';
+import '../i18n.js';
+import { useIdioma } from '@/modules/region';
 
 const CLIENT_ID = import.meta.env.VITE_MICROSOFT_CLIENT_ID;
 
@@ -35,11 +37,12 @@ const LogoMicrosoft = () => (
 
 // Abre la ventana de Microsoft y entrega el id_token. onIdToken recibe el token; onError, un mensaje para mostrar.
 export default function BotonMicrosoft({ onIdToken, onError, deshabilitado = false }) {
+  const { t, idioma } = useIdioma();
   const [abriendo, setAbriendo] = useState(false);
 
   if (!CLIENT_ID) {
     return (
-      <span className="login-red" title="Inicio con Microsoft no configurado">
+      <span className="login-red" title={t('auth.microsoft.noConfigurado')}>
         <button type="button" className="login-social" disabled><LogoMicrosoft /> Microsoft</button>
       </span>
     );
@@ -49,14 +52,14 @@ export default function BotonMicrosoft({ onIdToken, onError, deshabilitado = fal
     setAbriendo(true);
     try {
       const app = await msal();
-      const r = await app.loginPopup({ scopes: ['openid', 'profile', 'email'], prompt: 'select_account' });
+      const r = await app.loginPopup({ scopes: ['openid', 'profile', 'email'], prompt: 'select_account', extraQueryParameters: { ui_locales: idioma } });
       onIdToken(r.idToken);
     } catch (e) {
       if (CANCELADO.includes(e?.errorCode)) return;
       if (e?.errorCode === BrowserAuthErrorCodes.popupWindowError) {
-        onError('Tu navegador bloqueó la ventana de Microsoft. Permite las ventanas emergentes e inténtalo de nuevo.');
+        onError(t('auth.microsoft.bloqueado'));
       } else {
-        onError('No pudimos conectar con Microsoft. Inténtalo de nuevo.');
+        onError(t('auth.microsoft.error'));
       }
     } finally {
       setAbriendo(false);
@@ -66,7 +69,7 @@ export default function BotonMicrosoft({ onIdToken, onError, deshabilitado = fal
   return (
     <span className="login-red">
       <button type="button" className="login-social" onClick={entrar} disabled={deshabilitado || abriendo}>
-        <LogoMicrosoft /> {abriendo ? 'Conectando…' : 'Iniciar sesión con Microsoft'}
+        <LogoMicrosoft /> {t(abriendo ? 'auth.microsoft.conectando' : 'auth.microsoft.entrar')}
       </button>
     </span>
   );

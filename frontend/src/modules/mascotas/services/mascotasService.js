@@ -1,4 +1,7 @@
 import { api } from '@/shared/api/client.js';
+import { traducirMensajeServidor } from '@/shared/api/mensajesServidor.js';
+import { traducir } from '@/modules/region';
+import '../i18n.js';
 
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 // Dirección base del servidor (sin /api), para mostrar las fotos subidas
@@ -18,16 +21,20 @@ async function enviarFormulario(ruta, metodo, formData) {
   try {
     resp = await fetch(`${API}${ruta}`, {
       method: metodo,
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: {
+        'Accept-Language': document.documentElement.lang || 'es',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: formData,
     });
   } catch {
-    throw new Error('No hay conexión con el servidor');
+    throw new Error(traducir('mascotas.error_conexion'));
   }
   const datos = await resp.json().catch(() => ({}));
   if (!resp.ok) {
-    throw Object.assign(new Error(datos.error ?? 'Algo salió mal. Inténtalo de nuevo.'), {
+    throw Object.assign(new Error(traducirMensajeServidor(datos.error) ?? traducir('mascotas.error_generico')), {
       status: resp.status,
+      original: datos.error,
     });
   }
   return datos;
