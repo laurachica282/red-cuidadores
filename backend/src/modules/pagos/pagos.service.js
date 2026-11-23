@@ -136,7 +136,10 @@ export async function pagar(viajeroId, reservaId, datos = {}) {
 
 // Pagos de la persona, sea viajera (los que hizo) o cuidadora (los que le hicieron).
 export async function delUsuario(usuarioId) {
-  await liberarCompletadas();
+  // Primero se ponen al día las reservas (en curso → completada) y eso libera lo que terminó (HU-22).
+  // Import dinámico: el módulo reservas ya importa a pagos y así no se forma un ciclo al cargar.
+  const { actualizarEstados } = await import('../reservas/index.js');
+  await actualizarEstados();
   const r = await pool.query(
     `SELECT ${COLUMNAS} FROM pagos
       WHERE (viajero_id = $1 OR cuidador_id = $1) AND estado <> 'fallido'

@@ -50,7 +50,8 @@ export default function BuscarPage() {
   const [respondida, setRespondida] = useState('');
 
   const completos = { ...FILTROS_VACIOS, ...filtros };
-  const { desde, hasta, horaDesde, horaHasta, radioKm, ...resto } = completos;
+  // Las fechas y horas salen aparte (fechasParaBuscar), por eso se quitan de `resto`.
+  const { desde: _desde, hasta: _hasta, horaDesde: _horaDesde, horaHasta: _horaHasta, radioKm, ...resto } = completos;
   // Las fechas y horas que se envían dependen del servicio (alojamiento: rango; por hora: día y horas).
   const fechas = fechasParaBuscar(completos, hoyISO());
   const fechasListas = Boolean(fechas.desde);
