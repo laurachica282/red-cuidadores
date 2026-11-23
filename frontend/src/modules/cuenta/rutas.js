@@ -12,8 +12,9 @@ export const RUTAS = {
   cuentasDesactivadas: '/configuracion/admin/desactivadas',
   // HU-40: pública, porque una cuenta desactivada no tiene sesión.
   reactivar: '/reactivar',
-  // Es del módulo auth (HU-05); aquí solo se enlaza.
+  // Son del módulo auth (HU-05, HU-07/08); aquí solo se enlazan.
   cambiarClave: '/configuracion/cambiar-clave',
+  seguridad: '/configuracion/seguridad',
 };
 
 export const rutaNuevaResena = (reservaId) => `/configuracion/resenas/nueva/${reservaId}`;

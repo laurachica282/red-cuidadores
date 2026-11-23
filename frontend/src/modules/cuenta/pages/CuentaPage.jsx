@@ -5,7 +5,7 @@ import '../i18n.js';
 import { IconCandado, IconCorreo } from '@/shared/components/Icons.jsx';
 import Aviso from '../components/Aviso.jsx';
 import Avatar from '../components/Avatar.jsx';
-import { IconCampana, IconGlobo, IconEstrella, IconLista, IconSalir, IconSiguiente, IconUsuario } from '../components/Iconos.jsx';
+import { IconCampana, IconEscudo, IconGlobo, IconEstrella, IconLista, IconSalir, IconSiguiente, IconUsuario } from '../components/Iconos.jsx';
 import Pantalla from '../components/Pantalla.jsx';
 import { useCarga } from '../hooks/useCarga.js';
 import { obtenerPerfil } from '../services/cuentaService.js';
@@ -31,8 +31,8 @@ function Opcion({ a, Icono, titulo }) {
   );
 }
 
-// Mockup 11 (Configuración). "Cambiar contraseña" es la pantalla del módulo auth (HU-05). "Seguridad"
-// (HU-07/08), "Métodos de pago" y "Centro de ayuda" se suman a estas listas cuando existan sus pantallas.
+// Mockup 11 (Configuración). "Cambiar contraseña" (HU-05) y "Seguridad" (HU-07/08) son pantallas del
+// módulo auth. "Métodos de pago" y "Centro de ayuda" se suman a estas listas cuando existan sus pantallas.
 export default function CuentaPage() {
   const { usuario, cerrarSesion } = useAuth();
   const { t } = useIdioma();
@@ -67,6 +67,7 @@ export default function CuentaPage() {
       <ul className="cu-menu">
         <Opcion a={RUTAS.datos} Icono={IconUsuario} titulo={t('cuenta.menu.datos')} />
         <Opcion a={RUTAS.cambiarClave} Icono={IconCandado} titulo={t('cuenta.menu.cambiarClave')} />
+        <Opcion a={RUTAS.seguridad} Icono={IconEscudo} titulo={t('cuenta.menu.seguridad')} />
         <Opcion a={RUTAS.correo} Icono={IconCorreo} titulo={t('cuenta.menu.cambiarCorreo')} />
       </ul>
 
