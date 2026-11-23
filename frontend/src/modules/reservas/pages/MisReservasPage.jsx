@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/modules/auth';
+import { rutaNuevaResena } from '@/modules/cuenta';
 import { useIdioma } from '@/modules/region';
 import { BotonEmergencia, Campana, resumenReservas } from '@/modules/seguimiento';
 import {
@@ -277,6 +278,12 @@ export default function MisReservasPage() {
                 </div>
               )}
               {pago && <p className="rs-texto">{textoPago(t, pago, esCuidador, r.moneda.trim())}</p>}
+              {/* HU-33: el viajero califica (o ve su reseña) cuando el servicio terminó. La pantalla es del módulo cuenta. */}
+              {r.estado === 'completada' && !esCuidador && (
+                <div className="rs-seguimiento">
+                  <Link className="rs-boton-seguimiento" to={rutaNuevaResena(r.id)}>{t('reservas.calificar')}</Link>
+                </div>
+              )}
               {r.estado === 'confirmada' && !esCuidador && cancelando?.id !== r.id && (
                 <div className="rs-acciones">
                   {!pago && (

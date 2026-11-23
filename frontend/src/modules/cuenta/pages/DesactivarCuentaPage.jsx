@@ -114,7 +114,9 @@ export default function DesactivarCuentaPage() {
                   {pendiente ? <IconAlerta /> : <IconCheck />}
                   <span>
                     {textos ? t(pendiente ? textos.pendiente(v.cantidad) : textos.ok, { n: v.cantidad }) : v.codigo}
-                    {v.detalle && <small>{traducirMensajeServidor(v.detalle)}</small>}
+                    {/* El texto de arriba ya dice cuántos hay; el detalle del servidor solo se muestra si esa
+                        verificación no tiene texto propio (si no, la misma frase salía dos veces). */}
+                    {!textos && v.detalle && <small>{traducirMensajeServidor(v.detalle)}</small>}
                   </span>
                 </li>
               );
